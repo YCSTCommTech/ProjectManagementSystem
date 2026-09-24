@@ -483,6 +483,8 @@ input,textarea,select{max-width:100%;box-sizing:border-box}
 .hello h2.dup{display:none}
 .hello.slim{margin-top:6px}
 #pageTitle .helpdot{margin-left:8px;vertical-align:middle}
+.empty.crash{border-color:var(--danger);text-align:left}
+.empty.crash code{display:block;margin-top:8px;font-size:12px;white-space:pre-wrap;color:var(--danger)}
 
 </style>
 </head>
@@ -533,9 +535,9 @@ input,textarea,select{max-width:100%;box-sizing:border-box}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.0/dist/umd/supabase.js"></script>
 <script>
 /* ===== SETUP: paste your Supabase project values here ===== */
-const SUPABASE_URL = 'https://fnlpksxlmohuagkbkabr.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_mkIWpBjrxB9StB9d6opjmQ_O3eWA2Yz';
-const TEACHER_PIN = '2468';   /* change this before sharing the link */
+const SUPABASE_URL = 'PASTE_YOUR_PROJECT_URL';      /* like https://abcd1234.supabase.co  (nothing after .co) */
+const SUPABASE_ANON_KEY = 'PASTE_YOUR_ANON_KEY';
+const TEACHER_PIN = '2468';                           /* change this before sharing the link */
 /* ========================================================== */
 
 /* ---------- Dates ---------- */
@@ -588,9 +590,9 @@ const APPEND = new Set(['thread','history','readBy','replies','plus','responses'
 const rid = p => p + Math.random().toString(36).slice(2,9) + Date.now().toString(36).slice(-4);
 const HELP_TYPES = {help:'Help with something',equipment:'Equipment',approval:'Approval',other:'Something else'};
 const WEEKLY_Q = {
-  q1:'What specific task on your major project will you work on this week and what will you have to show for it by Friday?',
-  q2:'What minor project or micro experiment are you planning to engage with this week?',
-  q3:'What do you need from Mr. P this week — feedback, equipment, approval, help with something?',
+  q1:'What are you going to work on this week? (Any project, assignment, or skill you’re building.)',
+  q2:'What do you want to have done or be able to show by the end of the week?',
+  q3:'What do you need from Mr. P this week — feedback, equipment, approval, a lesson, help with something?',
   q4:'Are you on track with your Monday plan? If yes, what progress have you made? If no, what got in the way?',
   q5:'Has anything come up this week — in class or outside of it — that is affecting your work?',
   q6:'What did you actually complete or move forward this week? Be specific — name the file, the scene, the design, the shot.',
@@ -760,11 +762,28 @@ function persist(){
     for(const id of [...sh.keys()]) if(!seen.has(id)){ send(sb.from(t).delete().eq('id',id)); sh.delete(id); }
   }
 }
+/* Fill in missing fields so old (v1) rows or half-saved rows can never crash a screen */
+function normalize(t,o){
+  if(!o || typeof o!=='object') return o;
+  const arr=(k)=>{ if(!Array.isArray(o[k])) o[k]=[]; }, obj=(k)=>{ if(!o[k] || typeof o[k]!=='object' || Array.isArray(o[k])) o[k]={}; };
+  if(t==='projects'){ if(!o.roles || typeof o.roles!=='object'){ const r={}; (Array.isArray(o.members)?o.members:[]).forEach(m=>r[m]=m===o.owner?'admin':'editor'); if(o.owner) r[o.owner]='admin'; o.roles=r; }
+    delete o.members; if(o.private===undefined || o.private===null) o.private=false; arr('thread'); arr('files'); if(!o.color) o.color=GCOLORS[0]; if(!o.name) o.name='Untitled project'; }
+  if(t==='items'){ arr('assignees'); arr('files'); arr('thread'); arr('history'); if(!o.status) o.status='not'; if(!o.title) o.title='Untitled';
+    if(o.link && !o.files.length) o.files=[{id:'f'+o.id,label:'Submission',versions:[{v:1,url:o.link,by:o.assignees[0]||'t',at:'',ts:0,note:''}]}]; delete o.link; }
+  if(t==='assignments'){ if(!o.audience) o.audience={all:true}; }
+  if(t==='notifs'){ arr('readBy'); }
+  if(t==='asks'){ arr('replies'); arr('plus'); if(o.open===undefined||o.open===null) o.open=true; if(o.to==null) o.to=['t']; }
+  if(t==='lessons'){ arr('signups'); if(!o.seats) o.seats=1; }
+  if(t==='polls'){ arr('responses'); arr('options'); }
+  if(t==='checkins'){ arr('active'); obj('blocks'); arr('custom'); if(o.line==null) o.line=''; }
+  if(t==='weeks'){ obj('answers'); obj('stages'); }
+  return o;
+}
 async function loadAll(){
   for(const t of TABLES){
     const {data,error} = await sb.from(t).select('id,data').limit(10000);
     if(error) throw error;
-    S[t] = data.map(r=>r.data);
+    S[t] = data.map(r=>normalize(t,r.data));
     shadow[t] = new Map(data.map(r=>[r.id,JSON.stringify(r.data)]));
   }
 }
@@ -774,7 +793,7 @@ function applyRemote(t,p){
     const id = p.old && p.old.id; const ix = arr.findIndex(o=>o.id===id);
     if(ix>=0) arr.splice(ix,1); shadow[t].delete(id);
   } else {
-    const o = p.new && p.new.data; if(!o) return;
+    const o = normalize(t, p.new && p.new.data); if(!o) return;
     const ix = arr.findIndex(x=>x.id===o.id);
     if(ix>=0) arr[ix]=o; else arr.push(o);
     shadow[t].set(o.id,JSON.stringify(o));
@@ -821,7 +840,7 @@ function showGate(msg){
 }
 function becomes(pid){
   if(pid==='t' && S.viewer!=='t'){ const pin=prompt('Teacher PIN'); if(pin!==TEACHER_PIN){ toast('Wrong PIN'); return false; } }
-  S.viewer=pid; saveLocal(); $('#gate').hidden=true; closeMenu(); closeModal();
+  S.viewer=pid; saveLocal(); $('#gate').hidden=true; closeMenu(); closeModal(); closeCheckin();
   Object.assign(UI,{page:'home',scope:'all',major:'',student:'',project:'',wkStudent:'',wkStart:null}); closePanel(); render(); maybeCheckin(); return true;
 }
 async function boot(){
@@ -912,8 +931,8 @@ function notifVisible(n,v){
   if(n.to!=='all') return false;
   if(PEOPLE[v].role==='teacher') return true;
   const i=n.itemId&&item(n.itemId); if(!i) return true;
-  if(i.assignees.includes(v)) return true;
-  const p=i.projectId&&proj(i.projectId); return !!p && (!!p.roles[v] || !p.private);
+  if((i.assignees||[]).includes(v)) return true;
+  const p=i.projectId&&proj(i.projectId); return !!p && (!!(p.roles||{})[v] || !p.private);
 }
 function notifsFor(v){ return S.notifs.filter(n=>notifVisible(n,v)).sort((a,b)=>tsOf(b)-tsOf(a)).slice(0,60); }
 const unread = v => notifsFor(v).filter(n=>!n.readBy.includes(v)).length;
@@ -1635,11 +1654,11 @@ function drawCheckin(){
       <div class="mfoot"><button class="btn primary" data-cisave>Check in</button></div></div>`;
   } else {
     const w=weekDoc(v,ws)||{answers:{}}; const prev=weekDoc(v,addDays(ws,-7));
-    const myTasks=S.items.filter(i=>i.source==='task' && !i.parentId && i.assignees.includes(v) && !complete(i));
+    const myTasks=todayOptions(v).filter(([k])=>{ const i=k.startsWith('i:')&&item(k.slice(2)); return !(i && i.assignmentId && asn(i.assignmentId)?.weekly); });
     el.innerHTML=`<div class="modalbox cibox"><div class="mhead"><h2>${parseISO(t).getDay()===1?'Monday game plan':'Your game plan for this week'}</h2>${CI.required?'':'<button class="x" data-cicancel>×</button>'}</div>
       <p class="hint">${parseISO(t).getDay()===1?'Three questions to set up your week.':'You missed Monday, so let’s set up your week now.'}</p>
       ${prev&&prev.answers&&prev.answers.q10?`<div class="note">Last Friday you said your first priority would be: “${esc(prev.answers.q10)}”</div>`:''}
-      <label class="wq"><span>1. ${esc(WEEKLY_Q.q1)}</span>${myTasks.length?`<div class="checks">${myTasks.map(i=>`<button class="chip small ${CI.focus.has(i.id)?'on':''}" data-cifocus="${i.id}">${esc(i.title)}</button>`).join('')}</div>`:''}<textarea id="ciq1" rows="2">${esc(w.answers.q1||'')}</textarea></label>
+      <label class="wq"><span>1. ${esc(WEEKLY_Q.q1)}</span>${myTasks.length?`<div class="hint">Tap to add, then say a little about each.</div><div class="checks">${myTasks.map(([k,l])=>`<button class="chip small ${CI.focus.has(k)?'on':''}" data-cifocus="${k}">${esc(l)}</button>`).join('')}</div>`:''}<textarea id="ciq1" rows="2">${esc(w.answers.q1||'')}</textarea></label>
       <label class="wq"><span>2. ${esc(WEEKLY_Q.q2)}</span><textarea id="ciq2" rows="2">${esc(w.answers.q2||'')}</textarea></label>
       <label class="wq"><span>3. ${esc(WEEKLY_Q.q3)}</span><textarea id="ciq3" rows="2">${esc(w.answers.q3||'')}</textarea></label>
       <label class="toggle"><input type="checkbox" id="ciq3ask"> Also send my answer to #3 to Mr. P as an Ask</label>
@@ -1665,13 +1684,19 @@ function pageHTML(){
   }
   return '';
 }
+function showCrash(where,e){
+  console.error(where,e);
+  const B=$('#board'); if(!B) return;
+  B.innerHTML=`<div class="empty crash"><b>Something broke while drawing this screen.</b><br>Take a screenshot of this box and send it to Mr. P.<br><code>${esc(where)}: ${esc(e&&e.message||String(e))}</code>${isTeacher()?'<br><br>If you upgraded from the first version, click <b>Load fresh demo data</b> in the sidebar.':''}</div>`;
+}
 function render(){
   if(!S.viewer) return;
-  renderSide(); renderHead();
+  try{ renderSide(); }catch(e){ showCrash('sidebar',e); }
+  try{ renderHead(); }catch(e){ showCrash('header',e); return; }
   const B=$('#board');
-  preserve(B, ()=>{ B.innerHTML = pageHTML(); });
+  try{ preserve(B, ()=>{ B.innerHTML = pageHTML(); }); }catch(e){ showCrash(UI.page,e); }
   const h2=B.querySelector('.hello h2'); if(h2 && h2.textContent.trim()===$('#pageTitle').textContent.trim()){ h2.classList.add('dup'); const hl=h2.parentNode; hl.querySelectorAll(':scope > .helpdot').forEach(x=>$('#pageTitle').append(' ',x)); if(![...hl.children].some(x=>!x.classList.contains('dup') && !x.classList.contains('grow'))) hl.style.display='none'; else hl.classList.add('slim'); }
-  if(UI.panel) renderPanel();
+  try{ if(UI.panel) renderPanel(); }catch(e){ console.error(e); closePanel(); toast('That item couldn’t open: '+(e.message||e)); }
   save();
 }
 function renderSide(){
@@ -1846,7 +1871,7 @@ document.addEventListener('click',e=>{
   if(d.cicancel!==undefined){ closeCheckin(); return; }
   if(d.ciact){ CI.active.has(d.ciact)?CI.active.delete(d.ciact):CI.active.add(d.ciact); const l=$('#ciLine').value; drawCheckin(); $('#ciLine').value=l; return; }
   if(d.cifocus){ CI.focus.has(d.cifocus)?CI.focus.delete(d.cifocus):CI.focus.add(d.cifocus); const vals=['ciq1','ciq2','ciq3'].map(x=>$('#'+x).value); const chk=$('#ciq3ask').checked;
-    if(CI.focus.has(d.cifocus)){ const it=item(d.cifocus); if(it && !vals[0].includes(it.title)) vals[0]=(vals[0]?vals[0]+' ':'')+it.title+': '; }
+    if(CI.focus.has(d.cifocus)){ const lab=activeLabel(d.cifocus).replace(/^Assignment: /,''); if(!vals[0].includes(lab)) vals[0]=(vals[0]?vals[0].replace(/\s*$/,'')+'\n':'')+lab+' — '; }
     drawCheckin(); ['ciq1','ciq2','ciq3'].forEach((x,k)=>$('#'+x).value=vals[k]); $('#ciq3ask').checked=chk; $('#ciq1').focus(); return; }
   if(d.cisave!==undefined){ const line=$('#ciLine').value.trim(); if(!line){ $('#ciLine').focus(); toast('Write one line about today'); return; }
     const c=ensureCheckin(S.viewer,todayISO()); c.active=[...CI.active]; c.line=line; c.absent=false; Object.assign(c,nowStamp());
