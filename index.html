@@ -485,6 +485,7 @@ input,textarea,select{max-width:100%;box-sizing:border-box}
 #pageTitle .helpdot{margin-left:8px;vertical-align:middle}
 .empty.crash{border-color:var(--danger);text-align:left}
 .empty.crash code{display:block;margin-top:8px;font-size:12px;white-space:pre-wrap;color:var(--danger)}
+.who.again{width:100%;margin:4px 0 14px;border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
 
 </style>
 </head>
@@ -535,8 +536,8 @@ input,textarea,select{max-width:100%;box-sizing:border-box}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.0/dist/umd/supabase.js"></script>
 <script>
 /* ===== SETUP: paste your Supabase project values here ===== */
-const SUPABASE_URL = 'https://fnlpksxlmohuagkbkabr.supabase.co';      /* like https://abcd1234.supabase.co  (nothing after .co) */
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZubHBrc3hsbW9odWFna2JrYWJyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAxNDYyOTAsImV4cCI6MjEwNTcyMjI5MH0.d6u6q4-BwhmAjLbnX10lztSLKqgXt73-ku-IkC684LM';
+const SUPABASE_URL = 'PASTE_YOUR_PROJECT_URL';      /* like https://abcd1234.supabase.co  (nothing after .co) */
+const SUPABASE_ANON_KEY = 'PASTE_YOUR_ANON_KEY';
 const TEACHER_PIN = '2468';                           /* change this before sharing the link */
 /* ========================================================== */
 
@@ -728,10 +729,11 @@ function seed(){
 
 /* ---------- State ---------- */
 let S = {viewer:null, prefs:{timeline:'split',panelW:560}}; TABLES.forEach(t=>S[t]=[]);
-try{ const L=JSON.parse(localStorage.getItem(LOCAL_KEY)||'{}'); if(L.viewer && PEOPLE[L.viewer]) S.viewer=L.viewer; if(L.prefs) S.prefs={...S.prefs,...L.prefs}; }catch(e){}
+let LAST_VIEWER = null, teacherOk = false;
+try{ const L=JSON.parse(localStorage.getItem(LOCAL_KEY)||'{}'); if(L.viewer && PEOPLE[L.viewer]) LAST_VIEWER=L.viewer; if(L.prefs) S.prefs={...S.prefs,...L.prefs}; }catch(e){}
 const UI = {page:'home',view:'table',groupBy:'project',scope:'all',major:'',student:'',overdue:false,q:'',project:'',collapsed:new Set(),openSubs:new Set(),panel:null,
   sec:{}, helpQ:'', helpOpen:null, wkStudent:'', wkStart:null, homeGrade:'', lastThread:{}, askForm:false, wide:false};
-function saveLocal(){ try{ localStorage.setItem(LOCAL_KEY, JSON.stringify({viewer:S.viewer,prefs:S.prefs})); }catch(e){} }
+function saveLocal(){ try{ localStorage.setItem(LOCAL_KEY, JSON.stringify({viewer:S.viewer||LAST_VIEWER,prefs:S.prefs})); }catch(e){} }
 function save(){ saveLocal(); persist(); }
 const nid = ()=> rid('i');
 
@@ -833,14 +835,15 @@ function showGate(msg){
   if(msg){ g.innerHTML=`<div class="gatebox"><h2>Almost ready</h2><p>${msg}</p></div>`; return; }
   const btn = p => `<button class="who" data-me="${p.id}">${av(p.id)}<span><b>${esc(p.name)}</b><small>${p.role==='teacher'?'Teacher':gradLabel(p.grad)+', '+esc(p.major)}</small></span></button>`;
   g.innerHTML = `<div class="gatebox"><div class="brand big"><span class="brand-mark"><i style="background:#EE9E2F"></i><i style="background:#1FA466"></i><i style="background:#4776E6"></i><i style="background:#DE4450"></i></span>JARVIS</div>
-    <h2>Who are you today?</h2><p>Pick the character Mr. P gave you. Everything you do is shared live with the class. Character names only — no real names or personal info.</p>
+    <h2>Who are you today?</h2>
+    ${LAST_VIEWER?`<button class="who again" data-me="${LAST_VIEWER}">${av(LAST_VIEWER)}<span><b>Continue as ${esc(PEOPLE[LAST_VIEWER].name)}</b><small>Last time on this device</small></span></button>`:''}<p>Pick the character Mr. P gave you. Everything you do is shared live with the class. Character names only — no real names or personal info.</p>
     <h3>Seniors</h3><div class="whogrid">${SENIORS.map(btn).join('')}</div>
     <h3>Juniors</h3><div class="whogrid">${JUNIORS.map(btn).join('')}</div>
     <h3>Teacher</h3><div class="whogrid">${btn(PEOPLE.t)}</div></div>`;
 }
 function becomes(pid){
-  if(pid==='t' && S.viewer!=='t'){ const pin=prompt('Teacher PIN'); if(pin!==TEACHER_PIN){ toast('Wrong PIN'); return false; } }
-  S.viewer=pid; saveLocal(); $('#gate').hidden=true; closeMenu(); closeModal(); closeCheckin();
+  if(pid==='t' && !teacherOk){ const pin=prompt('Teacher PIN'); if(pin!==TEACHER_PIN){ toast('Wrong PIN'); return false; } teacherOk=true; }
+  S.viewer=pid; LAST_VIEWER=pid; saveLocal(); $('#gate').hidden=true; closeMenu(); closeModal(); closeCheckin();
   Object.assign(UI,{page:'home',scope:'all',major:'',student:'',project:'',wkStudent:'',wkStart:null}); closePanel(); render(); maybeCheckin(); return true;
 }
 async function boot(){
@@ -850,7 +853,7 @@ async function boot(){
   sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   try{ await loadAll(); }catch(e){ console.error(e); showGate('Couldn’t reach the database: <b>'+esc(e.message||String(e))+'</b>. If it mentions a missing table, run the new setup SQL (v2).'); return; }
   ready = true; subscribe();
-  if(!S.viewer) showGate(); else { render(); maybeCheckin(); }
+  showGate();
 }
 
 /* ---------- Helpers ---------- */
