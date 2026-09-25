@@ -550,6 +550,21 @@ input,textarea,select{max-width:100%;box-sizing:border-box}
 .combine select{border:1px solid var(--line);background:var(--surface-2);border-radius:7px;padding:7px 9px}
 .combine label.opt{display:flex;gap:8px;align-items:flex-start;font-size:14px}
 #prText{border:1px solid var(--line);background:var(--surface-2);border-radius:8px;padding:8px 10px;font-size:16px}
+.vertag{font-size:11px;color:var(--ink-3);padding:6px 6px 0}
+.filters{position:relative}
+.fwrap{display:flex;align-items:center;gap:8px;flex-wrap:wrap;position:relative;width:100%}
+.fwrap #fSearch{flex:1;max-width:320px}
+.fbtn{display:inline-flex;align-items:center;gap:6px}
+.fbtn.active{border-color:var(--accent);color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.fbadge{background:var(--accent);color:var(--accent-ink);border-radius:999px;font-size:11px;font-weight:700;padding:0 7px;margin-left:2px}
+.fpanel{position:absolute;top:calc(100% + 6px);left:0;z-index:25;width:min(340px,calc(100vw - 32px));background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:12px 14px;display:flex;flex-direction:column;gap:12px}
+.fsec{display:flex;flex-direction:column;gap:6px}
+.fh{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3)}
+.fopt{display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer}
+.fpanel select{border:1px solid var(--line);background:var(--surface-2);border-radius:7px;padding:6px 8px}
+.fpfoot{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--line);padding-top:10px}
+.fbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--accent-soft);border-radius:8px;padding:7px 12px;font-size:13px;width:100%}
+.fbar .linkbtn{margin-left:auto;font-weight:700}
 
 </style>
 </head>
@@ -569,7 +584,11 @@ input,textarea,select{max-width:100%;box-sizing:border-box}
       <button class="linkbtn" id="btnSwitch">Switch character</button>
       <button class="linkbtn" id="btnTheme">Light / dark</button>
       <button class="linkbtn" id="btnReset">Load fresh demo data</button>
+      <button class="linkbtn" id="btnBackup">Download backup</button>
+      <button class="linkbtn" id="btnRestore">Restore from backup</button>
+      <input type="file" id="restoreFile" accept="application/json,.json" hidden>
       <button class="linkbtn" id="btnClear">Clear the whole board</button>
+      <span class="vertag" id="verTag"></span>
     </div>
   </aside>
   <main class="main" id="main">
@@ -598,13 +617,16 @@ input,textarea,select{max-width:100%;box-sizing:border-box}
 <div class="modal" id="modal" hidden></div>
 <div class="modal checkin" id="checkin" hidden></div>
 <div class="gate" id="gate" hidden></div>
+<script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.0/dist/umd/supabase.js"></script>
 <script>
-/* ===== SETUP: paste your Supabase project values here ===== */
-const SUPABASE_URL = 'https://fnlpksxlmohuagkbkabr.supabase.co';      /* like https://abcd1234.supabase.co  (nothing after .co) */
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZubHBrc3hsbW9odWFna2JrYWJyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAxNDYyOTAsImV4cCI6MjEwNTcyMjI5MH0.d6u6q4-BwhmAjLbnX10lztSLKqgXt73-ku-IkC684LM';
-const TEACHER_PIN = '2468';                           /* change this before sharing the link */
-/* ========================================================== */
+/* Settings live in config.js (uploaded once, next to this file). Nothing to paste here. */
+const CFG = window.JARVIS_CONFIG || {};
+const SUPABASE_URL = CFG.url || 'PASTE_YOUR_PROJECT_URL';
+const SUPABASE_ANON_KEY = CFG.anonKey || 'PASTE_YOUR_ANON_KEY';
+const TEACHER_PIN = String(CFG.teacherPin || '2468');
+const APP_VERSION = '2.6';
+const APP_DATE = 'Sep 25, 2026';
 
 /* ---------- Dates ---------- */
 const localISO = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -796,7 +818,7 @@ function seed(){
 let S = {viewer:null, prefs:{timeline:'split',panelW:560}}; TABLES.forEach(t=>S[t]=[]);
 let LAST_VIEWER = null, teacherOk = false;
 try{ const L=JSON.parse(localStorage.getItem(LOCAL_KEY)||'{}'); if(L.viewer && PEOPLE[L.viewer]) LAST_VIEWER=L.viewer; if(L.prefs) S.prefs={...S.prefs,...L.prefs}; }catch(e){}
-const UI = {page:'home',view:'table',groupBy:'project',scope:'all',major:'',student:'',overdue:false,q:'',project:'',collapsed:new Set(),openSubs:new Set(),panel:null,
+const UI = {page:'home',view:'table',groupBy:'project',scope:'all',major:'',student:'',overdue:false,dueWeek:false,status:'',filterOpen:false,q:'',project:'',collapsed:new Set(),openSubs:new Set(),panel:null,
   sec:{}, flip:new Set(), helpQ:'', helpOpen:null, wkStudent:'', wkStart:null, homeGrade:'', lastThread:{}, askForm:false, wide:false};
 function saveLocal(){ try{ localStorage.setItem(LOCAL_KEY, JSON.stringify({viewer:S.viewer||LAST_VIEWER,prefs:S.prefs})); }catch(e){} }
 function save(){ saveLocal(); persist(); }
@@ -899,7 +921,7 @@ function showGate(msg){
   const g=$('#gate'); g.hidden=false;
   if(msg){ g.innerHTML=`<div class="gatebox"><h2>Almost ready</h2><p>${msg}</p></div>`; return; }
   updateAvatarStyles();
-  const btn = p => `<button class="who" data-me="${p.id}">${av(p.id)}<span><b>${esc(p.name)}</b><small>${profile(p.id).nick?'“'+esc(profile(p.id).nick)+'” · ':''}${p.role==='teacher'?'Teacher':gradLabel(p.grad)+', '+esc(p.major)}</small></span></button>`;
+  const btn = p => `<button class="who" data-me="${p.id}">${av(p.id)}<span><b>${esc(p.name)}</b><small>${p.role==='teacher'?'Teacher':gradLabel(p.grad)+', '+esc(p.major)}</small></span></button>`;
   g.innerHTML = `<div class="gatebox"><div class="brand big"><span class="brand-mark"><i style="background:#00954C"></i><i style="background:#FFFFFF"></i><i style="background:#807F83"></i><i style="background:#7CC9A0"></i></span>JARVIS</div>
     <h2>Who are you today?</h2>
     ${LAST_VIEWER?`<button class="who again" data-me="${LAST_VIEWER}">${av(LAST_VIEWER)}<span><b>Continue as ${esc(PEOPLE[LAST_VIEWER].name)}</b><small>Last time on this device</small></span></button>`:''}<p>Pick the character Mr. P gave you. Everything you do is shared live with the class. Character names only — no real names or personal info.</p>
@@ -910,17 +932,43 @@ function showGate(msg){
 function becomes(pid){
   if(pid==='t' && !teacherOk){ const pin=prompt('Teacher PIN'); if(pin!==TEACHER_PIN){ toast('Wrong PIN'); return false; } teacherOk=true; }
   S.viewer=pid; LAST_VIEWER=pid; saveLocal(); $('#gate').hidden=true; closeMenu(); closeModal(); closeCheckin();
-  Object.assign(UI,{page:'home',scope:'all',major:'',student:'',project:'',wkStudent:'',wkStart:null}); closePanel(); ensureWeeklyReport(); render(); maybeCheckin(); return true;
+  resetFilters(); Object.assign(UI,{page:'home',project:'',wkStudent:'',wkStart:null}); closePanel(); ensureWeeklyReport(); render(); maybeCheckin(); return true;
 }
 async function boot(){
   if(!window.supabase || SUPABASE_URL.startsWith('PASTE') || SUPABASE_ANON_KEY.startsWith('PASTE')){
-    showGate('This board isn’t connected to its database yet. Paste the Supabase URL and anon key into the setup lines at the top of the script.'); return; }
-  if(/\/rest\/v1/.test(SUPABASE_URL)){ showGate('The Supabase URL should end at <b>.supabase.co</b>. Remove the <b>/rest/v1</b> part from the setup line.'); return; }
+    showGate('This board can’t find its settings. Make sure <b>config.js</b> is uploaded to the same GitHub folder as <b>index.html</b>, then refresh.'); return; }
+  if(/\/rest\/v1/.test(SUPABASE_URL)){ showGate('The Supabase URL in <b>config.js</b> should end at <b>.supabase.co</b>. Remove the <b>/rest/v1</b> part.'); return; }
   sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   try{ await loadAll(); }catch(e){ console.error(e); showGate('Couldn’t reach the database: <b>'+esc(e.message||String(e))+'</b>. If it mentions a missing table, run the new setup SQL (v2).'); return; }
   ready = true; subscribe();
   if(ensureWeeklyReport()) persist();
   showGate();
+}
+
+/* ---------- Backup + restore (teacher) ---------- */
+function downloadBackup(){
+  const data={app:'JARVIS',version:APP_VERSION,exportedAt:new Date().toISOString(),tables:{}};
+  TABLES.forEach(t=>data.tables[t]=S[t]);
+  const blob=new Blob([JSON.stringify(data)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`jarvis-backup-${todayISO()}.json`;
+  document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },500);
+  const n=TABLES.reduce((k,t)=>k+S[t].length,0); toast(`Backup downloaded (${n} records)`);
+}
+async function restoreBackup(file){
+  let data; try{ data=JSON.parse(await file.text()); }catch(e){ toast('That file isn’t a JARVIS backup'); return; }
+  if(!data || data.app!=='JARVIS' || !data.tables){ toast('That file isn’t a JARVIS backup'); return; }
+  const when=data.exportedAt?new Date(data.exportedAt).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'an unknown date';
+  if(!confirm(`Replace EVERYTHING on the board with the backup from ${when}? All changes since then will be erased.`)) return;
+  if(prompt('Type RESTORE to confirm')!=='RESTORE'){ toast('Restore canceled'); return; }
+  try{
+    await wipeAll();
+    for(const t of TABLES){
+      const rows=(data.tables[t]||[]).filter(o=>o&&o.id).map(o=>normalize(t,o));
+      for(let k=0;k<rows.length;k+=400){ const {error}=await sb.from(t).upsert(rows.slice(k,k+400).map(o=>({id:o.id,data:o}))); if(error) throw error; }
+      S[t]=rows; shadow[t]=new Map(rows.map(o=>[o.id,JSON.stringify(o)]));
+    }
+    closePanel(); render(); toast('Backup restored');
+  }catch(e){ console.error(e); toast('Restore failed: '+(e.message||e)+'. Try again, or restore an older backup.'); }
 }
 
 /* ---------- Helpers ---------- */
@@ -933,11 +981,10 @@ const isTeacher = ()=> !!S.viewer && me().role==='teacher';
 const profile = id => S.settings.find(x=>x.id==='profile_'+id) || {};
 function ensureProfile(id){ let p=S.settings.find(x=>x.id==='profile_'+id); if(!p){ p={id:'profile_'+id}; S.settings.push(p); } return p; }
 const realName = id => PEOPLE[id]?.name || 'Someone';
-const showingNick = id => !!profile(id).nick && !UI.flip.has(id);
-const pname = id => !PEOPLE[id] ? 'Someone' : showingNick(id) ? profile(id).nick : realName(id);
-const first = id => showingNick(id) ? profile(id).nick : id==='t' ? 'Mr. P' : pname(id).split(' ')[0];
-const nameTip = id => { const n=profile(id).nick; return n ? `${realName(id)} · nickname “${n}” · click to switch` : realName(id); };
-const nameTag = (id,short) => `<span class="pn" data-flip="${id}" title="${esc(nameTip(id))}">${esc(short?first(id):pname(id))}</span>`;
+const pname = id => realName(id);
+const first = id => id==='t' ? 'Mr. P' : realName(id).split(' ')[0];
+const nameTip = id => realName(id);
+const nameTag = (id,short) => esc(short?first(id):pname(id));
 const AV_COLORS = ['#00954C','#095641','#807F83','#1F8A8A','#3F7FD9','#2F62C4','#7A5BD6','#9C3F8E','#C2519E','#C0392B','#D9772B','#B8862B','#6B8E23','#2E8B57','#1B2230','#8C6A1F'];
 const AV_SHAPES = [['circle','Circle'],['square','Square'],['hex','Hexagon'],['diamond','Diamond'],['shield','Shield']];
 let avStyleSig='';
@@ -960,7 +1007,7 @@ const complete = i => i.status==='done'||i.status==='sub';
 const isOverdue = i => !!i.due && new Date(i.due+'T23:59:00') < new Date() && !complete(i);
 function avLabel(pid){ const pr=profile(pid); if(pr.mode==='text' && pr.text) return pr.text; return initials(pname(pid)); }
 function av(pid,cls=''){ const p=PEOPLE[pid]; if(!p) return ''; const pr=profile(pid);
-  return `<span class="av sh-${pr.shape||'circle'} ${pr.img?'avimg-'+pid:''} ${cls}" style="background-color:${pr.color||p.color}" title="${esc(nameTip(pid).replace(' · click to switch',''))}">${esc(avLabel(pid))}</span>`; }
+  return `<span class="av sh-${pr.shape||'circle'} ${pr.img?'avimg-'+pid:''} ${cls}" style="background-color:${pr.color||p.color}" title="${esc(realName(pid))}">${esc(avLabel(pid))}</span>`; }
 function avatars(ids,max=3){ ids=ids||[]; return `<span class="avatars">${ids.slice(0,max).map(x=>av(x)).join('')}${ids.length>max?`<span class="av" style="background:var(--ink-3)">+${ids.length-max}</span>`:''}</span>`; }
 function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove('show'),2400); }
 function tsOf(e){ return e.ts || 0; }
@@ -1134,10 +1181,23 @@ function visibleTop(){
   if(UI.major) list = list.filter(i=> i.assignees.some(a=>PEOPLE[a]?.major===UI.major) || (i.projectId && proj(i.projectId)?.major===UI.major));
   if(UI.student) list = list.filter(i=> i.assignees.includes(UI.student) || (i.projectId && (proj(i.projectId)?.roles||{})[UI.student]));
   if(UI.overdue) list = list.filter(i=> isOverdue(i) || subsOf(i.id).some(isOverdue));
+  if(UI.dueWeek){ const ws=weekStartOf(todayISO()), we=addDays(ws,6); list = list.filter(i=> !complete(i) && i.due && i.due>=ws && i.due<=we); }
+  if(UI.status) list = list.filter(i=> i.status===UI.status);
   if(UI.q){ const q=UI.q.toLowerCase(); list = list.filter(i=> i.title.toLowerCase().includes(q) || (i.projectId && (proj(i.projectId)?.name||'').toLowerCase().includes(q)) || i.assignees.some(a=>pname(a).toLowerCase().includes(q))); }
   return list.sort((a,b)=>(a.due||'9999').localeCompare(b.due||'9999'));
 }
-const filtersActive = ()=> (UI.scope!=='all'&&UI.scope!=='wholeclass')||UI.major||UI.student||UI.overdue||UI.q;
+const filtersActive = ()=> (UI.scope!=='all'&&UI.scope!=='wholeclass')||UI.major||UI.student||UI.overdue||UI.dueWeek||UI.status||UI.q;
+const SHOW_OPTS = () => isTeacher()
+  ? [['all','Everyone'],['review','Needs my review'],['class','Class assignments'],['g2027','Seniors'],['g2028','Juniors']]
+  : [['all','My work'],['mine','Only my items'],['class','Class assignments'],['changes','Returned to me'],['wholeclass','Whole class (public projects)']];
+function activeFilters(){
+  const a=[], so=SHOW_OPTS().find(x=>x[0]===UI.scope);
+  if(UI.scope!=='all' && so) a.push(so[1].replace(' (public projects)',''));
+  if(UI.major) a.push(UI.major+' majors'); if(UI.student) a.push(pname(UI.student));
+  if(UI.status) a.push(stat(UI.status).label); if(UI.overdue) a.push('Overdue'); if(UI.dueWeek) a.push('Due this week');
+  return a;
+}
+function resetFilters(){ Object.assign(UI,{scope:'all',major:'',student:'',overdue:false,dueWeek:false,status:'',q:'',groupBy:'project',filterOpen:false}); }
 function buildGroups(list){
   const g = [];
   if(UI.groupBy==='project'){
@@ -1260,19 +1320,26 @@ function renderKanban(list){
   }).join('')}</div>`;
 }
 function renderBoardFilters(){
-  const chip = (k,l) => `<button class="chip ${UI.scope===k?'on':''}" data-scope="${k}">${l}</button>`;
-  let h = chip('all','Everything');
-  if(isTeacher()){
-    h += chip('review','Needs my review') + chip('class','Class assignments') + chip('g2027','Seniors') + chip('g2028','Juniors');
-    h += `<span class="sep"></span><select id="fMajor" aria-label="Major"><option value="">All majors</option>${MAJORS.map(m=>`<option ${UI.major===m?'selected':''}>${m}</option>`).join('')}</select>`;
-    h += `<select id="fStudent" aria-label="Student"><option value="">All students</option>${STUDENTS.map(s=>`<option value="${s.id}" ${UI.student===s.id?'selected':''}>${esc(s.name)}</option>`).join('')}</select>`;
-  } else {
-    h += chip('mine','Assigned to me') + chip('changes','Needs changes') + chip('class','Class assignments') + chip('wholeclass','Whole class');
+  const act=activeFilters();
+  const icon='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18l-7 8v6l-4 2v-8z"/></svg>';
+  let h=`<div class="fwrap"><button class="btn fbtn ${act.length?'active':''}" id="btnFilter" aria-expanded="${UI.filterOpen?'true':'false'}">${icon} Filter${act.length?`<span class="fbadge">${act.length}</span>`:''}</button>
+    <input type="search" id="fSearch" placeholder="Search items or people" value="${esc(UI.q)}">${helpDot('board')}`;
+  if(UI.filterOpen){
+    h+=`<div class="fpanel" id="fpanel" role="dialog" aria-label="Filters">
+      <div class="fsec"><div class="fh">Show</div>${SHOW_OPTS().map(([k,l])=>`<label class="fopt"><input type="radio" name="fshow" data-fshow="${k}" ${UI.scope===k?'checked':''}> ${esc(l)}</label>`).join('')}</div>
+      <div class="fsec"><div class="fh">Narrow it down</div>
+        <label class="fopt"><input type="checkbox" id="fOverdue" ${UI.overdue?'checked':''}> Overdue</label>
+        <label class="fopt"><input type="checkbox" id="fDueWeek" ${UI.dueWeek?'checked':''}> Due this week</label>
+        <select id="fStatus" aria-label="Status"><option value="">Any status</option>${STATUSES.map(x=>`<option value="${x.id}" ${UI.status===x.id?'selected':''}>${x.label}</option>`).join('')}</select>
+        ${isTeacher()?`<select id="fMajor" aria-label="Major"><option value="">All majors</option>${MAJORS.map(m=>`<option ${UI.major===m?'selected':''}>${m}</option>`).join('')}</select>
+        <select id="fStudent" aria-label="Student"><option value="">All students</option>${STUDENTS.map(x=>`<option value="${x.id}" ${UI.student===x.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select>`:''}
+      </div>
+      <div class="fsec"><div class="fh">Group by</div>${UI.view==='table'?`<select id="fGroup">${[['project','Project'],['status','Status'],['due','Due date'],['person','Person']].map(([v,l])=>`<option value="${v}" ${UI.groupBy===v?'selected':''}>${l}</option>`).join('')}</select>`:'<div class="hint">Kanban groups by status. Switch to Table for other groupings.</div>'}</div>
+      <div class="fpfoot"><button class="linkbtn" data-clearfilters>Clear all</button><button class="btn tiny primary" data-closefilter>Done</button></div>
+    </div>`;
   }
-  h += `<label class="toggle"><input type="checkbox" id="fOverdue" ${UI.overdue?'checked':''}> Overdue only</label>`;
-  h += `<input type="search" id="fSearch" placeholder="Search items or people" value="${esc(UI.q)}">`;
-  if(UI.view==='table') h += `<label class="groupby">Group by <select id="fGroup">${[['project','Project'],['status','Status'],['due','Due date'],['person','Person']].map(([v,l])=>`<option value="${v}" ${UI.groupBy===v?'selected':''}>${l}</option>`).join('')}</select></label>`;
-  h += helpDot('board');
+  h+='</div>';
+  if(act.length) h+=`<div class="fbar">Showing: <b>${act.map(esc).join(' · ')}</b><button class="linkbtn" data-clearfilters>Clear ×</button></div>`;
   return h;
 }
 
@@ -1732,7 +1799,7 @@ const HELP = [
   {id:'start',title:'Getting started: the five places',tags:'nav navigation menu home board today week lessons asks',body:'<p><b>Home</b> is your daily briefing: what’s due, what needs changes, who’s waiting on you. <b>Board</b> has every project and assignment. <b>Today</b> is your schedule. <b>My week</b> holds your weekly report. <b>Lessons</b> shows lessons and polls.</p><p>Two buttons follow you everywhere: <b>Ask</b> (top right) and <b>+ New project</b> on the board.</p>'},
   {id:'checkin',title:'Daily check-in',tags:'check in morning line active required',body:'<p>Every class day starts with a check-in: tap the projects you’re working on and write one line about what’s happening. It takes 20 seconds. Yesterday’s picks are pre-selected.</p><p>Change it anytime with <b>Edit check-in</b> on Home.</p>'},
   {id:'weekly',title:'Your weekly report',tags:'weekly report monday midweek friday reflect absent last day',body:'<p>The weekly report fills in as you go: the <b>Monday game plan</b> on your first day of the week, a short <b>midweek check-in</b>, and the <b>Friday reflection</b>. Your daily check-ins show on the side so you don’t have to remember everything.</p><p>Missed a day? Open <b>My week</b> and tap <b>Mark absent</b>. Short week? Tap <b>Today is the last day of my week</b> and the Friday questions open.</p>'},
-  {id:'board',title:'Using the board',tags:'board table kanban filter group sort search',body:'<p>Each colored group is a project. Click an item’s title to open it. Click a status pill to change it, or switch to <b>Kanban</b> and drag cards.</p><p>Filters at the top narrow things down: <b>Assigned to me</b>, <b>Needs changes</b>, <b>Whole class</b> (see classmates’ public projects). <b>Group by</b> reorganizes the table.</p>'},
+  {id:'board',title:'Using the board',tags:'board table kanban filter group sort search show whole class returned',body:'<p>Your board opens on <b>your work</b>: the projects you’re on and your assignments. Click an item’s title to open it. Click a status pill to change it, or switch to <b>Kanban</b> and drag cards.</p><p>The <b>Filter</b> button lets you show something else (only your items, class assignments, work returned to you, or classmates’ public projects), narrow to overdue or due this week, and change the grouping. When a filter is on, a bar says so. Tap <b>Clear</b> to get back to your work. Filters reset every time you open JARVIS.</p>'},
   {id:'project',title:'Starting a project',tags:'new project create private visible people roles',body:'<p>Click <b>+ New project</b>. It opens so you can name it and add a description. New projects are <b>private</b>: only people you add (and Mr. P) can see them.</p><p>Add items in the “+ Add item” row at the bottom of the project’s group.</p>'},
   {id:'people',title:'Adding people and permissions',tags:'add people teammates roles viewer editor admin assign checkbox',body:'<p>Open a project’s <b>Details</b> and check off people under <b>People & permissions</b>. Use the shortcuts (All seniors, a major) to add groups at once.</p><p><b>Viewer</b> can see. <b>Editor</b> can work on items. <b>Admin</b> can do everything, including privacy and people.</p><p>To assign an item, open it and check people under <b>Assigned to</b>.</p>'},
   {id:'files',title:'Files and versions',tags:'files link upload version drive youtube new version',body:'<p>JARVIS stores links, not files. Put your work in Drive or YouTube, then paste the link under <b>Files</b> with a label like “Rough cut”.</p><p>Made a new cut? Click <b>New version</b> on that file instead of adding a new one. Older versions stay listed so feedback always points at the right one.</p>'},
@@ -1741,7 +1808,7 @@ const HELP = [
   {id:'updates',title:'Updates and history',tags:'updates post comment history collapse thread',body:'<p>Post progress with the box at the bottom of any item or project. Updates are grouped by day and older days fold up. If someone posts while you’re reading, a “New update” button appears instead of jumping.</p><p><b>History</b> shows every change: status moves, files, returns.</p>'},
   {id:'today',title:'Your Today schedule',tags:'today schedule time blocks plan',body:'<p>Today lists your lessons and whatever you checked in on. Add times if you want to plan blocks, or leave it as a list. You can add other projects or your own blocks at the bottom.</p>'},
   {id:'lessons',title:'Lessons and polls',tags:'lessons signup seats polls vote request',body:'<p>Sign up for a lesson before seats run out; it shows on your Home and Today schedule. Want a lesson that doesn’t exist? <b>Request a lesson</b>, and classmates can +1 it.</p><p>Polls show up on Home. Mr. P decides whether answers are anonymous.</p>'},
-  {id:'profile',title:'Nickname and icon',tags:'profile nickname avatar icon color shape picture emoji name real',body:'<p>Click <b>Edit my profile</b> under your name in the sidebar. Pick a nickname, a color, a shape, and what goes inside: your initials, a letter or emoji, or a picture.</p><p>Pictures should be your own artwork, not photos of people. They show up after Mr. P approves them. Click anyone’s name to switch between their nickname and real name.</p>'},
+  {id:'profile',title:'Your icon',tags:'profile avatar icon color shape picture emoji',body:'<p>Click <b>Edit my profile</b> under your name in the sidebar. Pick a color, a shape, and what goes inside: your initials, a letter or emoji, or a picture.</p><p>Pictures should be your own artwork, not photos of people. They show up after Mr. P approves them.</p>'},
   {id:'combine',title:'Combining projects',tags:'merge combine nest inside move project item sub-project',body:'<p>Started something that turned out to be part of a bigger project? Open your project’s <b>Details</b>, then <b>Combine with another project</b>.</p><p><b>Put it inside</b> keeps it as its own group inside the bigger project, with everything intact, and can be undone. <b>Turn it into an item</b> makes it one item with subitems, and is permanent. If you’re not an admin of the bigger project, its admins approve it first.</p><p>To move just one item, open it and use <b>Move to</b>.</p>'},
   {id:'bell',title:'Notifications',tags:'bell notifications unread',body:'<p>The bell shows returns, feedback requests, replies, and new lessons. Click one to jump to it.</p>'}
 ];
@@ -1861,8 +1928,6 @@ function openProfile(pid){
   const self = pid===S.viewer;
   openModal(`<div class="mhead"><h2>${self?'Your profile':esc(realName(pid))+'’s profile'}</h2><button class="x" data-closemodal>×</button></div>
     <div class="profprev"><span id="prPrev"></span><div><div class="hint">Real name</div><b>${esc(realName(pid))}</b>${pid==='t'?'':`<div class="hint">${gradLabel(PEOPLE[pid].grad)} · ${esc(PEOPLE[pid].major)}</div>`}</div></div>
-    <div class="fields"><label>Nickname</label><input id="prNick" maxlength="20" value="${esc(pr.nick||'')}" placeholder="What classmates see (optional)"></div>
-    <p class="hint" style="margin:0">Anyone can click a name to switch between the nickname and real name.</p>
     <h3 class="sech small">Color</h3><div class="swatches">${AV_COLORS.map(c=>`<button class="sw ${c===PR.color?'on':''}" style="background:${c}" data-prcolor="${c}" aria-label="Color ${c}"></button>`).join('')}</div>
     <h3 class="sech small">Shape</h3><div class="checks">${AV_SHAPES.map(([k,l])=>`<button class="chip small ${k===PR.shape?'on':''}" data-prshape="${k}">${l}</button>`).join('')}</div>
     <h3 class="sech small">Inside the icon</h3>
@@ -1879,14 +1944,13 @@ function drawPrMode(){
 }
 function drawPrPrev(){
   const el=$('#prPrev'); if(!el) return;
-  const nick=($('#prNick')?.value||'').trim(), lab = PR.mode==='text'&&PR.text ? PR.text : initials(nick||realName(PR.pid));
+  const lab = PR.mode==='text'&&PR.text ? PR.text : initials(realName(PR.pid));
   const img = PR.img || (!PR.clearImg && PR.mode==='img' && (profile(PR.pid).img||profile(PR.pid).imgPending));
   el.innerHTML=`<span class="av big sh-${PR.shape}" style="background-color:${PR.color};${img?`background-image:url(${img});background-size:cover;background-position:center;color:transparent`:''}">${esc(lab)}</span>`;
 }
 function shrinkImage(file){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>{ const im=new Image(); im.onload=()=>{ const c=document.createElement('canvas'); c.width=c.height=96; const g=c.getContext('2d'); const s=Math.min(im.width,im.height); g.drawImage(im,(im.width-s)/2,(im.height-s)/2,s,s,0,0,96,96); let u=c.toDataURL('image/webp',.82); if(!u.startsWith('data:image/webp')) u=c.toDataURL('image/jpeg',.82); res(u); }; im.onerror=rej; im.src=r.result; }; r.onerror=rej; r.readAsDataURL(file); }); }
 function saveProfile(){
-  const doc=ensureProfile(PR.pid), nick=($('#prNick').value||'').trim().slice(0,20);
-  if(nick) doc.nick=nick; else delete doc.nick;
+  const doc=ensureProfile(PR.pid); delete doc.nick;
   doc.color=PR.color; doc.shape=PR.shape; doc.mode=PR.mode;
   if(PR.mode==='text'){ const t=($('#prText')?.value||'').trim(); if(!t){ toast('Type a letter or emoji, or pick Initials'); return; } doc.text=[...t].slice(0,2).join(''); }
   if(PR.clearImg){ delete doc.img; delete doc.imgPending; }
@@ -1942,7 +2006,8 @@ function renderSide(){
     if(others.length) h += '<h5>Class projects</h5>' + others.map(p=>b(p,others)).join('');
   }
   $('#nav').innerHTML = h;
-  ['#btnReset','#btnClear'].forEach(x=>$(x).style.display=isTeacher()?'':'none');
+  ['#btnReset','#btnClear','#btnBackup','#btnRestore'].forEach(x=>$(x).style.display=isTeacher()?'':'none');
+  $('#verTag').textContent=`JARVIS v${APP_VERSION} · ${APP_DATE}`;
 }
 function renderHead(){
   const titles = {home:isTeacher()?'Class today':'Home',board:UI.project==='assign'?'Class assignments':UI.project?(proj(UI.project)?.name||'Board'):(isTeacher()?'Class board':'My board'),today:isTeacher()?'My day':'Today',week:isTeacher()?'Weekly reports':'My week',lessons:'Lessons & polls',asks:'Asks',sync:'Schoology sync',help:'Help'};
@@ -2051,12 +2116,13 @@ function saveAssignment(editId){
 
 /* ---------- Events ---------- */
 document.addEventListener('click',e=>{
-  const t = e.target.closest('button,[data-flip],[data-open],[data-openweek],a,summary');
+  const t = e.target.closest('button,[data-open],[data-openweek],a,summary');
   if(!e.target.closest('#menu') && !e.target.closest('[data-status],[data-pri],#btnBell')) closeMenu();
+  if(UI.filterOpen && !e.target.closest('#fpanel,#btnFilter')){ UI.filterOpen=false; renderHead(); }
   if(e.target.id==='modal'){ closeModal(); return; }
   if(!t) return;
   const d = t.dataset;
-  if((t.tagName==='SUMMARY' || t.tagName==='A') && !d.flip) return;
+  if(t.tagName==='SUMMARY' || t.tagName==='A') return;
   if(d.help){ e.preventDefault(); UI.page='help'; UI.helpOpen=d.help; UI.helpQ=''; closeModal(); if(!(CI&&CI.required)) closeCheckin(); render(); setTimeout(()=>$('#help-'+d.help)?.scrollIntoView({block:'center'}),50); return; }
   if(d.me){ becomes(d.me); return; }
   if(d.merge){ const P=proj(d.merge), T=proj($(`[data-k="mtarget:${d.merge}"]`)?.value||''); if(!P) return; if(!T){ toast('Pick the bigger project first'); return; }
@@ -2076,7 +2142,6 @@ document.addEventListener('click',e=>{
     if(a.mode==='convert' && !confirm(`Turn “${P.name}” into an item inside “${T.name}”? This can’t be undone.`)) return;
     a.open=false; a.result='approved'; runMerge(P,T,a.mode); notify(a.by,'merged',{projectId:T.id,text:`Approved: “${P.name}” ${a.mode==='nest'?'is now inside':'is now an item in'} “${T.name}”`}); render(); toast('Combined'); return; }
   if(d.unnest){ const P=proj(d.unnest); if(!P) return; doUnnest(P); render(); toast('Taken back out'); return; }
-  if(d.flip){ e.preventDefault(); e.stopPropagation(); UI.flip.has(d.flip)?UI.flip.delete(d.flip):UI.flip.add(d.flip); render(); return; }
   if(d.profile!==undefined){ openProfile(S.viewer); return; }
   if(d.editprofile){ e.stopPropagation(); openProfile(d.editprofile); return; }
   if(d.prcolor){ PR.color=d.prcolor; $$('[data-prcolor]').forEach(x=>x.classList.toggle('on',x===t)); drawPrPrev(); return; }
@@ -2111,9 +2176,12 @@ document.addEventListener('click',e=>{
   if(d.page){ UI.page=d.page; if(d.page==='board') UI.project=''; if(d.page==='week' && !isTeacher()) UI.wkStart=weekStartOf(todayISO()); closePanel(); render(); $('#main').scrollTop=0; return; }
   if(d.nav!==undefined){ UI.page='board'; UI.project=d.nav; render(); return; }
   if(d.scope){ UI.scope=d.scope; render(); return; }
+  if(t.id==='btnFilter'){ UI.filterOpen=!UI.filterOpen; renderHead(); return; }
+  if(d.closefilter!==undefined){ UI.filterOpen=false; renderHead(); return; }
+  if(d.clearfilters!==undefined){ resetFilters(); render(); return; }
   if(d.view){ UI.view=d.view; render(); return; }
   if(d.homegrade!==undefined){ UI.homeGrade=d.homegrade; render(); return; }
-  if(d.gotoreview!==undefined){ UI.page='board'; UI.project=''; UI.scope='review'; render(); return; }
+  if(d.gotoreview!==undefined){ resetFilters(); UI.page='board'; UI.project=''; UI.scope='review'; render(); return; }
   if(d.resetdays){ const w=weekDoc(d.resetdays,UI.wkStart); if(w){ delete w.days; } syncWeeklyDue(UI.wkStart); render(); toast('Back to the class days'); return; }
   if(d.wk){ UI.wkStart=addDays(UI.wkStart,+d.wk); render(); return; }
   if(d.lastday){ const w=ensureWeek(S.viewer,weekStartOf(d.lastday)); w.lastDay=d.lastday; UI.sec['stage:friday']=true; render(); toast('Friday reflection is open'); return; }
@@ -2209,13 +2277,15 @@ document.addEventListener('click',e=>{
     loadDemo().then(()=>{ Object.assign(UI,{scope:'all',major:'',student:'',overdue:false,q:'',project:''}); closePanel(); render(); toast('Fresh demo data loaded'); }).catch(e=>{ console.error(e); toast('Couldn’t reset: '+(e.message||'check the connection')); }); return; }
   if(t.id==='btnClear'){ if(!isTeacher()||!confirm('Erase everything on the shared board? This can’t be undone.')) return;
     wipeAll().then(()=>{ closePanel(); render(); toast('Board cleared'); }).catch(e=>{ console.error(e); toast('Couldn’t clear'); }); return; }
+  if(t.id==='btnBackup'){ if(isTeacher()) downloadBackup(); return; }
+  if(t.id==='btnRestore'){ if(isTeacher()) $('#restoreFile').click(); return; }
   if(t.id==='btnSwitch'){ closePanel(); closeCheckin(); showGate(); return; }
   if(t.id==='btnTheme'){ const r=document.documentElement; const dark = r.dataset.theme ? r.dataset.theme==='dark' : matchMedia('(prefers-color-scheme: dark)').matches; r.dataset.theme = dark?'light':'dark'; return; }
 });
 $('#scrim').addEventListener('click',closePanel);
 document.addEventListener('toggle', e=>{ const d=e.target; if(d && d.dataset && d.dataset.sec) UI.sec[d.dataset.sec]=d.open; }, true);
 document.addEventListener('keydown',e=>{
-  if(e.key==='Escape'){ closeMenu(); if(!$('#modal').hidden) closeModal(); else if(UI.panel) closePanel(); else if(CI && !CI.required) closeCheckin(); }
+  if(e.key==='Escape'){ closeMenu(); if(UI.filterOpen){ UI.filterOpen=false; renderHead(); return; } if(!$('#modal').hidden) closeModal(); else if(UI.panel) closePanel(); else if(CI && !CI.required) closeCheckin(); }
   if(e.key==='Enter' && !e.shiftKey){
     const t=e.target;
     if(t.dataset.additem){ const v=t.value.trim(); if(!v) return; const p=proj(t.dataset.additem);
@@ -2236,8 +2306,12 @@ document.addEventListener('change',e=>{
   if(t.id==='fMajor'){ UI.major=t.value; render(); return; }
   if(t.id==='fStudent'){ UI.student=t.value; render(); return; }
   if(t.id==='fOverdue'){ UI.overdue=t.checked; render(); return; }
+  if(t.id==='fDueWeek'){ UI.dueWeek=t.checked; render(); return; }
+  if(t.id==='fStatus'){ UI.status=t.value; render(); return; }
+  if(d.fshow){ UI.scope=d.fshow; render(); return; }
   if(t.id==='fGroup'){ UI.groupBy=t.value; render(); return; }
   if(t.id==='wkStudent'){ UI.wkStudent=t.value; render(); return; }
+  if(t.id==='restoreFile'){ const f=t.files&&t.files[0]; t.value=''; if(f && isTeacher()) restoreBackup(f); return; }
   if(t.id==='askAll'){ syncAskAll(); return; }
   if(d.moveitem){ const i=item(d.moveitem), T=proj(t.value); if(!i||!T) return; if(!confirm(`Move “${i.title}”${subsOf(i.id).length?' and its subitems':''} to “${T.name}”?`)){ t.value=''; return; }
     const added=moveItem(i,T); render(); toast(`Moved to “${T.name}”`+(added.length?` · added ${added.map(first).join(', ')} to it`:'')); return; }
@@ -2267,7 +2341,6 @@ document.addEventListener('input',e=>{
   if(t.id==='helpSearch'){ UI.helpQ=t.value; $('.helplist').outerHTML = (()=>{ const tmp=document.createElement('div'); tmp.innerHTML=renderHelp(); return tmp.querySelector('.helplist').outerHTML; })(); return; }
   if(t.dataset.wq){ const w=ensureWeek(S.viewer,t.dataset.ws); w.answers[t.dataset.wq]=t.value; clearTimeout(wqTimer); wqTimer=setTimeout(()=>persist(),800); return; }
   if(t.id==='revNote') t.classList.remove('need');
-  if(t.id==='prNick'){ drawPrPrev(); return; }
   if(t.id==='prText'){ PR.text=t.value; drawPrPrev(); return; }
 });
 
