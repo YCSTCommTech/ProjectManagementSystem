@@ -486,13 +486,54 @@ input,textarea,select{max-width:100%;box-sizing:border-box}
 .empty.crash{border-color:var(--danger);text-align:left}
 .empty.crash code{display:block;margin-top:8px;font-size:12px;white-space:pre-wrap;color:var(--danger)}
 .who.again{width:100%;margin:4px 0 14px;border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+/* ===== York Tech theme: Spartan Green #00954C, Forest Green #095641, Silver #807F83 ===== */
+:root{
+  --yt-spartan:#00954C; --yt-forest:#095641; --yt-silver:#807F83;
+  --bg:#EDF0EE; --surface:#FFFFFF; --surface-2:#F4F6F5; --hover:#E8F1EC;
+  --ink:#18221D; --ink-2:#56605B; --ink-3:#77767A; --line:#DCE2DF;
+  --accent:#095641; --accent-soft:#DDEFE5; --accent-ink:#FFFFFF;
+  --s-not:#A3A2A6; --s-work:#E9A23B; --s-pause:#5F7F91; --s-sub:#3F7FD9; --s-done:#00954C;
+  --danger:#C8363F;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0D1411; --surface:#151E1A; --surface-2:#1B2621; --hover:#21302A;
+    --ink:#E4ECE7; --ink-2:#A4B2AB; --ink-3:#8E8D92; --line:#2A3831;
+    --accent:#2BB673; --accent-soft:#173A2B; --accent-ink:#04140C;
+    --s-not:#6F6E73; --s-done:#1FA864; --danger:#E0565E;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0D1411; --surface:#151E1A; --surface-2:#1B2621; --hover:#21302A;
+  --ink:#E4ECE7; --ink-2:#A4B2AB; --ink-3:#8E8D92; --line:#2A3831;
+  --accent:#2BB673; --accent-soft:#173A2B; --accent-ink:#04140C;
+  --s-not:#6F6E73; --s-done:#1FA864; --danger:#E0565E;
+}
+.side{--surface:#095641; --surface-2:rgba(255,255,255,.1); --ink:#FFFFFF; --ink-2:#D3E6DC; --ink-3:#A9CBB9; --line:rgba(255,255,255,.18); --hover:rgba(255,255,255,.09); --accent-soft:rgba(255,255,255,.16); --accent:#FFFFFF; --accent-ink:#095641; color:var(--ink); border-right-color:transparent}
+:root[data-theme="dark"] .side{--surface:#0A2D22}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .side{--surface:#0A2D22} }
+.side .brand-mark{background:rgba(255,255,255,.14)}
+.viewer select{color:#fff}
+.viewer select option,.viewer select optgroup{color:#18221D;background:#fff}
+.side .nav button.on{box-shadow:inset 3px 0 0 #00954C}
+.side .linkbtn{color:var(--ink-2)}
+.side .linkbtn:hover{color:#fff}
+.gatebox .brand-mark{background:#095641}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.chip.on,.seg button.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.asktabs button.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.lcard{border-left-color:var(--yt-spartan)}
+.dayscard{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:10px 12px;display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.drow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.dlab{font-weight:700;font-size:13px;min-width:110px}
+.dayscard .checks{display:flex;flex-wrap:wrap;gap:5px}
 
 </style>
 </head>
 <body>
 <div class="app">
   <aside class="side">
-    <div class="brand"><span class="brand-mark"><i style="background:#EE9E2F"></i><i style="background:#1FA466"></i><i style="background:#4776E6"></i><i style="background:#DE4450"></i></span>JARVIS</div>
+    <div class="brand"><span class="brand-mark"><i style="background:#00954C"></i><i style="background:#FFFFFF"></i><i style="background:#807F83"></i><i style="background:#7CC9A0"></i></span>JARVIS</div>
     <div class="viewer">
       <h3>You are</h3>
       <select id="viewer" aria-label="You are"></select>
@@ -536,8 +577,8 @@ input,textarea,select{max-width:100%;box-sizing:border-box}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.0/dist/umd/supabase.js"></script>
 <script>
 /* ===== SETUP: paste your Supabase project values here ===== */
-const SUPABASE_URL = 'https://fnlpksxlmohuagkbkabr.supabase.co';      /* like https://abcd1234.supabase.co  (nothing after .co) */
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZubHBrc3hsbW9odWFna2JrYWJyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAxNDYyOTAsImV4cCI6MjEwNTcyMjI5MH0.d6u6q4-BwhmAjLbnX10lztSLKqgXt73-ku-IkC684LM';
+const SUPABASE_URL = 'PASTE_YOUR_PROJECT_URL';      /* like https://abcd1234.supabase.co  (nothing after .co) */
+const SUPABASE_ANON_KEY = 'PASTE_YOUR_ANON_KEY';
 const TEACHER_PIN = '2468';                           /* change this before sharing the link */
 /* ========================================================== */
 
@@ -570,7 +611,7 @@ const STATUSES = [
 ];
 const PRI = [{id:'low',label:'Low',color:'var(--p-low)'},{id:'med',label:'Medium',color:'var(--p-med)'},{id:'high',label:'High',color:'var(--p-high)'}];
 const MAJORS = ['Video','Photo','Graphic Design','Animation','Web'];
-const GCOLORS = ['#4776E6','#1FA466','#9A7BE0','#E0617A','#EE9E2F','#16A3B8','#7A8C2E','#C2519E'];
+const GCOLORS = ['#00954C','#3F7FD9','#9A7BE0','#E0617A','#EE9E2F','#16A3B8','#7A8C2E','#C2519E'];
 const AVCOL = ['#C2519E','#16A3B8','#7A5BD6','#D9772B','#2E8B57','#C0392B','#3F6FD8','#8C6A1F','#B0487A','#1F8A8A','#6A58C9','#C0662A','#3A7D44','#A93A3A','#2F62C4','#7D6420','#9C3F8E','#207C9A','#5E4DB8','#B8582B','#2D7F6B','#8A4FB0','#B24B4B'];
 const CAST = [
   ['Marty McFly',2027,'Video'],['Hermione Granger',2027,'Web'],['Ferris Bueller',2027,'Video'],['Elle Woods',2027,'Graphic Design'],
@@ -580,7 +621,7 @@ const CAST = [
   ['Po',2028,'Animation'],['Lara Croft',2028,'Graphic Design'],['Mulan',2028,'Photo'],
   ['Ace Trappola',2027,'Graphic Design'],['Pigeon',2028,'Web'],['Daredevil',2027,'Photo'],['Kevin Day',2028,'Animation']
 ];
-const PEOPLE = { t:{id:'t',name:'Mr. P',role:'teacher',color:'#1B2230'} };
+const PEOPLE = { t:{id:'t',name:'Mr. P',role:'teacher',color:'#095641'} };
 CAST.forEach(([name,grad,major],ix)=>{ const id='s'+(ix+1); PEOPLE[id]={id,name,role:'student',grad,major,color:AVCOL[ix%AVCOL.length]}; });
 const STUDENTS = Object.values(PEOPLE).filter(p=>p.role==='student').sort((a,b)=>a.name.localeCompare(b.name));
 const SENIORS = STUDENTS.filter(s=>s.grad===2027), JUNIORS = STUDENTS.filter(s=>s.grad===2028);
@@ -834,7 +875,7 @@ function showGate(msg){
   const g=$('#gate'); g.hidden=false;
   if(msg){ g.innerHTML=`<div class="gatebox"><h2>Almost ready</h2><p>${msg}</p></div>`; return; }
   const btn = p => `<button class="who" data-me="${p.id}">${av(p.id)}<span><b>${esc(p.name)}</b><small>${p.role==='teacher'?'Teacher':gradLabel(p.grad)+', '+esc(p.major)}</small></span></button>`;
-  g.innerHTML = `<div class="gatebox"><div class="brand big"><span class="brand-mark"><i style="background:#EE9E2F"></i><i style="background:#1FA466"></i><i style="background:#4776E6"></i><i style="background:#DE4450"></i></span>JARVIS</div>
+  g.innerHTML = `<div class="gatebox"><div class="brand big"><span class="brand-mark"><i style="background:#00954C"></i><i style="background:#FFFFFF"></i><i style="background:#807F83"></i><i style="background:#7CC9A0"></i></span>JARVIS</div>
     <h2>Who are you today?</h2>
     ${LAST_VIEWER?`<button class="who again" data-me="${LAST_VIEWER}">${av(LAST_VIEWER)}<span><b>Continue as ${esc(PEOPLE[LAST_VIEWER].name)}</b><small>Last time on this device</small></span></button>`:''}<p>Pick the character Mr. P gave you. Everything you do is shared live with the class. Character names only — no real names or personal info.</p>
     <h3>Seniors</h3><div class="whogrid">${SENIORS.map(btn).join('')}</div>
@@ -844,7 +885,7 @@ function showGate(msg){
 function becomes(pid){
   if(pid==='t' && !teacherOk){ const pin=prompt('Teacher PIN'); if(pin!==TEACHER_PIN){ toast('Wrong PIN'); return false; } teacherOk=true; }
   S.viewer=pid; LAST_VIEWER=pid; saveLocal(); $('#gate').hidden=true; closeMenu(); closeModal(); closeCheckin();
-  Object.assign(UI,{page:'home',scope:'all',major:'',student:'',project:'',wkStudent:'',wkStart:null}); closePanel(); render(); maybeCheckin(); return true;
+  Object.assign(UI,{page:'home',scope:'all',major:'',student:'',project:'',wkStudent:'',wkStart:null}); closePanel(); ensureWeeklyReport(); render(); maybeCheckin(); return true;
 }
 async function boot(){
   if(!window.supabase || SUPABASE_URL.startsWith('PASTE') || SUPABASE_ANON_KEY.startsWith('PASTE')){
@@ -853,6 +894,7 @@ async function boot(){
   sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   try{ await loadAll(); }catch(e){ console.error(e); showGate('Couldn’t reach the database: <b>'+esc(e.message||String(e))+'</b>. If it mentions a missing table, run the new setup SQL (v2).'); return; }
   ready = true; subscribe();
+  if(ensureWeeklyReport()) persist();
   showGate();
 }
 
@@ -863,7 +905,7 @@ const esc = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>
 const me = ()=> PEOPLE[S.viewer];
 const isTeacher = ()=> !!S.viewer && me().role==='teacher';
 const pname = id => PEOPLE[id]?.name || 'Someone';
-const first = id => pname(id).split(' ')[0];
+const first = id => id==='t' ? 'Mr. P' : pname(id).split(' ')[0];
 const proj = id => S.projects.find(p=>p.id===id);
 const item = id => S.items.find(i=>i.id===id);
 const asn = id => S.assignments.find(a=>a.id===id);
@@ -965,6 +1007,30 @@ const isClassDay = (pid,date) => weekDays(pid,weekStartOf(date)).includes(date);
 function activeLabel(key){ const [k,id]=key.split(':'); if(k==='p') return proj(id)?.name||'(deleted project)'; if(k==='i'){ const i=item(id); return i?i.title:'(deleted item)'; } return key; }
 function weeklyItem(pid,ws){ const a=S.assignments.find(x=>x.weekly && x.weekStart===ws); return a && S.items.find(i=>i.assignmentId===a.id && i.assignees[0]===pid); }
 
+/* ---------- Automatic weekly report assignment ---------- */
+const classLastDay = ws => { const d=weekDays(null,ws); return d[d.length-1]; };
+const studentLastDay = (sid,ws) => { const d=weekDays(sid,ws); return d[d.length-1]; };
+function syncWeeklyDue(ws){
+  const a=S.assignments.find(x=>x.weekly && x.weekStart===ws); if(!a) return;
+  const due=classLastDay(ws); if(a.due!==due) a.due=due;
+  S.items.filter(i=>i.assignmentId===a.id).forEach(i=>{ const d=studentLastDay(i.assignees[0],ws); if(i.due!==d) i.due=d; });
+}
+function ensureWeeklyReport(){
+  if(!ready) return false;
+  const ws=weekStartOf(todayISO());
+  let a=S.assignments.find(x=>x.weekly && x.weekStart===ws), changed=false;
+  if(!a){
+    a={id:'aw_'+ws,title:'Weekly Report – week of '+fmt(ws),audience:{all:true},due:classLastDay(ws),priority:'med',template:'',weekly:true,weekStart:ws,auto:true,description:'Built from your daily check-ins and weekly prompts in JARVIS.'};
+    S.assignments.push(a); changed=true;
+  }
+  const have=new Set(S.items.filter(i=>i.assignmentId===a.id).map(i=>i.assignees[0]));
+  for(const s of studentsFor(a.audience)) if(!have.has(s.id)){
+    S.items.push({id:`iw_${ws}_${s.id}`,source:'assignment',assignmentId:a.id,title:a.title,description:'',assignees:[s.id],status:'not',due:studentLastDay(s.id,ws),priority:a.priority,projectId:null,parentId:null,files:[],thread:[],history:[{kind:'created',by:'t',...nowStamp()}]});
+    changed=true;
+  }
+  return changed;
+}
+
 /* ---------- Board: visibility + filtering ---------- */
 function visibleTop(){
   const v = S.viewer;
@@ -992,7 +1058,7 @@ function buildGroups(list){
   const g = [];
   if(UI.groupBy==='project'){
     const assign = list.filter(i=>i.source==='assignment');
-    if(assign.length) g.push({key:'assign',name:'Class assignments',color:'#1B2230',items:assign,kind:'assign'});
+    if(assign.length) g.push({key:'assign',name:'Class assignments',color:'var(--accent)',items:assign,kind:'assign'});
     let projs = S.projects.filter(p=> isTeacher() || (p.roles||{})[S.viewer] || list.some(i=>i.projectId===p.id) || (canSeeProject(p) && (UI.scope==='wholeclass'||UI.project===p.id)));
     if(UI.project) projs = projs.filter(p=>p.id===UI.project);
     for(const p of projs){ const its = list.filter(i=>i.projectId===p.id); if(its.length || !filtersActive()) g.push({key:p.id,name:p.name,color:p.color,items:its,kind:'project',project:p}); }
@@ -1008,6 +1074,7 @@ function buildGroups(list){
   }
   return g;
 }
+const dueMoves = i => (i.history||[]).filter(e=>e.kind==='due' && e.from && e.to && e.to>e.from).length;
 function statusPill(i){ const s=stat(i.status); return `<button class="pill" style="background:${s.color}" data-status="${i.id}" ${canStatus(i)?'':'disabled'} aria-label="Status: ${s.label}">${s.label}</button>`; }
 const openFeedback = i => S.asks.some(a=>a.open && a.kind==='feedback' && a.itemId===i.id);
 const latestUrl = f => f && f.versions && f.versions.length ? f.versions[f.versions.length-1].url : '';
@@ -1023,6 +1090,7 @@ function rowHTML(i,isSub,showProj,asStudent){
       ${i.source==='assignment'&&!asStudent?`<span class="lock" title="Set by Mr. P">${ICON.lock}</span>`:''}
       ${submitCount(i)>1?`<span class="tag" title="Returned ${returnCount(i)}×">Round ${submitCount(i)}</span>`:''}
       ${needsChanges(i)?'<span class="tag chg">Needs changes</span>':''}
+      ${isTeacher()&&dueMoves(i)?`<span class="tag" title="Due date was pushed later ${dueMoves(i)}×">Due moved ${dueMoves(i)}×</span>`:''}
       ${openFeedback(i)?'<span class="tag fb">Feedback asked</span>':''}
       ${subs.length?`<span class="tag">${doneSubs}/${subs.length}</span>`:''}
       <button class="convo ${posts?'has':''}" data-open="i:${i.id}" aria-label="Updates">${ICON.chat}${posts||''}</button>
@@ -1216,6 +1284,7 @@ function historyHTML(i){
     else if(e.kind==='sync'){ col='var(--s-done)'; txt=`${nm} entered it in Schoology`; }
     else if(e.kind==='missing'){ col='var(--danger)'; txt=`${nm} entered it as missing in Schoology`; }
     else if(e.kind==='assignees') txt=`${nm} changed who’s assigned`;
+    else if(e.kind==='due'){ col='var(--s-work)'; txt = !e.from ? `${nm} set the due date to <b>${esc(fmt(e.to))}</b>` : !e.to ? `${nm} removed the due date (was ${esc(fmt(e.from))})` : `${nm} moved the due date <b>${esc(fmt(e.from))} → ${esc(fmt(e.to))}</b>${e.to>e.from?' (later)':' (earlier)'}`; }
     else txt=`${nm} changed ${esc(e.field||'details')}`;
     return `<div class="hev" style="--hc:${col}">${txt}${e.note?`<span class="hnote">“${esc(e.note)}”</span>`:''}<span class="ht">${esc(e.at)}</span></div>`;
   }).join('')}</div>`;
@@ -1462,9 +1531,12 @@ function renderWeek(){
   let h = `<div class="hello"><h2>${isTeacher()?'Weekly reports':'My week'}</h2>${helpDot('weekly')}</div>`;
   if(isTeacher()){
     h += `<div class="filters"><select id="wkStudent">${STUDENTS.map(s=>`<option value="${s.id}" ${s.id===pid?'selected':''}>${esc(s.name)} — ${gradLabel(s.grad)}</option>`).join('')}</select>${nav}</div>`;
-    const days=weekDays(pid,ws), all=[0,1,2,3,4,5,6].map(k=>addDays(ws,k)), cw=classWeek(ws);
-    h += `<div class="daysedit"><span class="hint">${esc(first(pid))}’s class days this week:</span>${all.map(d=>`<label class="ck ${days.includes(d)?'on':''}"><input type="checkbox" data-sdays="${d}" ${days.includes(d)?'checked':''}>${esc(dow(d))}</label>`).join('')}
-      <span class="sep"></span><span class="hint">Whole class:</span>${all.map(d=>{ const on=(cw&&cw.days&&cw.days.length?cw.days:all.slice(0,5)).includes(d); return `<label class="ck ${on?'on':''}"><input type="checkbox" data-cdays="${d}" ${on?'checked':''}>${esc(dow(d))}</label>`; }).join('')}</div>`;
+    const all=[0,1,2,3,4,5,6].map(k=>addDays(ws,k)), cdays=weekDays(null,ws), sdays=weekDays(pid,ws), w0=weekDoc(pid,ws), custom=!!(w0&&w0.days&&w0.days.length);
+    const box=(attr,d,on)=>`<label class="ck ${on?'on':''}"><input type="checkbox" ${attr}="${d}" ${on?'checked':''}>${esc(dow(d))} <span class="hint">${esc(fmt(d).replace(/^\w+ /,''))}</span></label>`;
+    h += `<div class="dayscard"><div class="drow"><span class="dlab">Whole class</span><div class="checks">${all.map(d=>box('data-cdays',d,cdays.includes(d))).join('')}</div></div>
+      <div class="drow"><span class="dlab">Only ${esc(first(pid))}</span><div class="checks">${all.map(d=>box('data-sdays',d,sdays.includes(d))).join('')}</div>
+      ${custom?`<span class="tag">Custom days</span><button class="linkbtn" data-resetdays="${pid}">Reset to class days</button>`:'<span class="hint">Follows the class days</span>'}</div>
+      <div class="hint">The weekly report is due on the last checked day. The midweek check-in opens on the middle day.</div></div>`;
   } else {
     h += `<div class="filters">${nav}${ws===weekStartOf(t) && !(w&&w.stages&&w.stages.friday) && t<lastDayOf(pid,ws) ? `<button class="btn" data-lastday="${t}">Today is the last day of my week</button>`:''}${w&&w.lastDay?`<span class="hint">You set ${esc(dow(w.lastDay))} as your last day.</span>`:''}</div>`;
   }
@@ -1757,7 +1829,8 @@ const closeMenu = ()=> { const m=$('#menu'); if(m) m.classList.remove('open'); }
 function setField(i,f,v){
   if(f==='status'){ changeStatus(i,v); render(); return; }
   if(f==='title'){ v=v.trim(); if(!v){ render(); return; } }
-  if(f!=='description' && f!=='title') logEvent(i,{kind:'field',field:f});
+  if(f==='due'){ if((i.due||'')===(v||'')) return; logEvent(i,{kind:'due',from:i.due||'',to:v||''}); }
+  else if(f!=='description' && f!=='title') logEvent(i,{kind:'field',field:f});
   i[f]=v; render();
 }
 function syncAskAll(){ const on=$('#askAll')?.checked; $$('input[data-pp="ask"]').forEach(x=>{ x.disabled=!!on; if(on){ x.checked=false; x.closest('.ck').classList.remove('on'); } x.closest('.ck').classList.toggle('off',!!on); }); }
@@ -1860,6 +1933,7 @@ document.addEventListener('click',e=>{
   if(d.view){ UI.view=d.view; render(); return; }
   if(d.homegrade!==undefined){ UI.homeGrade=d.homegrade; render(); return; }
   if(d.gotoreview!==undefined){ UI.page='board'; UI.project=''; UI.scope='review'; render(); return; }
+  if(d.resetdays){ const w=weekDoc(d.resetdays,UI.wkStart); if(w){ delete w.days; } syncWeeklyDue(UI.wkStart); render(); toast('Back to the class days'); return; }
   if(d.wk){ UI.wkStart=addDays(UI.wkStart,+d.wk); render(); return; }
   if(d.lastday){ const w=ensureWeek(S.viewer,weekStartOf(d.lastday)); w.lastDay=d.lastday; UI.sec['stage:friday']=true; render(); toast('Friday reflection is open'); return; }
   if(d.absent){ const c=ensureCheckin(S.viewer,d.absent); c.absent=!c.absent; render(); toast(c.absent?`${dow(d.absent)} marked absent`:'Absent removed'); return; }
@@ -1998,8 +2072,8 @@ document.addEventListener('change',e=>{
     else if(k==='aud'){ if(t.checked){ const all=$('#audAll'); all.checked=false; all.closest('.ck').classList.remove('on'); } updAudCount(); }
     return; }
   if(d.pprole){ const p=proj(d.pprole.split(':')[1]); if(p && d.pid!==p.owner){ p.roles[d.pid]=t.value; render(); } return; }
-  if(d.sdays){ const pid=UI.wkStudent||STUDENTS[0].id; const w=ensureWeek(pid,UI.wkStart); let days=weekDays(pid,UI.wkStart); days = t.checked?[...new Set([...days,d.sdays])]:days.filter(x=>x!==d.sdays); w.days=days.sort(); render(); return; }
-  if(d.cdays){ const id='week_'+UI.wkStart; let c=S.settings.find(x=>x.id===id); const all=[0,1,2,3,4].map(k=>addDays(UI.wkStart,k)); if(!c){ c={id,days:all}; S.settings.push(c); } c.days = t.checked?[...new Set([...(c.days||all),d.cdays])].sort():(c.days||all).filter(x=>x!==d.cdays); render(); toast('Class week updated'); return; }
+  if(d.sdays){ const pid=UI.wkStudent||STUDENTS[0].id; const w=ensureWeek(pid,UI.wkStart); let days=weekDays(pid,UI.wkStart); days = t.checked?[...new Set([...days,d.sdays])]:days.filter(x=>x!==d.sdays); w.days=days.sort(); if(!w.days.length){ toast('Keep at least one day'); w.days=[d.sdays]; } syncWeeklyDue(UI.wkStart); render(); return; }
+  if(d.cdays){ const id='week_'+UI.wkStart; let c=S.settings.find(x=>x.id===id); const all=[0,1,2,3,4].map(k=>addDays(UI.wkStart,k)); if(!c){ c={id,days:all}; S.settings.push(c); } c.days = t.checked?[...new Set([...(c.days||all),d.cdays])].sort():(c.days||all).filter(x=>x!==d.cdays); if(!c.days.length){ c.days=[d.cdays]; toast('Keep at least one day'); } syncWeeklyDue(UI.wkStart); render(); toast('Class week updated · report due '+dow(classLastDay(UI.wkStart))); return; }
   if(d.block){ const c=ensureCheckin(S.viewer,todayISO()); if(d.block.startsWith('c:')){ const x=c.custom.find(y=>'c:'+y.id===d.block); if(x) x[d.edge]=t.value; } else { c.blocks[d.block]={...(c.blocks[d.block]||{}),[d.edge]:t.value}; } render(); return; }
 });
 let wqTimer=null;
