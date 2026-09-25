@@ -528,6 +528,29 @@ input,textarea,select{max-width:100%;box-sizing:border-box}
 .dlab{font-weight:700;font-size:13px;min-width:110px}
 .dayscard .checks{display:flex;flex-wrap:wrap;gap:5px}
 
+.av.sh-circle{border-radius:50%}
+.av.sh-square{border-radius:6px}
+.av.sh-hex{border-radius:0;clip-path:polygon(25% 4%,75% 4%,100% 50%,75% 96%,25% 96%,0 50%);border:0}
+.av.sh-diamond{border-radius:0;clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);border:0;font-size:9px}
+.av.sh-shield{border-radius:4px 4px 50% 50% / 4px 4px 45% 45%}
+.av.big{width:56px;height:56px;font-size:20px;margin:0;border:0;flex:none}
+.hcard .av.big{width:36px;height:36px;font-size:13px}
+.profprev{display:flex;align-items:center;gap:14px}
+.swatches{display:flex;flex-wrap:wrap;gap:6px}
+.sw{width:28px;height:28px;border-radius:50%;border:2px solid transparent;padding:0;cursor:pointer}
+.sw.on{outline:2px solid var(--ink);outline-offset:2px}
+.pn{cursor:pointer;border-bottom:1px dotted transparent}
+.pn:hover{border-bottom-color:currentColor}
+.linkbtn.small{font-size:12px;margin-left:6px;padding:0}
+.myprof{margin:6px 6px 0;font-size:12px}
+.group.nested{margin-left:26px}
+.nesttag{font-size:12px;color:var(--ink-3);font-weight:600}
+.nav button.child{padding-left:26px}
+.combine{display:flex;flex-direction:column;gap:8px}
+.combine select{border:1px solid var(--line);background:var(--surface-2);border-radius:7px;padding:7px 9px}
+.combine label.opt{display:flex;gap:8px;align-items:flex-start;font-size:14px}
+#prText{border:1px solid var(--line);background:var(--surface-2);border-radius:8px;padding:8px 10px;font-size:16px}
+
 </style>
 </head>
 <body>
@@ -537,6 +560,7 @@ input,textarea,select{max-width:100%;box-sizing:border-box}
     <div class="viewer">
       <h3>You are</h3>
       <select id="viewer" aria-label="You are"></select>
+      <button class="linkbtn myprof" data-profile>Edit my profile</button>
       <p>Test mode: fake characters only — no real names or info.</p>
     </div>
     <div class="navwrap"><nav class="nav" id="nav"></nav></div>
@@ -577,8 +601,8 @@ input,textarea,select{max-width:100%;box-sizing:border-box}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.0/dist/umd/supabase.js"></script>
 <script>
 /* ===== SETUP: paste your Supabase project values here ===== */
-const SUPABASE_URL = 'https://fnlpksxlmohuagkbkabr.supabase.co';      /* like https://abcd1234.supabase.co  (nothing after .co) */
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZubHBrc3hsbW9odWFna2JrYWJyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAxNDYyOTAsImV4cCI6MjEwNTcyMjI5MH0.d6u6q4-BwhmAjLbnX10lztSLKqgXt73-ku-IkC684LM';
+const SUPABASE_URL = 'PASTE_YOUR_PROJECT_URL';      /* like https://abcd1234.supabase.co  (nothing after .co) */
+const SUPABASE_ANON_KEY = 'PASTE_YOUR_ANON_KEY';
 const TEACHER_PIN = '2468';                           /* change this before sharing the link */
 /* ========================================================== */
 
@@ -773,7 +797,7 @@ let S = {viewer:null, prefs:{timeline:'split',panelW:560}}; TABLES.forEach(t=>S[
 let LAST_VIEWER = null, teacherOk = false;
 try{ const L=JSON.parse(localStorage.getItem(LOCAL_KEY)||'{}'); if(L.viewer && PEOPLE[L.viewer]) LAST_VIEWER=L.viewer; if(L.prefs) S.prefs={...S.prefs,...L.prefs}; }catch(e){}
 const UI = {page:'home',view:'table',groupBy:'project',scope:'all',major:'',student:'',overdue:false,q:'',project:'',collapsed:new Set(),openSubs:new Set(),panel:null,
-  sec:{}, helpQ:'', helpOpen:null, wkStudent:'', wkStart:null, homeGrade:'', lastThread:{}, askForm:false, wide:false};
+  sec:{}, flip:new Set(), helpQ:'', helpOpen:null, wkStudent:'', wkStart:null, homeGrade:'', lastThread:{}, askForm:false, wide:false};
 function saveLocal(){ try{ localStorage.setItem(LOCAL_KEY, JSON.stringify({viewer:S.viewer||LAST_VIEWER,prefs:S.prefs})); }catch(e){} }
 function save(){ saveLocal(); persist(); }
 const nid = ()=> rid('i');
@@ -874,7 +898,8 @@ async function loadDemo(){
 function showGate(msg){
   const g=$('#gate'); g.hidden=false;
   if(msg){ g.innerHTML=`<div class="gatebox"><h2>Almost ready</h2><p>${msg}</p></div>`; return; }
-  const btn = p => `<button class="who" data-me="${p.id}">${av(p.id)}<span><b>${esc(p.name)}</b><small>${p.role==='teacher'?'Teacher':gradLabel(p.grad)+', '+esc(p.major)}</small></span></button>`;
+  updateAvatarStyles();
+  const btn = p => `<button class="who" data-me="${p.id}">${av(p.id)}<span><b>${esc(p.name)}</b><small>${profile(p.id).nick?'“'+esc(profile(p.id).nick)+'” · ':''}${p.role==='teacher'?'Teacher':gradLabel(p.grad)+', '+esc(p.major)}</small></span></button>`;
   g.innerHTML = `<div class="gatebox"><div class="brand big"><span class="brand-mark"><i style="background:#00954C"></i><i style="background:#FFFFFF"></i><i style="background:#807F83"></i><i style="background:#7CC9A0"></i></span>JARVIS</div>
     <h2>Who are you today?</h2>
     ${LAST_VIEWER?`<button class="who again" data-me="${LAST_VIEWER}">${av(LAST_VIEWER)}<span><b>Continue as ${esc(PEOPLE[LAST_VIEWER].name)}</b><small>Last time on this device</small></span></button>`:''}<p>Pick the character Mr. P gave you. Everything you do is shared live with the class. Character names only — no real names or personal info.</p>
@@ -904,8 +929,24 @@ const $$ = s => [...document.querySelectorAll(s)];
 const esc = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const me = ()=> PEOPLE[S.viewer];
 const isTeacher = ()=> !!S.viewer && me().role==='teacher';
-const pname = id => PEOPLE[id]?.name || 'Someone';
-const first = id => id==='t' ? 'Mr. P' : pname(id).split(' ')[0];
+/* ---------- Names + profiles (nickname, avatar) ---------- */
+const profile = id => S.settings.find(x=>x.id==='profile_'+id) || {};
+function ensureProfile(id){ let p=S.settings.find(x=>x.id==='profile_'+id); if(!p){ p={id:'profile_'+id}; S.settings.push(p); } return p; }
+const realName = id => PEOPLE[id]?.name || 'Someone';
+const showingNick = id => !!profile(id).nick && !UI.flip.has(id);
+const pname = id => !PEOPLE[id] ? 'Someone' : showingNick(id) ? profile(id).nick : realName(id);
+const first = id => showingNick(id) ? profile(id).nick : id==='t' ? 'Mr. P' : pname(id).split(' ')[0];
+const nameTip = id => { const n=profile(id).nick; return n ? `${realName(id)} · nickname “${n}” · click to switch` : realName(id); };
+const nameTag = (id,short) => `<span class="pn" data-flip="${id}" title="${esc(nameTip(id))}">${esc(short?first(id):pname(id))}</span>`;
+const AV_COLORS = ['#00954C','#095641','#807F83','#1F8A8A','#3F7FD9','#2F62C4','#7A5BD6','#9C3F8E','#C2519E','#C0392B','#D9772B','#B8862B','#6B8E23','#2E8B57','#1B2230','#8C6A1F'];
+const AV_SHAPES = [['circle','Circle'],['square','Square'],['hex','Hexagon'],['diamond','Diamond'],['shield','Shield']];
+let avStyleSig='';
+function updateAvatarStyles(){
+  const imgs=S.settings.filter(x=>x.id.startsWith('profile_') && x.img);
+  const sig=imgs.map(x=>x.id+':'+x.img.length+':'+x.img.slice(-24)).join('|'); if(sig===avStyleSig) return; avStyleSig=sig;
+  let el=document.getElementById('avstyles'); if(!el){ el=document.createElement('style'); el.id='avstyles'; document.head.appendChild(el); }
+  el.textContent=imgs.map(x=>`.avimg-${x.id.slice(8)}{background-image:url(${x.img})!important;background-size:cover!important;background-position:center!important;color:transparent!important}`).join('\n');
+}
 const proj = id => S.projects.find(p=>p.id===id);
 const item = id => S.items.find(i=>i.id===id);
 const asn = id => S.assignments.find(a=>a.id===id);
@@ -917,7 +958,9 @@ const pri = id => PRI.find(p=>p.id===id) || PRI[1];
 const initials = n => n.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
 const complete = i => i.status==='done'||i.status==='sub';
 const isOverdue = i => !!i.due && new Date(i.due+'T23:59:00') < new Date() && !complete(i);
-function av(pid,cls=''){ const p=PEOPLE[pid]; if(!p) return ''; return `<span class="av ${cls}" style="background:${p.color}" title="${esc(p.name)}">${initials(p.name)}</span>`; }
+function avLabel(pid){ const pr=profile(pid); if(pr.mode==='text' && pr.text) return pr.text; return initials(pname(pid)); }
+function av(pid,cls=''){ const p=PEOPLE[pid]; if(!p) return ''; const pr=profile(pid);
+  return `<span class="av sh-${pr.shape||'circle'} ${pr.img?'avimg-'+pid:''} ${cls}" style="background-color:${pr.color||p.color}" title="${esc(nameTip(pid).replace(' · click to switch',''))}">${esc(avLabel(pid))}</span>`; }
 function avatars(ids,max=3){ ids=ids||[]; return `<span class="avatars">${ids.slice(0,max).map(x=>av(x)).join('')}${ids.length>max?`<span class="av" style="background:var(--ink-3)">+${ids.length-max}</span>`:''}</span>`; }
 function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove('show'),2400); }
 function tsOf(e){ return e.ts || 0; }
@@ -963,11 +1006,11 @@ const returnCount = i => (i.history||[]).filter(e=>e.kind==='status'&&e.from==='
 function needsChanges(i){ const h=(i.history||[]).filter(e=>e.kind==='status'); const last=h[h.length-1]; return !!last && last.from==='sub' && last.to==='work' && i.status==='work'; }
 
 /* ---------- Asks ---------- */
-const askIncludes = (a,v) => a.kind==='feedback' ? (a.to==='all' || (Array.isArray(a.to)&&a.to.includes(v))) : a.kind==='help' ? v==='t' : true;
+const askIncludes = (a,v) => a.kind==='feedback' ? (a.to==='all' || (Array.isArray(a.to)&&a.to.includes(v))) : a.kind==='help' ? v==='t' : a.kind==='merge' ? (v==='t' || (Array.isArray(a.to)&&a.to.includes(v))) : true;
 const toName = to => to==='all' ? 'Everyone' : (Array.isArray(to)?to:[to]).map(first).join(', ');
 const openAsksFor = (target) => S.asks.filter(a=>a.kind==='feedback' && (target.itemId? a.itemId===target.itemId : (a.projectId===target.projectId && !a.itemId)));
 function canReplyAsk(a){ return isTeacher() || a.by===S.viewer || askIncludes(a,S.viewer); }
-const asksWaitingOnMe = () => S.asks.filter(a=>a.open && a.by!==S.viewer && ((a.kind==='feedback' && askIncludes(a,S.viewer)) || (a.kind==='help' && isTeacher())));
+const asksWaitingOnMe = () => S.asks.filter(a=>a.open && a.by!==S.viewer && ((a.kind==='feedback' && askIncludes(a,S.viewer)) || (a.kind==='help' && isTeacher()) || (a.kind==='merge' && askIncludes(a,S.viewer))));
 
 /* ---------- Notifications ---------- */
 function notifVisible(n,v){
@@ -1031,6 +1074,47 @@ function ensureWeeklyReport(){
   return changed;
 }
 
+/* ---------- Projects inside projects + combining ---------- */
+const childrenOf = id => S.projects.filter(p=>p.parentId===id);
+const adminsOf = p => [...new Set([p.owner, ...Object.entries(p.roles||{}).filter(([,r])=>r==='admin').map(([k])=>k)])].filter(k=>k && PEOPLE[k]);
+function orderTree(list){ const ids=new Set(list.map(p=>p.id)); const out=[]; list.filter(p=>!p.parentId||!ids.has(p.parentId)).forEach(p=>{ out.push(p); list.filter(c=>c.parentId===p.id).forEach(c=>out.push(c)); }); return out; }
+const inView = pid => !!UI.project && !!pid && (pid===UI.project || proj(pid)?.parentId===UI.project);
+function sysPost(o,text){ (o.thread=o.thread||[]).push({id:rid('u'),by:S.viewer,text,sys:true,...nowStamp()}); }
+function doNest(P,T){ P.parentId=T.id; sysPost(P,`Moved inside “${T.name}”`); sysPost(T,`“${P.name}” is now part of this project`); }
+function doUnnest(P){ const T=proj(P.parentId); P.parentId=null; sysPost(P,`Taken back out of “${T?T.name:'a project'}”`); if(T) sysPost(T,`“${P.name}” was taken back out`); }
+function doConvert(P,T){
+  const all=S.items.filter(i=>i.projectId===P.id);
+  const status = all.length && all.every(complete) ? 'done' : all.some(i=>i.status!=='not') ? 'work' : 'not';
+  const it={id:nid(),source:'task',title:P.name,description:P.description||'',assignees:Object.entries(P.roles||{}).filter(([k,r])=>r!=='viewer'&&k!=='t').map(([k])=>k),status,due:'',priority:'med',projectId:T.id,parentId:null,
+    files:P.files||[],thread:P.thread||[],history:[{kind:'converted',by:S.viewer,from:P.name,...nowStamp()}]};
+  S.items.push(it);
+  for(const i of all.filter(x=>!x.parentId)){
+    const subs=subsOf(i.id);
+    i.projectId=T.id; i.parentId=it.id; logEvent(i,{kind:'moved',from:P.name,to:T.name});
+    for(const s of subs){ s.projectId=T.id; s.parentId=it.id; s.title=i.title+' — '+s.title; logEvent(s,{kind:'moved',from:P.name,to:T.name}); }
+  }
+  Object.entries(P.roles||{}).forEach(([k,r])=>{ if(!T.roles[k]) T.roles[k]= r==='viewer'?'viewer':'editor'; });
+  S.asks.forEach(a=>{ if(a.projectId===P.id){ a.projectId=T.id; if(!a.itemId) a.itemId=it.id; } if(a.kind==='merge' && a.open && (a.projectId===P.id||a.targetId===P.id)) a.open=false; });
+  S.checkins.forEach(c=>{ if((c.active||[]).includes('p:'+P.id)) c.active=c.active.map(k=>k==='p:'+P.id?'i:'+it.id:k); });
+  S.projects=S.projects.filter(x=>x!==P);
+  sysPost(T,`“${P.name}” was turned into an item in this project`);
+  return it;
+}
+function runMerge(P,T,mode){
+  const who=membersOf(P).filter(x=>x!==S.viewer);
+  let it=null;
+  if(mode==='nest') doNest(P,T); else it=doConvert(P,T);
+  who.forEach(x=>notify(x,'merged',{projectId:T.id,text:`“${P.name}” ${mode==='nest'?'is now inside':'is now an item in'} “${T.name}”`}));
+  return it;
+}
+function moveItem(i,T){
+  const from=proj(i.projectId);
+  i.projectId=T.id; subsOf(i.id).forEach(s=>s.projectId=T.id);
+  logEvent(i,{kind:'moved',from:from?from.name:'',to:T.name});
+  const added=i.assignees.filter(a=>a!=='t' && !T.roles[a]); added.forEach(a=>T.roles[a]='editor');
+  return added;
+}
+
 /* ---------- Board: visibility + filtering ---------- */
 function visibleTop(){
   const v = S.viewer;
@@ -1038,10 +1122,10 @@ function visibleTop(){
   if(!isTeacher()){
     const peek = UI.scope==='wholeclass';
     list = list.filter(i=> i.assignees.includes(v) || (i.projectId && (proj(i.projectId)?.roles||{})[v])
-      || (i.projectId && proj(i.projectId) && canSeeProject(proj(i.projectId)) && (peek || UI.project===i.projectId)));
+      || (i.projectId && proj(i.projectId) && canSeeProject(proj(i.projectId)) && (peek || inView(i.projectId))));
   }
   if(UI.project==='assign') list = list.filter(i=>i.source==='assignment');
-  else if(UI.project) list = list.filter(i=>i.projectId===UI.project);
+  else if(UI.project) list = list.filter(i=>inView(i.projectId));
   if(UI.scope==='mine') list = list.filter(i=>i.assignees.includes(v));
   if(UI.scope==='review') list = list.filter(i=>i.status==='sub');
   if(UI.scope==='class') list = list.filter(i=>i.source==='assignment');
@@ -1059,9 +1143,10 @@ function buildGroups(list){
   if(UI.groupBy==='project'){
     const assign = list.filter(i=>i.source==='assignment');
     if(assign.length) g.push({key:'assign',name:'Class assignments',color:'var(--accent)',items:assign,kind:'assign'});
-    let projs = S.projects.filter(p=> isTeacher() || (p.roles||{})[S.viewer] || list.some(i=>i.projectId===p.id) || (canSeeProject(p) && (UI.scope==='wholeclass'||UI.project===p.id)));
-    if(UI.project) projs = projs.filter(p=>p.id===UI.project);
-    for(const p of projs){ const its = list.filter(i=>i.projectId===p.id); if(its.length || !filtersActive()) g.push({key:p.id,name:p.name,color:p.color,items:its,kind:'project',project:p}); }
+    let projs = S.projects.filter(p=> isTeacher() || (p.roles||{})[S.viewer] || list.some(i=>i.projectId===p.id) || (canSeeProject(p) && (UI.scope==='wholeclass'||inView(p.id))));
+    if(UI.project) projs = projs.filter(p=>inView(p.id));
+    projs = orderTree(projs);
+    for(const p of projs){ const its = list.filter(i=>i.projectId===p.id); const nested=!!(p.parentId && projs.some(x=>x.id===p.parentId)); if(its.length || !filtersActive()) g.push({key:p.id,name:p.name,color:p.color,items:its,kind:'project',project:p,nested}); }
   } else if(UI.groupBy==='status'){
     for(const s of STATUSES){ const its=list.filter(i=>i.status===s.id); if(its.length) g.push({key:'st-'+s.id,name:s.label,color:s.color,items:its}); }
   } else if(UI.groupBy==='due'){
@@ -1142,11 +1227,11 @@ function renderBoardPage(){
     let extra = '';
     if(g.kind==='project'){
       const p=g.project;
-      extra = `${p.private?`<span class="privtag">${ICON.lock}Private</span>`:'<span class="privtag">Visible to class</span>'}<span class="members">${membersOf(p).map(x=>av(x)).join('')}</span><button class="btn tiny" data-open="p:${p.id}">Details</button>`;
+      extra = `${g.nested?`<span class="nesttag">inside ${esc(proj(p.parentId).name)}</span>`:''}${p.private?`<span class="privtag">${ICON.lock}Private</span>`:'<span class="privtag">Visible to class</span>'}<span class="members">${membersOf(p).map(x=>av(x)).join('')}</span><button class="btn tiny" data-open="p:${p.id}">Details</button>`;
     }
     const canAdd = g.kind==='project' && canEditProject(g.project);
     const rollup = g.kind==='assign' && isTeacher() && !UI.student;
-    return `<section class="group ${col?'collapsed':''}" style="--g:${g.color}">
+    return `<section class="group ${col?'collapsed':''} ${g.nested?'nested':''}" style="--g:${g.color}">
       <div class="ghead"><button class="caret" data-collapse="${g.key}" aria-label="Collapse group">${ICON.caret}</button>
         ${g.kind==='project'?`<button class="gname linklike" data-open="p:${g.project.id}">${esc(g.name)}</button>`:`<span class="gname">${esc(g.name)}</span>`}
         <span class="gcount">${rollup ? new Set(g.items.map(i=>i.assignmentId)).size+' assignments' : g.items.length+' item'+(g.items.length===1?'':'s')}${g.sub?' · '+esc(g.sub):''}</span>${extra}</div>
@@ -1225,6 +1310,7 @@ function fileOwner(ownerKey){ const [k,id]=ownerKey.split(':'); return k==='p'?p
 function askTitle(a){
   if(a.kind==='feedback') return `${esc(first(a.by))} asked ${esc(toName(a.to))} for feedback`;
   if(a.kind==='help') return `${esc(first(a.by))} → Mr. P: ${esc(HELP_TYPES[a.helpType]||'Help')}`;
+  if(a.kind==='merge'){ const P=proj(a.projectId), T=proj(a.targetId); return `${esc(first(a.by))} wants to ${a.mode==='nest'?'put':'turn'} “${esc(P?P.name:'a project')}” ${a.mode==='nest'?'inside':'into an item in'} “${esc(T?T.name:'a project')}”${a.result?' · '+a.result:''}`; }
   return `Lesson request: ${esc(a.title)}`;
 }
 function askCardHTML(a,o={}){
@@ -1232,10 +1318,12 @@ function askCardHTML(a,o={}){
   const f=a.fileId && ((i&&i.files)||(p&&p.files)||[]).find(x=>x.id===a.fileId);
   const fv=f&&f.versions.find(v=>v.v===a.fileV);
   const target = o.showTarget && (i||p) ? `<button class="linkbtn" data-open="${i?'i:'+i.id:'p:'+p.id}">${esc(i?i.title:p.name)}</button>` : '';
-  const replies=(a.replies||[]).map(r=>`<div class="post">${av(r.by)}<div class="bubble"><div class="who">${esc(pname(r.by))}<span class="when">${esc(r.at)}</span></div>${esc(r.text)}</div></div>`).join('');
+  const replies=(a.replies||[]).map(r=>`<div class="post">${av(r.by)}<div class="bubble"><div class="who">${nameTag(r.by)}<span class="when">${esc(r.at)}</span></div>${esc(r.text)}</div></div>`).join('');
   const plus = a.kind==='lesson' ? `<button class="chip small ${(a.plus||[]).includes(S.viewer)?'on':''}" data-plus="${a.id}">+1 · ${(a.plus||[]).length}</button>` : '';
   const sched = a.kind==='lesson' && isTeacher() && a.open ? `<button class="btn tiny primary" data-schedule="${a.id}">Schedule it</button>` : '';
   const canClose = isTeacher() || a.by===S.viewer;
+  const mergeBtns = a.kind==='merge' && a.open && (isTeacher() || askIncludes(a,S.viewer)) && a.by!==S.viewer ? `<button class="btn tiny primary" data-mergeok="${a.id}">Approve</button><button class="btn tiny" data-mergeno="${a.id}">Decline</button>` : '';
+  const mergeNote = a.kind==='merge' ? `<div class="hint">${a.mode==='nest'?'Keeps everything as its own group inside the bigger project. Can be undone.':'Becomes one item; its items become subitems. Permanent.'}</div>` : '';
   const open = UI.sec['ask:'+a.id] ?? a.open;
   return `<details class="askcard ${a.open?'':'closed'} k-${a.kind}" data-sec="ask:${a.id}" ${open?'open':''}>
     <summary><span class="st">${askTitle(a)}</span>${a.open?'':'<span class="tag">Closed</span>'}<span class="hint">${(a.replies||[]).length} repl${(a.replies||[]).length===1?'y':'ies'} · ${esc(a.at)}</span></summary>
@@ -1245,7 +1333,7 @@ function askCardHTML(a,o={}){
       ${f?`<div class="hint">About <a href="${esc(fv?fv.url:latestUrl(f))}" target="_blank" rel="noopener">${esc(f.label)} v${fv?fv.v:f.versions.length}</a></div>`:''}
       ${replies?`<div class="thread">${replies}</div>`:''}
       ${a.open && canReplyAsk(a)?`<div class="replyrow"><input data-k="reply:${a.id}" placeholder="${a.kind==='lesson'?'Add a comment':a.by===S.viewer?'Add a reply':a.kind==='help'?'Reply to '+esc(first(a.by)):'Write your feedback'}"><button class="btn tiny" data-reply="${a.id}">Reply</button></div>`:''}
-      <div class="askacts">${plus}${sched}${canClose?`<button class="linkbtn" data-closeask="${a.id}">${a.open?'Close':'Reopen'}</button>`:''}</div>
+      ${mergeNote}<div class="askacts">${mergeBtns}${plus}${sched}${canClose?`<button class="linkbtn" data-closeask="${a.id}">${a.open?'Close':'Reopen'}</button>`:''}</div>
     </div></details>`;
 }
 function askFormHTML(targetKey,files,priv){
@@ -1266,7 +1354,7 @@ function updatesHTML(thread){
   const groups=[]; for(const t of sorted){ const k=relDay(t.ts); let g=groups.find(x=>x.k===k); if(!g){ g={k,posts:[]}; groups.push(g); } g.posts.push(t); }
   const few = thread.length<=6;
   return groups.map(g=>`<details class="dgroup" data-sec="upd:${g.k}" ${(UI.sec['upd:'+g.k] ?? (few||g.k==='Today'||g.k==='Yesterday'))?'open':''}><summary>${esc(g.k)} <span class="hint">${g.posts.length}</span></summary>
-    <div class="thread">${g.posts.map(t=>`<div class="post">${av(t.by)}<div class="bubble"><div class="who">${esc(pname(t.by))}<span class="when">${esc(t.at)}</span></div>${esc(t.text)}</div></div>`).join('')}</div></details>`).join('');
+    <div class="thread">${g.posts.map(t=>`<div class="post">${av(t.by)}<div class="bubble"><div class="who">${nameTag(t.by)}<span class="when">${esc(t.at)}</span></div>${esc(t.text)}</div></div>`).join('')}</div></details>`).join('');
 }
 function historyHTML(i){
   let h=(i.history||[]).map(e=>({...e}));
@@ -1275,7 +1363,7 @@ function historyHTML(i){
   if(!h.length) return '<div class="hint">No history yet.</div>';
   const mini = sid => { const s=stat(sid); return `<span class="mini" style="background:${s.color}">${s.label}</span>`; };
   return `<label class="toggle"><input type="checkbox" data-combined ${S.prefs.timeline==='combined'?'checked':''}> Include updates</label><div class="history">${h.map(e=>{
-    let txt='', col='var(--ink-3)'; const nm=`<strong>${esc(first(e.by))}</strong>`;
+    let txt='', col='var(--ink-3)'; const nm=`<strong>${nameTag(e.by,true)}</strong>`;
     if(e.kind==='post') return `<div class="hev postev">${nm} posted an update<span class="pb">${esc(e.text)}</span><span class="ht">${esc(e.at)}</span></div>`;
     if(e.kind==='created') txt=`${nm} created this`;
     else if(e.kind==='status'){ col=stat(e.to).color; txt = (e.from==='sub'&&e.to!=='done') ? `${nm} returned it for revisions ${mini(e.from)}→${mini(e.to)}` : `${nm} moved it ${mini(e.from)}→${mini(e.to)}`; }
@@ -1284,6 +1372,8 @@ function historyHTML(i){
     else if(e.kind==='sync'){ col='var(--s-done)'; txt=`${nm} entered it in Schoology`; }
     else if(e.kind==='missing'){ col='var(--danger)'; txt=`${nm} entered it as missing in Schoology`; }
     else if(e.kind==='assignees') txt=`${nm} changed who’s assigned`;
+    else if(e.kind==='moved') txt=`${nm} moved it from <b>${esc(e.from||'?')}</b> to <b>${esc(e.to)}</b>`;
+    else if(e.kind==='converted') txt=`${nm} turned the project <b>${esc(e.from)}</b> into this item`;
     else if(e.kind==='due'){ col='var(--s-work)'; txt = !e.from ? `${nm} set the due date to <b>${esc(fmt(e.to))}</b>` : !e.to ? `${nm} removed the due date (was ${esc(fmt(e.from))})` : `${nm} moved the due date <b>${esc(fmt(e.from))} → ${esc(fmt(e.to))}</b>${e.to>e.from?' (later)':' (earlier)'}`; }
     else txt=`${nm} changed ${esc(e.field||'details')}`;
     return `<div class="hev" style="--hc:${col}">${txt}${e.note?`<span class="hnote">“${esc(e.note)}”</span>`:''}<span class="ht">${esc(e.at)}</span></div>`;
@@ -1305,10 +1395,10 @@ function renderFoot(){
   F.innerHTML = can ? `<textarea id="postText" rows="2" placeholder="Post an update…"></textarea><button class="btn primary" data-post="${UI.panel}">Post</button>` : `<span class="hint">Only the team can post updates here.</span>`;
 }
 function preserve(container, fn){
-  const keep={}; container.querySelectorAll('[data-k]').forEach(el=>{ keep[el.dataset.k]= el.type==='checkbox'?el.checked:el.value; });
+  const keep={}; container.querySelectorAll('[data-k]').forEach(el=>{ keep[el.dataset.k]= (el.type==='checkbox'||el.type==='radio')?el.checked:el.value; });
   const checked = new Set([...container.querySelectorAll('input[data-pp="ask"]:checked')].map(x=>x.value)); const all=$('#askAll')?.checked;
   fn();
-  container.querySelectorAll('[data-k]').forEach(el=>{ const v=keep[el.dataset.k]; if(v===undefined) return; if(el.type==='checkbox') el.checked=v; else el.value=v; });
+  container.querySelectorAll('[data-k]').forEach(el=>{ const v=keep[el.dataset.k]; if(v===undefined) return; if(el.type==='checkbox'||el.type==='radio') el.checked=v; else el.value=v; });
   container.querySelectorAll('input[data-pp="ask"]').forEach(x=>{ if(checked.has(x.value)){ x.checked=true; x.closest('.ck').classList.add('on'); } });
   if(all && $('#askAll')){ $('#askAll').checked=true; syncAskAll(); }
 }
@@ -1351,6 +1441,7 @@ function itemBody(i){
       <label>Due</label><input type="date" data-f="due" value="${i.due||''}" ${ed?'':'disabled'}>
       <label>Priority</label><select data-f="priority" ${ed?'':'disabled'}>${PRI.map(x=>`<option value="${x.id}" ${i.priority===x.id?'selected':''}>${x.label}</option>`).join('')}</select>
       <span class="lbl">${a?'Audience':'Project'}</span><span>${a?esc(audienceLabel(a.audience))+(a.weekly?' · weekly':''):(p?`<button class="linkbtn" data-open="p:${p.id}">${esc(p.name)}</button>`:'')}</span>
+      ${i.source==='task' && !i.parentId && ed ? (()=>{ const opts=S.projects.filter(x=>x.id!==i.projectId && canEditProject(x)); return opts.length?`<span class="lbl">Move to</span><select data-moveitem="${i.id}"><option value="">Another project…</option>${opts.map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('')}</select>`:''; })() : ''}
       ${a&&a.template?`<span class="lbl">Template</span><span><a class="btn tiny" href="${esc(a.template)}" target="_blank" rel="noopener">Make my copy</a></span>`:''}
     </div>`;
   h += sec('fields','Details',fields,true);
@@ -1380,6 +1471,22 @@ function projectBody(p){
   const askBtn = ed && !isTeacher() ? (UI.askForm==='p:'+p.id ? askFormHTML('p:'+p.id, p.files||[], p.private) : `<button class="btn" data-askform="p:${p.id}">Ask for feedback</button>`) : '';
   if(askBtn || asks.length) h += sec('pasks','Feedback', askBtn + asks.map(x=>askCardHTML(x)).join(''), true);
   h += sec('pupdates','Updates', updatesHTML(p.thread||[]), true, `<span class="hint">${(p.thread||[]).length}</span>`);
+  const kids=childrenOf(p.id), parent=p.parentId&&proj(p.parentId);
+  let comb='';
+  if(parent) comb+=`<div class="note">This project is inside <button class="linkbtn" data-open="p:${parent.id}">${esc(parent.name)}</button>. ${ad||canAdminProject(parent)?`<button class="btn tiny" data-unnest="${p.id}">Take it back out</button>`:''}</div>`;
+  if(kids.length) comb+=`<div class="hint">Projects inside this one: ${kids.map(k=>`<button class="linkbtn" data-open="p:${k.id}">${esc(k.name)}</button>`).join(', ')}</div>`;
+  const pend=S.asks.find(a=>a.kind==='merge'&&a.open&&a.projectId===p.id);
+  if(pend) comb+=askCardHTML(pend);
+  else if(ad && !parent){
+    const targets=S.projects.filter(x=>x.id!==p.id && !x.parentId && canSeeProject(x));
+    comb += kids.length ? '<div class="hint">To combine this project with another one, take the projects inside it back out first.</div>' : targets.length ? `<div class="combine">
+      <select data-k="mtarget:${p.id}"><option value="">Pick the bigger project…</option>${targets.map(x=>`<option value="${x.id}">${esc(x.name)}${x.private?' (private)':''}</option>`).join('')}</select>
+      <label class="opt"><input type="radio" name="mmode-${p.id}" data-k="mnest:${p.id}" checked><span><b>Put it inside</b> — it becomes a group inside the bigger project and keeps everything: items, updates, files, people. You can take it back out later.</span></label>
+      <label class="opt"><input type="radio" name="mmode-${p.id}" data-k="mconv:${p.id}"><span><b>Turn it into an item</b> — it becomes one item in the bigger project and its items become subitems. Updates, files, and history come along. This can’t be undone.</span></label>
+      <div class="hint">If you’re not an admin of the bigger project, its admins get a request to approve.</div>
+      <button class="btn" data-merge="${p.id}" style="align-self:flex-start">Combine</button></div>` : '<div class="hint">No other projects to combine with yet.</div>';
+  }
+  if(comb) h += sec('pcombine', parent||kids.length?'Combined projects':'Combine with another project', comb, !!(parent||kids.length||pend));
   if(ad) h += `<button class="btn danger" data-delproject="${p.id}" style="align-self:flex-start">Delete project</button>`;
   return h;
 }
@@ -1441,7 +1548,7 @@ function renderHomeTeacher(){
   const roster = STUDENTS.filter(s=>!UI.homeGrade || s.grad===+UI.homeGrade);
   const rows = roster.map(s=>{ const ci=checkin(s.id,t); const classDay=isClassDay(s.id,t);
     const status = ci&&ci.absent ? '<span class="tag">Absent</span>' : ci&&ci.line ? `<span class="tag ok">${esc(new Date(ci.ts).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}))}</span>` : (classDay?'<span class="tag chg">Not yet</span>':'<span class="hint">No class</span>');
-    return `<tr class="row" data-openweek="${s.id}|${weekStartOf(t)}"><td class="c-item"><div class="cell-item">${av(s.id)}<b>${esc(s.name)}</b></div></td><td class="small">${gradLabel(s.grad)} · ${esc(s.major)}</td><td>${status}</td><td class="small wrap">${ci&&ci.active?(ci.active.map(k=>esc(activeLabel(k))).join(', ')):''}</td><td class="small wrap">${ci&&ci.line?esc(ci.line):''}</td></tr>`; }).join('');
+    return `<tr class="row" data-openweek="${s.id}|${weekStartOf(t)}"><td class="c-item"><div class="cell-item">${av(s.id)}<b>${nameTag(s.id)}</b><button class="linkbtn small" data-editprofile="${s.id}" title="Edit profile">Profile</button></div></td><td class="small">${gradLabel(s.grad)} · ${esc(s.major)}</td><td>${status}</td><td class="small wrap">${ci&&ci.active?(ci.active.map(k=>esc(activeLabel(k))).join(', ')):''}</td><td class="small wrap">${ci&&ci.line?esc(ci.line):''}</td></tr>`; }).join('');
   const inN = roster.filter(s=>{const c=checkin(s.id,t); return c&&c.line;}).length, absN=roster.filter(s=>checkin(s.id,t)?.absent).length;
   const review = S.items.filter(i=>i.source==='assignment'&&i.status==='sub').length;
   const help = S.asks.filter(a=>a.open&&a.kind==='help').length, lreq = S.asks.filter(a=>a.open&&a.kind==='lesson').length;
@@ -1451,7 +1558,9 @@ function renderHomeTeacher(){
       <button data-gotoreview><b>${review}</b><span>to review</span></button><button data-page="asks"><b>${help}</b><span>open asks</span></button><button data-page="lessons"><b>${lreq}</b><span>lesson requests</span></button></div>
     <div class="filters" style="margin:10px 0 8px">${['','2027','2028'].map(g=>`<button class="chip ${UI.homeGrade===g?'on':''}" data-homegrade="${g}">${g===''?'Everyone':g==='2027'?'Seniors':'Juniors'}</button>`).join('')}<span class="hint">Click a student to open their week.</span></div>
     <div class="tablewrap" style="--g:var(--accent)"><table class="roster"><thead><tr><th class="c-item">Student</th><th>Grade · major</th><th>Check-in</th><th>Working on</th><th>Today’s line</th></tr></thead><tbody>${rows}</tbody></table></div>`;
-  if(lessons.length) h += `<div class="hgrid" style="margin-top:16px">${card('Lessons today', lessons.map(lessonMini).join(''))}</div>`;
+  const pend=S.settings.filter(x=>x.id.startsWith('profile_') && x.imgPending && PEOPLE[x.id.slice(8)]);
+  const pendCard = pend.length ? card('Pictures to approve', pend.map(x=>{ const pid=x.id.slice(8); return `<div class="mrow"><span class="av big sh-${x.shape||'circle'}" style="background:center/cover url(${x.imgPending});color:transparent"></span><b>${esc(realName(pid))}</b><button class="btn tiny primary" data-avok="${pid}">Approve</button><button class="btn tiny" data-avno="${pid}">Decline</button></div>`; }).join('')) : '';
+  if(lessons.length || pendCard) h += `<div class="hgrid" style="margin-top:16px">${pendCard}${lessons.length?card('Lessons today', lessons.map(lessonMini).join('')):''}</div>`;
   return h;
 }
 
@@ -1632,6 +1741,8 @@ const HELP = [
   {id:'updates',title:'Updates and history',tags:'updates post comment history collapse thread',body:'<p>Post progress with the box at the bottom of any item or project. Updates are grouped by day and older days fold up. If someone posts while you’re reading, a “New update” button appears instead of jumping.</p><p><b>History</b> shows every change: status moves, files, returns.</p>'},
   {id:'today',title:'Your Today schedule',tags:'today schedule time blocks plan',body:'<p>Today lists your lessons and whatever you checked in on. Add times if you want to plan blocks, or leave it as a list. You can add other projects or your own blocks at the bottom.</p>'},
   {id:'lessons',title:'Lessons and polls',tags:'lessons signup seats polls vote request',body:'<p>Sign up for a lesson before seats run out; it shows on your Home and Today schedule. Want a lesson that doesn’t exist? <b>Request a lesson</b>, and classmates can +1 it.</p><p>Polls show up on Home. Mr. P decides whether answers are anonymous.</p>'},
+  {id:'profile',title:'Nickname and icon',tags:'profile nickname avatar icon color shape picture emoji name real',body:'<p>Click <b>Edit my profile</b> under your name in the sidebar. Pick a nickname, a color, a shape, and what goes inside: your initials, a letter or emoji, or a picture.</p><p>Pictures should be your own artwork, not photos of people. They show up after Mr. P approves them. Click anyone’s name to switch between their nickname and real name.</p>'},
+  {id:'combine',title:'Combining projects',tags:'merge combine nest inside move project item sub-project',body:'<p>Started something that turned out to be part of a bigger project? Open your project’s <b>Details</b>, then <b>Combine with another project</b>.</p><p><b>Put it inside</b> keeps it as its own group inside the bigger project, with everything intact, and can be undone. <b>Turn it into an item</b> makes it one item with subitems, and is permanent. If you’re not an admin of the bigger project, its admins approve it first.</p><p>To move just one item, open it and use <b>Move to</b>.</p>'},
   {id:'bell',title:'Notifications',tags:'bell notifications unread',body:'<p>The bell shows returns, feedback requests, replies, and new lessons. Click one to jump to it.</p>'}
 ];
 function renderHelp(){
@@ -1742,6 +1853,48 @@ function drawCheckin(){
 }
 function closeCheckin(){ CI=null; const el=$('#checkin'); el.hidden=true; el.innerHTML=''; }
 
+/* ---------- Profile (nickname + avatar) ---------- */
+let PR = null;
+function openProfile(pid){
+  const pr=profile(pid);
+  PR={pid,color:pr.color||PEOPLE[pid].color,shape:pr.shape||'circle',mode:pr.mode||'initials',text:pr.text||'',img:null,clearImg:false};
+  const self = pid===S.viewer;
+  openModal(`<div class="mhead"><h2>${self?'Your profile':esc(realName(pid))+'’s profile'}</h2><button class="x" data-closemodal>×</button></div>
+    <div class="profprev"><span id="prPrev"></span><div><div class="hint">Real name</div><b>${esc(realName(pid))}</b>${pid==='t'?'':`<div class="hint">${gradLabel(PEOPLE[pid].grad)} · ${esc(PEOPLE[pid].major)}</div>`}</div></div>
+    <div class="fields"><label>Nickname</label><input id="prNick" maxlength="20" value="${esc(pr.nick||'')}" placeholder="What classmates see (optional)"></div>
+    <p class="hint" style="margin:0">Anyone can click a name to switch between the nickname and real name.</p>
+    <h3 class="sech small">Color</h3><div class="swatches">${AV_COLORS.map(c=>`<button class="sw ${c===PR.color?'on':''}" style="background:${c}" data-prcolor="${c}" aria-label="Color ${c}"></button>`).join('')}</div>
+    <h3 class="sech small">Shape</h3><div class="checks">${AV_SHAPES.map(([k,l])=>`<button class="chip small ${k===PR.shape?'on':''}" data-prshape="${k}">${l}</button>`).join('')}</div>
+    <h3 class="sech small">Inside the icon</h3>
+    <div class="checks">${[['initials','Initials'],['text','Letters or emoji'],['img','Picture']].map(([k,l])=>`<button class="chip small ${k===PR.mode?'on':''}" data-prmode="${k}">${l}</button>`).join('')}</div>
+    <div id="prModeBox"></div>
+    <div class="mfoot"><button class="btn primary" data-prsave>Save profile</button></div>`);
+  drawPrMode(); drawPrPrev();
+}
+function drawPrMode(){
+  const pr=profile(PR.pid), box=$('#prModeBox'); if(!box) return;
+  if(PR.mode==='text') box.innerHTML=`<input id="prText" maxlength="4" value="${esc(PR.text)}" placeholder="Up to 2 letters or 1 emoji" style="width:220px">`;
+  else if(PR.mode==='img') box.innerHTML=`<input type="file" id="prFile" accept="image/*"><p class="hint">Use your own artwork — no photos of people. ${isTeacher()?'':'It shows up for everyone after Mr. P approves it.'}</p>${pr.imgPending&&!isTeacher()?'<p class="hint"><b>Waiting for approval.</b></p>':''}${pr.img?'<button class="linkbtn" data-prclearimg>Remove current picture</button>':''}`;
+  else box.innerHTML='';
+}
+function drawPrPrev(){
+  const el=$('#prPrev'); if(!el) return;
+  const nick=($('#prNick')?.value||'').trim(), lab = PR.mode==='text'&&PR.text ? PR.text : initials(nick||realName(PR.pid));
+  const img = PR.img || (!PR.clearImg && PR.mode==='img' && (profile(PR.pid).img||profile(PR.pid).imgPending));
+  el.innerHTML=`<span class="av big sh-${PR.shape}" style="background-color:${PR.color};${img?`background-image:url(${img});background-size:cover;background-position:center;color:transparent`:''}">${esc(lab)}</span>`;
+}
+function shrinkImage(file){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>{ const im=new Image(); im.onload=()=>{ const c=document.createElement('canvas'); c.width=c.height=96; const g=c.getContext('2d'); const s=Math.min(im.width,im.height); g.drawImage(im,(im.width-s)/2,(im.height-s)/2,s,s,0,0,96,96); let u=c.toDataURL('image/webp',.82); if(!u.startsWith('data:image/webp')) u=c.toDataURL('image/jpeg',.82); res(u); }; im.onerror=rej; im.src=r.result; }; r.onerror=rej; r.readAsDataURL(file); }); }
+function saveProfile(){
+  const doc=ensureProfile(PR.pid), nick=($('#prNick').value||'').trim().slice(0,20);
+  if(nick) doc.nick=nick; else delete doc.nick;
+  doc.color=PR.color; doc.shape=PR.shape; doc.mode=PR.mode;
+  if(PR.mode==='text'){ const t=($('#prText')?.value||'').trim(); if(!t){ toast('Type a letter or emoji, or pick Initials'); return; } doc.text=[...t].slice(0,2).join(''); }
+  if(PR.clearImg){ delete doc.img; delete doc.imgPending; }
+  if(PR.img){ if(isTeacher()){ doc.img=PR.img; delete doc.imgPending; } else { doc.imgPending=PR.img; notify('t','avatar',{text:realName(PR.pid)+' uploaded a new picture'}); } }
+  if(PR.mode==='img' && !doc.img && !doc.imgPending){ doc.mode='initials'; }
+  closeModal(); render(); toast(PR.img&&!isTeacher()?'Saved — your picture shows after Mr. P approves it':'Profile saved');
+}
+
 /* ---------- Render ---------- */
 const PAGES = () => isTeacher()
   ? [['home','Class today'],['board','Board'],['today','My day'],['week','Weekly reports'],['lessons','Lessons & polls'],['asks','Asks'],['sync','Schoology sync'],['help','Help']]
@@ -1766,6 +1919,7 @@ function showCrash(where,e){
 }
 function render(){
   if(!S.viewer) return;
+  try{ updateAvatarStyles(); }catch(e){}
   try{ renderSide(); }catch(e){ showCrash('sidebar',e); }
   try{ renderHead(); }catch(e){ showCrash('header',e); return; }
   const B=$('#board');
@@ -1780,12 +1934,12 @@ function renderSide(){
   sel.value = S.viewer;
   const counts = {asks: asksWaitingOnMe().filter(a=>a.kind!=='lesson').length, sync: isTeacher()?syncPending():0, week: (!isTeacher() && stageDue(S.viewer,weekStartOf(todayISO())))?1:0};
   let h = PAGES().map(([k,l])=>`<button data-page="${k}" class="${UI.page===k&&!(k==='board'&&UI.project)?'on':''}">${l}${counts[k]?`<span class="navcount">${counts[k]}</span>`:''}</button>`).join('');
-  const b = (p) => `<button data-nav="${p.id}" class="${UI.page==='board'&&UI.project===p.id?'on':''}"><span class="dot" style="background:${p.color}"></span><span class="nl">${esc(p.name)}</span>${p.private?`<span class="lock">${ICON.lock}</span>`:''}</button>`;
-  if(isTeacher()) h += '<h5>Projects</h5>' + S.projects.map(b).join('');
+  const b = (p,list) => `<button data-nav="${p.id}" class="${UI.page==='board'&&UI.project===p.id?'on':''} ${p.parentId&&list&&list.some(x=>x.id===p.parentId)?'child':''}"><span class="dot" style="background:${p.color}"></span><span class="nl">${esc(p.name)}</span>${p.private?`<span class="lock">${ICON.lock}</span>`:''}</button>`;
+  if(isTeacher()){ const L=orderTree(S.projects); h += '<h5>Projects</h5>' + L.map(p=>b(p,L)).join(''); }
   else {
-    const mine = S.projects.filter(p=>(p.roles||{})[S.viewer]), others = S.projects.filter(p=>!(p.roles||{})[S.viewer] && !p.private);
-    h += '<h5>My projects</h5>' + (mine.map(b).join('')||'<span class="hint" style="padding:0 8px">None yet</span>');
-    if(others.length) h += '<h5>Class projects</h5>' + others.map(b).join('');
+    const mine = orderTree(S.projects.filter(p=>(p.roles||{})[S.viewer])), others = orderTree(S.projects.filter(p=>!(p.roles||{})[S.viewer] && !p.private));
+    h += '<h5>My projects</h5>' + (mine.map(p=>b(p,mine)).join('')||'<span class="hint" style="padding:0 8px">None yet</span>');
+    if(others.length) h += '<h5>Class projects</h5>' + others.map(p=>b(p,others)).join('');
   }
   $('#nav').innerHTML = h;
   ['#btnReset','#btnClear'].forEach(x=>$(x).style.display=isTeacher()?'':'none');
@@ -1812,7 +1966,7 @@ function openMenu(target,kind,id){
   if(kind==='pri') m.innerHTML = PRI.map(s=>`<button class="pill" style="background:${s.color}" data-set="priority" data-id="${id}" data-val="${s.id}">${s.label}</button>`).join('');
   if(kind==='notifs'){
     const ns = notifsFor(S.viewer);
-    const verb = n => ({return:'returned for revisions',done:'marked done',feedback:n.to==='all'?'asked everyone for feedback on':'asked you for feedback on',reply:'replied on',help:'sent you an ask',lesson:'scheduled a lesson:',lessonreq:'requested a lesson:',poll:'posted a poll:',added:'added you to',assigned:'assigned you',post:'posted on'})[n.kind]||'updated';
+    const verb = n => ({return:'returned for revisions',done:'marked done',feedback:n.to==='all'?'asked everyone for feedback on':'asked you for feedback on',reply:'replied on',help:'sent you an ask',lesson:'scheduled a lesson:',lessonreq:'requested a lesson:',poll:'posted a poll:',added:'added you to',assigned:'assigned you',post:'posted on',avatar:'sent a picture to approve',avatarok:'approved your picture',avatarno:'declined your picture',merge:'asked to combine projects',merged:'combined projects:',mergeno:'declined combining'})[n.kind]||'updated';
     const tgt = n => { const i=n.itemId&&item(n.itemId); if(i) return i.title; const p=n.projectId&&proj(n.projectId); if(p) return p.name; const a=n.askId&&askById(n.askId); if(a&&a.kind==='feedback'){ const ai=a.itemId&&item(a.itemId); return ai?ai.title:(proj(a.projectId)?.name||''); } return ''; };
     m.innerHTML = `<div class="nhead"><span>Notifications</span>${ns.length?'<button class="linkbtn" data-readall>Mark all read</button>':''}</div>` + (ns.length ? ns.map(n=>{ const u=!n.readBy.includes(S.viewer);
       return `<button class="nitem ${u?'unread':''}" data-notif="${n.id}">${av(n.by)}<span><span class="nt"><strong>${esc(first(n.by))}</strong> ${verb(n)} ${tgt(n)?`<strong>${esc(tgt(n))}</strong>`:''}${n.text?`<br><em>“${esc(n.text)}”</em>`:''}</span><span class="nw">${esc(n.at)}</span></span></button>`; }).join('') : '<span class="hint" style="padding:8px">You’re all caught up.</span>');
@@ -1897,14 +2051,41 @@ function saveAssignment(editId){
 
 /* ---------- Events ---------- */
 document.addEventListener('click',e=>{
-  const t = e.target.closest('button,[data-open],[data-openweek],a,summary');
+  const t = e.target.closest('button,[data-flip],[data-open],[data-openweek],a,summary');
   if(!e.target.closest('#menu') && !e.target.closest('[data-status],[data-pri],#btnBell')) closeMenu();
   if(e.target.id==='modal'){ closeModal(); return; }
   if(!t) return;
   const d = t.dataset;
-  if(t.tagName==='SUMMARY' || t.tagName==='A') return;
+  if((t.tagName==='SUMMARY' || t.tagName==='A') && !d.flip) return;
   if(d.help){ e.preventDefault(); UI.page='help'; UI.helpOpen=d.help; UI.helpQ=''; closeModal(); if(!(CI&&CI.required)) closeCheckin(); render(); setTimeout(()=>$('#help-'+d.help)?.scrollIntoView({block:'center'}),50); return; }
   if(d.me){ becomes(d.me); return; }
+  if(d.merge){ const P=proj(d.merge), T=proj($(`[data-k="mtarget:${d.merge}"]`)?.value||''); if(!P) return; if(!T){ toast('Pick the bigger project first'); return; }
+    const mode=$(`[data-k="mconv:${d.merge}"]`)?.checked?'convert':'nest';
+    if(canAdminProject(T)){
+      if(mode==='convert' && !confirm(`Turn “${P.name}” into an item inside “${T.name}”? This can’t be undone.`)) return;
+      const it=runMerge(P,T,mode); render(); if(it) openPanel('i:'+it.id); toast(mode==='nest'?`“${P.name}” is now inside “${T.name}”`:`“${P.name}” is now an item in “${T.name}”`);
+    } else {
+      const a={id:rid('k'),kind:'merge',by:S.viewer,projectId:P.id,targetId:T.id,mode,to:adminsOf(T),note:'',open:true,replies:[],...nowStamp()};
+      S.asks.push(a); a.to.forEach(x=>notify(x,'merge',{askId:a.id,projectId:T.id,text:askTitle(a).replace(/<[^>]+>/g,'')}));
+      render(); toast(`Sent to ${toName(a.to)} to approve`);
+    }
+    return; }
+  if(d.mergeok||d.mergeno){ const a=askById(d.mergeok||d.mergeno); if(!a||!a.open) return; const P=proj(a.projectId), T=proj(a.targetId);
+    if(d.mergeno){ a.open=false; a.result='declined'; notify(a.by,'mergeno',{projectId:a.projectId,text:''}); render(); toast('Declined'); return; }
+    if(!P||!T){ a.open=false; a.result='project gone'; render(); toast('One of those projects no longer exists'); return; }
+    if(a.mode==='convert' && !confirm(`Turn “${P.name}” into an item inside “${T.name}”? This can’t be undone.`)) return;
+    a.open=false; a.result='approved'; runMerge(P,T,a.mode); notify(a.by,'merged',{projectId:T.id,text:`Approved: “${P.name}” ${a.mode==='nest'?'is now inside':'is now an item in'} “${T.name}”`}); render(); toast('Combined'); return; }
+  if(d.unnest){ const P=proj(d.unnest); if(!P) return; doUnnest(P); render(); toast('Taken back out'); return; }
+  if(d.flip){ e.preventDefault(); e.stopPropagation(); UI.flip.has(d.flip)?UI.flip.delete(d.flip):UI.flip.add(d.flip); render(); return; }
+  if(d.profile!==undefined){ openProfile(S.viewer); return; }
+  if(d.editprofile){ e.stopPropagation(); openProfile(d.editprofile); return; }
+  if(d.prcolor){ PR.color=d.prcolor; $$('[data-prcolor]').forEach(x=>x.classList.toggle('on',x===t)); drawPrPrev(); return; }
+  if(d.prshape){ PR.shape=d.prshape; $$('[data-prshape]').forEach(x=>x.classList.toggle('on',x===t)); drawPrPrev(); return; }
+  if(d.prmode){ PR.mode=d.prmode; $$('[data-prmode]').forEach(x=>x.classList.toggle('on',x===t)); drawPrMode(); drawPrPrev(); return; }
+  if(d.prclearimg!==undefined){ PR.clearImg=true; PR.img=null; drawPrPrev(); t.remove(); return; }
+  if(d.prsave!==undefined){ saveProfile(); return; }
+  if(d.avok){ const x=ensureProfile(d.avok); x.img=x.imgPending; delete x.imgPending; x.mode='img'; notify(d.avok,'avatarok',{text:'Your picture was approved'}); render(); toast('Picture approved'); return; }
+  if(d.avno){ const x=ensureProfile(d.avno); delete x.imgPending; if(!x.img && x.mode==='img') x.mode='initials'; notify(d.avno,'avatarno',{text:'Try a different picture — no photos of people'}); render(); toast('Picture declined'); return; }
   if(d.closemodal!==undefined){ closeModal(); return; }
   if(d.set){
     const it=item(d.id); if(!it) return;
@@ -2001,7 +2182,7 @@ document.addEventListener('click',e=>{
   if(d.newver){ const [ok,fid]=d.newver.split('|'); addVersion(ok,fid); return; }
   if(d.addfile){ addFile(d.addfile); return; }
   if(d.priv!==undefined){ const p=proj(UI.panel.split(':')[1]); if(!p||!canAdminProject(p)) return; p.private=d.priv==='1'; render(); toast(p.private?'Private: only its people and Mr. P can see it':'Visible to the whole class'); return; }
-  if(d.delproject){ const p=proj(d.delproject); if(!p||!confirm(`Delete “${p.name}” and all its items?`)) return; S.items=S.items.filter(i=>i.projectId!==p.id); S.projects=S.projects.filter(x=>x.id!==p.id); closePanel(); render(); toast('Project deleted'); return; }
+  if(d.delproject){ const p=proj(d.delproject); if(!p||!confirm(`Delete “${p.name}” and all its items?`)) return; childrenOf(p.id).forEach(c=>c.parentId=null); S.items=S.items.filter(i=>i.projectId!==p.id); S.projects=S.projects.filter(x=>x.id!==p.id); closePanel(); render(); toast('Project deleted'); return; }
   if(d.delitem){ const i=item(d.delitem); if(!i||!confirm('Delete “'+i.title+'”'+(subsOf(i.id).length?' and its subitems':'')+'?')) return;
     const kill=new Set([i.id,...subsOf(i.id).map(x=>x.id)]); S.items=S.items.filter(x=>!kill.has(x.id)); closePanel(); render(); toast('Item deleted'); return; }
   if(d.post){ const ta=$('#postText'); const tx=(ta.value||'').trim(); if(!tx) return; const [k,id]=d.post.split(':'); const o=k==='i'?item(id):proj(id); if(!o) return;
@@ -2058,6 +2239,9 @@ document.addEventListener('change',e=>{
   if(t.id==='fGroup'){ UI.groupBy=t.value; render(); return; }
   if(t.id==='wkStudent'){ UI.wkStudent=t.value; render(); return; }
   if(t.id==='askAll'){ syncAskAll(); return; }
+  if(d.moveitem){ const i=item(d.moveitem), T=proj(t.value); if(!i||!T) return; if(!confirm(`Move “${i.title}”${subsOf(i.id).length?' and its subitems':''} to “${T.name}”?`)){ t.value=''; return; }
+    const added=moveItem(i,T); render(); toast(`Moved to “${T.name}”`+(added.length?` · added ${added.map(first).join(', ')} to it`:'')); return; }
+  if(t.id==='prFile' && t.files && t.files[0]){ shrinkImage(t.files[0]).then(u=>{ PR.img=u; PR.clearImg=false; drawPrPrev(); }).catch(()=>toast('Couldn’t read that image')); return; }
   if(t.id==='audAll' || t.classList.contains('audGrad') || t.classList.contains('audMajor')){
     t.closest('.ck')?.classList.toggle('on',t.checked);
     if(t.id==='audAll' && t.checked){ $$('.audGrad,.audMajor,input[data-pp="aud"]').forEach(x=>{ x.checked=false; x.closest('.ck')?.classList.remove('on'); }); }
@@ -2083,6 +2267,8 @@ document.addEventListener('input',e=>{
   if(t.id==='helpSearch'){ UI.helpQ=t.value; $('.helplist').outerHTML = (()=>{ const tmp=document.createElement('div'); tmp.innerHTML=renderHelp(); return tmp.querySelector('.helplist').outerHTML; })(); return; }
   if(t.dataset.wq){ const w=ensureWeek(S.viewer,t.dataset.ws); w.answers[t.dataset.wq]=t.value; clearTimeout(wqTimer); wqTimer=setTimeout(()=>persist(),800); return; }
   if(t.id==='revNote') t.classList.remove('need');
+  if(t.id==='prNick'){ drawPrPrev(); return; }
+  if(t.id==='prText'){ PR.text=t.value; drawPrPrev(); return; }
 });
 
 /* Drag and drop (kanban) + panel resize */
