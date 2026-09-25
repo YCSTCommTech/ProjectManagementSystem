@@ -566,6 +566,42 @@ input,textarea,select{max-width:100%;box-sizing:border-box}
 .fbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--accent-soft);border-radius:8px;padding:7px 12px;font-size:13px;width:100%}
 .fbar .linkbtn{margin-left:auto;font-weight:700}
 
+.shelf{display:flex;flex-direction:column;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px}
+.shelfrow{display:flex;gap:12px;align-items:flex-start}
+.shelflab{width:84px;flex:none;font-weight:700;display:flex;flex-direction:column}
+.tiles{display:flex;flex-wrap:wrap;gap:8px;flex:1}
+.tile{width:150px;min-height:58px;border-radius:9px;padding:8px 10px;text-align:left;display:flex;flex-direction:column;gap:2px;border:1px solid var(--line);background:var(--surface-2);font-size:13px}
+.tile b{font-size:13px;line-height:1.25}
+.tile span{font-size:12px;color:var(--ink-2)}
+.tile.empty{border:2px dashed var(--line);background:transparent}
+.tile.lv-major,.lvtag.lv-major{border-left:5px solid var(--yt-forest)}
+.tile.lv-minor,.lvtag.lv-minor{border-left:5px solid var(--yt-spartan)}
+.tile.lv-micro,.lvtag.lv-micro{border-left:5px solid var(--yt-silver)}
+.lvtag{font-size:12px;font-weight:700;padding:1px 7px;border:1px solid var(--line);border-radius:5px;background:var(--surface-2)}
+.mptree{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+.mprow{display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.mprow:last-child{border-bottom:0}
+.mprow.d0{background:var(--surface-2)}
+.mprow.d0 .title{font-weight:700}
+.mprow.d1{padding-left:34px}
+.mprow.d2{padding-left:58px}
+.mprow .title{flex:1;min-width:160px}
+.mprow select{border:1px solid var(--line);background:var(--surface);border-radius:7px;padding:5px 8px}
+.mprow.tagged select{border-color:var(--accent);font-weight:700}
+.mprole{border:1px solid var(--line);background:var(--surface);border-radius:7px;padding:5px 8px;width:200px}
+.claim{background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:10px 12px;margin:8px 0;display:flex;flex-direction:column;gap:6px}
+.chead{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.claim .askacts input{border:1px solid var(--line);background:var(--surface-2);border-radius:7px;padding:5px 8px;min-width:160px;flex:1}
+.claim select{border:1px solid var(--line);background:var(--surface-2);border-radius:7px;padding:5px 8px}
+.tag.wait{color:var(--s-sub);border-color:var(--s-sub)}
+.mpcfg{display:flex;flex-direction:row!important;flex-wrap:wrap;gap:12px!important;align-items:center}
+.mpcfg label{display:flex;align-items:center;gap:6px;font-size:13px}
+.mpcfg input{border:1px solid var(--line);background:var(--surface-2);border-radius:7px;padding:5px 8px;width:auto}
+.mpcfg input[type=number]{width:70px}
+.viewas{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:22px 0 10px;padding:10px 14px;background:var(--accent-soft);border-radius:10px;font-weight:700}
+.viewas select{border:1px solid var(--line);background:var(--surface);border-radius:7px;padding:6px 8px}
+.asview{border:2px dashed var(--accent);border-radius:12px;padding:12px}
+
 </style>
 </head>
 <body>
@@ -625,7 +661,7 @@ const CFG = window.JARVIS_CONFIG || {};
 const SUPABASE_URL = CFG.url || 'PASTE_YOUR_PROJECT_URL';
 const SUPABASE_ANON_KEY = CFG.anonKey || 'PASTE_YOUR_ANON_KEY';
 const TEACHER_PIN = String(CFG.teacherPin || '2468');
-const APP_VERSION = '2.6';
+const APP_VERSION = '2.7';
 const APP_DATE = 'Sep 25, 2026';
 
 /* ---------- Dates ---------- */
@@ -819,7 +855,7 @@ let S = {viewer:null, prefs:{timeline:'split',panelW:560}}; TABLES.forEach(t=>S[
 let LAST_VIEWER = null, teacherOk = false;
 try{ const L=JSON.parse(localStorage.getItem(LOCAL_KEY)||'{}'); if(L.viewer && PEOPLE[L.viewer]) LAST_VIEWER=L.viewer; if(L.prefs) S.prefs={...S.prefs,...L.prefs}; }catch(e){}
 const UI = {page:'home',view:'table',groupBy:'project',scope:'all',major:'',student:'',overdue:false,dueWeek:false,status:'',filterOpen:false,q:'',project:'',collapsed:new Set(),openSubs:new Set(),panel:null,
-  sec:{}, flip:new Set(), helpQ:'', helpOpen:null, wkStudent:'', wkStart:null, homeGrade:'', lastThread:{}, askForm:false, wide:false};
+  sec:{}, flip:new Set(), mpStudent:'', helpQ:'', helpOpen:null, wkStudent:'', wkStart:null, homeGrade:'', lastThread:{}, askForm:false, wide:false};
 function saveLocal(){ try{ localStorage.setItem(LOCAL_KEY, JSON.stringify({viewer:S.viewer||LAST_VIEWER,prefs:S.prefs})); }catch(e){} }
 function save(){ saveLocal(); persist(); }
 const nid = ()=> rid('i');
@@ -1622,7 +1658,7 @@ function renderHomeTeacher(){
   const lessons = S.lessons.filter(l=>l.date===t);
   let h = `<div class="hello"><h2>Class today</h2><span class="hint">${esc(fmtDay(t))}</span></div>
     <div class="stats"><div><b>${inN}/${roster.length}</b><span>checked in</span></div><div><b>${absN}</b><span>absent</span></div>
-      <button data-gotoreview><b>${review}</b><span>to review</span></button><button data-page="asks"><b>${help}</b><span>open asks</span></button><button data-page="lessons"><b>${lreq}</b><span>lesson requests</span></button></div>
+      <button data-gotoreview><b>${review}</b><span>to review</span></button><button data-page="asks"><b>${help}</b><span>open asks</span></button><button data-page="lessons"><b>${lreq}</b><span>lesson requests</span></button><button data-page="mp"><b>${S.settings.filter(x=>x.id.startsWith('claim_')&&x.status==='submitted').length}</b><span>credit requests</span></button></div>
     <div class="filters" style="margin:10px 0 8px">${['','2027','2028'].map(g=>`<button class="chip ${UI.homeGrade===g?'on':''}" data-homegrade="${g}">${g===''?'Everyone':g==='2027'?'Seniors':'Juniors'}</button>`).join('')}<span class="hint">Click a student to open their week.</span></div>
     <div class="tablewrap" style="--g:var(--accent)"><table class="roster"><thead><tr><th class="c-item">Student</th><th>Grade · major</th><th>Check-in</th><th>Working on</th><th>Today’s line</th></tr></thead><tbody>${rows}</tbody></table></div>`;
   const pend=S.settings.filter(x=>x.id.startsWith('profile_') && x.imgPending && PEOPLE[x.id.slice(8)]);
@@ -1810,6 +1846,7 @@ const HELP = [
   {id:'lessons',title:'Lessons and polls',tags:'lessons signup seats polls vote request',body:'<p>Sign up for a lesson before seats run out; it shows on your Home and Today schedule. Want a lesson that doesn’t exist? <b>Request a lesson</b>, and classmates can +1 it.</p><p>Polls show up on Home. Mr. P decides whether answers are anonymous.</p>'},
   {id:'profile',title:'Your icon',tags:'profile avatar icon color shape picture emoji',body:'<p>Click <b>Edit my profile</b> under your name in the sidebar. Pick a color, a shape, and what goes inside: your initials, a letter or emoji, or a picture.</p><p>Pictures should be your own artwork, not photos of people. They show up after Mr. P approves them.</p>'},
   {id:'combine',title:'Combining projects',tags:'merge combine nest inside move project item sub-project',body:'<p>Started something that turned out to be part of a bigger project? Open your project’s <b>Details</b>, then <b>Combine with another project</b>.</p><p><b>Put it inside</b> keeps it as its own group inside the bigger project, with everything intact, and can be undone. <b>Turn it into an item</b> makes it one item with subitems, and is permanent. If you’re not an admin of the bigger project, its admins approve it first.</p><p>To move just one item, open it and use <b>Move to</b>.</p>'},
+  {id:'mp',title:'Marking period: major, minor, micro',tags:'marking period major minor micro projects count credit shelf role',body:'<p>Each marking period you aim for at least <b>one major, five minor, and three micro</b> projects. Open <b>Marking period</b> and pick Major, Minor, or Micro next to your work. You can tag a whole project, or just the item or subitem you did. The same project can be a major for one person and a minor for another.</p><p>Write your role (“Director”, “Graphics”). When it’s finished, tap <b>It’s finished — submit for credit</b>, add your final file and a short reflection, and Mr. P counts it. Counted work fills your shelf at the top.</p>'},
   {id:'bell',title:'Notifications',tags:'bell notifications unread',body:'<p>The bell shows returns, feedback requests, replies, and new lessons. Click one to jump to it.</p>'}
 ];
 function renderHelp(){
@@ -1959,16 +1996,125 @@ function saveProfile(){
   closeModal(); render(); toast(PR.img&&!isTeacher()?'Saved — your picture shows after Mr. P approves it':'Profile saved');
 }
 
+/* ---------- Marking period: major / minor / micro ---------- */
+const LEVELS=[['major','Major'],['minor','Minor'],['micro','Micro']];
+const levelLabel = l => (LEVELS.find(x=>x[0]===l)||['','—'])[1];
+function mpConfig(){ return S.settings.find(x=>x.id==='mp_config') || {id:'mp_config',start:'2026-08-18',length:45,targets:{major:1,minor:5,micro:3}}; }
+function ensureMpConfig(){ let c=S.settings.find(x=>x.id==='mp_config'); if(!c){ c=JSON.parse(JSON.stringify(mpConfig())); S.settings.push(c); } return c; }
+function schoolDays(start,n){ const out=[]; let d=start; while(out.length<n){ const k=parseISO(d).getDay(); if(k!==0&&k!==6) out.push(d); d=addDays(d,1); } return out; }
+function currentMp(){
+  const c=mpConfig(), len=Math.max(5,+c.length||45); let start=c.start, num=1, days;
+  for(let g=0; g<12; g++){ days=schoolDays(start,len); const end=days[days.length-1]; if(todayISO()<=end || g===11) return {num,start,end,days,id:'mp_'+start,dayNum:Math.max(0,days.filter(d=>d<=todayISO()).length)}; start=addDays(end,1); num++; }
+}
+const claimId = (pid,key) => `claim_${pid}_${key.replace(':','-')}`;
+const claimsOf = pid => S.settings.filter(x=>x.id.startsWith('claim_') && x.by===pid);
+const claimFor = (pid,key) => S.settings.find(x=>x.id===claimId(pid,key));
+function targetOf(key){ const [k,id]=key.split(':'); return k==='p'?proj(id):item(id); }
+function targetTitle(key){ const o=targetOf(key); if(!o) return '(deleted)'; if(key.startsWith('p:')) return o.name; const p=o.projectId&&proj(o.projectId); return o.title+(p?` · ${p.name}`:''); }
+function relatedKeys(key){
+  const [k,id]=key.split(':'), out=new Set();
+  if(k==='p'){ S.items.filter(i=>i.projectId===id).forEach(i=>out.add('i:'+i.id)); return out; }
+  const i=item(id); if(!i) return out;
+  if(i.projectId) out.add('p:'+i.projectId);
+  if(i.parentId) out.add('i:'+i.parentId);
+  subsOf(id).forEach(s=>out.add('i:'+s.id));
+  return out;
+}
+function conflictFor(pid,key){ const rel=relatedKeys(key); return claimsOf(pid).find(c=>rel.has(c.target)); }
+function mpTree(pid){
+  const projs=S.projects.filter(p=>(p.roles||{})[pid] || S.items.some(i=>i.projectId===p.id && i.assignees.includes(pid)));
+  return orderTree(projs).map(p=>({key:'p:'+p.id,title:p.name,kids:S.items.filter(i=>i.projectId===p.id && !i.parentId && (i.assignees.includes(pid) || subsOf(i.id).some(s=>s.assignees.includes(pid))))
+    .map(i=>({key:'i:'+i.id,title:i.title,kids:subsOf(i.id).filter(s=>s.assignees.includes(pid)).map(s=>({key:'i:'+s.id,title:s.title,kids:[]}))}))}));
+}
+const canTag = pid => isTeacher() || pid===S.viewer;
+const statusTag = c => ({planned:'<span class="tag">Planned</span>',submitted:'<span class="tag wait">Waiting for Mr. P</span>',returned:'<span class="tag chg">Sent back</span>',credited:'<span class="tag ok">Counted</span>'})[c.status]||'';
+function mpRow(pid,node,depth){
+  const c=claimFor(pid,node.key), conf=!c && conflictFor(pid,node.key);
+  const locked = c && ['submitted','credited'].includes(c.status);
+  const dis = !canTag(pid) || locked || !!conf;
+  const open = node.key.startsWith('p:')?node.key:'i:'+node.key.slice(2);
+  let h=`<div class="mprow d${depth} ${c?'tagged lv-'+c.level:''}">
+    <button class="title" data-open="${open}">${esc(node.title)}</button>
+    <select data-mplevel="${pid}|${node.key}" ${dis?'disabled':''} aria-label="Counts as">
+      <option value="">${conf?'Counted in '+esc(targetTitle(conf.target).split(' · ')[0]):'Not counting'}</option>
+      ${LEVELS.map(([k,l])=>`<option value="${k}" ${c&&c.level===k?'selected':''}>${l}</option>`).join('')}</select>
+    ${c?`<input class="mprole" data-mprole="${c.id}" value="${esc(c.role||'')}" placeholder="Your role, e.g. Director" ${canTag(pid)&&!locked?'':'disabled'}>${statusTag(c)}`:''}
+  </div>`;
+  return h + node.kids.map(k=>mpRow(pid,k,depth+1)).join('');
+}
+function shelfHTML(pid,mp){
+  const t=mpConfig().targets, got=claimsOf(pid).filter(c=>c.status==='credited' && c.mp===mp.id);
+  return `<div class="shelf">${LEVELS.map(([k,l])=>{ const mine=got.filter(c=>c.level===k), empty=Math.max(0,(+t[k]||0)-mine.length);
+    return `<div class="shelfrow"><div class="shelflab">${l}<span class="hint">${mine.length} of ${t[k]}</span></div><div class="tiles">
+      ${mine.map(c=>`<button class="tile lv-${k}" data-open="${targetOf(c.target)?(c.target.startsWith('p:')?c.target:'i:'+c.target.slice(2)):''}" title="${esc(c.reflection||'')}"><b>${esc(targetTitle(c.target).split(' · ')[0])}</b>${c.role?`<span>${esc(c.role)}</span>`:''}</button>`).join('')}
+      ${Array.from({length:empty},()=>`<span class="tile empty"></span>`).join('')}</div></div>`; }).join('')}</div>`;
+}
+function claimCard(c,showWho){
+  const tgt=targetOf(c.target);
+  let acts='';
+  if(!isTeacher() && c.by===S.viewer && ['planned','returned'].includes(c.status)) acts=`<button class="btn tiny primary" data-mpsubmit="${c.id}">It’s finished — submit for credit</button>`;
+  if(isTeacher() && c.status==='submitted') acts=`<select data-mpcreditlevel="${c.id}" aria-label="Count as">${LEVELS.map(([k,l])=>`<option value="${k}" ${c.level===k?'selected':''}>Count as ${l}</option>`).join('')}</select>
+    <button class="btn tiny primary" data-mpok="${c.id}">Approve</button><input data-k="mpback:${c.id}" placeholder="Note if sending back"><button class="btn tiny" data-mpback="${c.id}">Send back</button>`;
+  if(isTeacher() && c.status==='credited') acts=`<button class="linkbtn" data-mpuncredit="${c.id}">Undo credit</button>`;
+  return `<div class="claim lv-${c.level}"><div class="chead">${showWho?av(c.by)+`<b>${esc(realName(c.by))}</b> · `:''}<span class="lvtag lv-${c.level}">${levelLabel(c.level)}</span>
+      ${tgt?`<button class="title" data-open="${c.target.startsWith('p:')?c.target:'i:'+c.target.slice(2)}">${esc(targetTitle(c.target))}</button>`:`<span>${esc(targetTitle(c.target))}</span>`}${statusTag(c)}</div>
+    ${c.role?`<div class="hint">Role: ${esc(c.role)}</div>`:''}
+    ${c.status==='returned'&&c.note?`<div class="note">Mr. P: “${esc(c.note)}”</div>`:''}
+    ${c.reflection&&c.status!=='planned'?`<div class="asknote">“${esc(c.reflection)}”</div>`:''}
+    ${c.finalUrl?`<a href="${esc(c.finalUrl)}" target="_blank" rel="noopener" class="hint">Open final work</a>`:''}
+    ${acts?`<div class="askacts">${acts}</div>`:''}</div>`;
+}
+function renderMpFor(pid,mp){
+  const claims=claimsOf(pid), open=claims.filter(c=>c.status!=='credited');
+  const tree=mpTree(pid);
+  let h=shelfHTML(pid,mp);
+  h+=`<h3 class="sech">In progress <span class="hint">Tagged work that isn’t counted yet.</span></h3>${open.length?open.map(c=>claimCard(c)).join(''):'<div class="hint">Nothing tagged yet. Pick Major, Minor, or Micro next to your work below.</div>'}`;
+  h+=`<h3 class="sech">Everything you’re part of <span class="hint">Tag the whole project, or just the piece you did.</span></h3>`;
+  h+= tree.length ? `<div class="mptree">${tree.map(n=>mpRow(pid,n,0)).join('')}</div>` : '<div class="hint">Not on any projects yet.</div>';
+  return h;
+}
+function renderMp(){
+  const mp=currentMp(), t=mpConfig().targets;
+  let h=`<div class="hello"><h2>Marking period</h2>${helpDot('mp')}<span class="hint">Marking period ${mp.num} · ${esc(fmt(mp.start))} – ${esc(fmt(mp.end))} · day ${mp.dayNum} of ${mp.days.length}</span></div>`;
+  if(!isTeacher()) return h+renderMpFor(S.viewer,mp);
+  const queue=S.settings.filter(x=>x.id.startsWith('claim_') && x.status==='submitted' && PEOPLE[x.by]);
+  const expected = Math.floor((mp.dayNum/mp.days.length)*((+t.major||0)+(+t.minor||0)+(+t.micro||0)));
+  const rows=STUDENTS.map(s=>{ const cr=claimsOf(s.id).filter(c=>c.status==='credited'&&c.mp===mp.id); const n=l=>cr.filter(c=>c.level===l).length; const tot=cr.length; const wait=claimsOf(s.id).filter(c=>c.status==='submitted').length;
+    return `<tr class="row" data-mpview="${s.id}"><td class="c-item"><div class="cell-item">${av(s.id)}<b>${esc(s.name)}</b></div></td><td>${n('major')}/${t.major}</td><td>${n('minor')}/${t.minor}</td><td>${n('micro')}/${t.micro}</td><td>${wait?`<span class="tag wait">${wait}</span>`:''}</td><td>${tot>=expected?'<span class="tag ok">On pace</span>':tot>=expected-1?'<span class="tag">Close</span>':'<span class="tag chg">Behind</span>'}</td></tr>`; }).join('');
+  const c=mpConfig();
+  h+=`<details class="psec" data-sec="mpcfg"><summary><span class="st">Marking period settings</span><span class="hint">Starts ${esc(fmt(c.start))} · ${c.length} school days · ${t.major}/${t.minor}/${t.micro}</span></summary><div class="psec-body mpcfg">
+      <label>First day <input type="date" data-mpcfg="start" value="${esc(c.start)}"></label><label>School days <input type="number" min="5" max="120" data-mpcfg="length" value="${c.length}"></label>
+      <label>Majors <input type="number" min="0" max="10" data-mpcfg="major" value="${t.major}"></label><label>Minors <input type="number" min="0" max="20" data-mpcfg="minor" value="${t.minor}"></label><label>Micros <input type="number" min="0" max="20" data-mpcfg="micro" value="${t.micro}"></label>
+      <div class="hint">Later marking periods start the day after the last one ends. We’ll swap this for the real school calendar in the final build.</div></div></details>`;
+  h+=`<h3 class="sech">Waiting for credit <span class="hint">${queue.length}</span></h3>${queue.length?queue.map(c=>claimCard(c,true)).join(''):'<div class="hint">Nothing waiting.</div>'}`;
+  h+=`<h3 class="sech">Class <span class="hint">Expected by today: about ${expected} of ${(+t.major||0)+(+t.minor||0)+(+t.micro||0)} counted. Click a student to see their page.</span></h3>
+    <div class="tablewrap" style="--g:var(--accent)"><table class="roster"><thead><tr><th class="c-item">Student</th><th>Major</th><th>Minor</th><th>Micro</th><th>Waiting</th><th>Pace</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  const vs=UI.mpStudent;
+  h+=`<div class="viewas"><span>Viewing as</span><select id="mpStudent"><option value="">Pick a student…</option>${STUDENTS.map(s=>`<option value="${s.id}" ${vs===s.id?'selected':''}>${esc(s.name)}</option>`).join('')}</select>${vs?'<span class="hint">This is exactly what they see. You can change tags for them.</span>':''}</div>`;
+  if(vs) h+=`<div class="asview" id="mpview">${renderMpFor(vs,mp)}</div>`;
+  return h;
+}
+function mpSubmitModal(c){
+  const tgt=targetOf(c.target), files=(tgt&&tgt.files)||[];
+  openModal(`<div class="mhead"><h2>Submit for credit</h2><button class="x" data-closemodal>×</button></div>
+    <p class="hint" style="margin:0"><b>${esc(targetTitle(c.target))}</b> as your <b>${levelLabel(c.level).toLowerCase()}</b>${c.role?` · ${esc(c.role)}`:''}</p>
+    <div class="fields"><label>Final work</label><select id="mfFile"><option value="">${files.length?'Pick a file…':'No files yet — paste a link below'}</option>${files.map(f=>`<option value="${esc(latestUrl(f))}">${esc(f.label)} (v${f.versions.length})</option>`).join('')}</select>
+      <label>Or a link</label><input id="mfUrl" placeholder="Drive, YouTube, or portfolio link">
+      <label>Reflection</label><textarea id="mfRef" rows="3" placeholder="What did you make, what was your part, and what did you learn?">${esc(c.reflection||'')}</textarea></div>
+    <div class="mfoot"><button class="btn primary" data-mpsend="${c.id}">Send to Mr. P</button></div>`);
+}
+
 /* ---------- Render ---------- */
 const PAGES = () => isTeacher()
-  ? [['home','Class today'],['board','Board'],['today','My day'],['week','Weekly reports'],['lessons','Lessons & polls'],['asks','Asks'],['sync','Schoology sync'],['help','Help']]
-  : [['home','Home'],['board','Board'],['today','Today'],['week','My week'],['lessons','Lessons & polls'],['asks','Asks'],['help','Help']];
+  ? [['home','Class today'],['board','Board'],['today','My day'],['week','Weekly reports'],['mp','Marking period'],['lessons','Lessons & polls'],['asks','Asks'],['sync','Schoology sync'],['help','Help']]
+  : [['home','Home'],['board','Board'],['today','Today'],['week','My week'],['mp','Marking period'],['lessons','Lessons & polls'],['asks','Asks'],['help','Help']];
 function pageHTML(){
   switch(UI.page){
     case 'home': return isTeacher()?renderHomeTeacher():renderHomeStudent();
     case 'board': return renderBoardPage();
     case 'today': return renderToday();
     case 'week': return renderWeek();
+    case 'mp': return renderMp();
     case 'lessons': return renderLessons();
     case 'asks': return renderAsks();
     case 'sync': return isTeacher()?renderSync():'';
@@ -1996,7 +2142,7 @@ function renderSide(){
   const sel = $('#viewer');
   sel.innerHTML = `<option value="t">Mr. P (teacher)</option><optgroup label="Seniors">${SENIORS.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('')}</optgroup><optgroup label="Juniors">${JUNIORS.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('')}</optgroup>`;
   sel.value = S.viewer;
-  const counts = {asks: asksWaitingOnMe().filter(a=>a.kind!=='lesson').length, sync: isTeacher()?syncPending():0, week: (!isTeacher() && stageDue(S.viewer,weekStartOf(todayISO())))?1:0};
+  const counts = {mp: isTeacher()?S.settings.filter(x=>x.id.startsWith('claim_')&&x.status==='submitted').length:claimsOf(S.viewer).filter(c=>c.status==='returned').length, asks: asksWaitingOnMe().filter(a=>a.kind!=='lesson').length, sync: isTeacher()?syncPending():0, week: (!isTeacher() && stageDue(S.viewer,weekStartOf(todayISO())))?1:0};
   let h = PAGES().map(([k,l])=>`<button data-page="${k}" class="${UI.page===k&&!(k==='board'&&UI.project)?'on':''}">${l}${counts[k]?`<span class="navcount">${counts[k]}</span>`:''}</button>`).join('');
   const b = (p,list) => `<button data-nav="${p.id}" class="${UI.page==='board'&&UI.project===p.id?'on':''} ${p.parentId&&list&&list.some(x=>x.id===p.parentId)?'child':''}"><span class="dot" style="background:${p.color}"></span><span class="nl">${esc(p.name)}</span>${p.private?`<span class="lock">${ICON.lock}</span>`:''}</button>`;
   if(isTeacher()){ const L=orderTree(S.projects); h += '<h5>Projects</h5>' + L.map(p=>b(p,L)).join(''); }
@@ -2010,7 +2156,7 @@ function renderSide(){
   $('#verTag').textContent=`JARVIS v${APP_VERSION} · ${APP_DATE}`;
 }
 function renderHead(){
-  const titles = {home:isTeacher()?'Class today':'Home',board:UI.project==='assign'?'Class assignments':UI.project?(proj(UI.project)?.name||'Board'):(isTeacher()?'Class board':'My board'),today:isTeacher()?'My day':'Today',week:isTeacher()?'Weekly reports':'My week',lessons:'Lessons & polls',asks:'Asks',sync:'Schoology sync',help:'Help'};
+  const titles = {home:isTeacher()?'Class today':'Home',board:UI.project==='assign'?'Class assignments':UI.project?(proj(UI.project)?.name||'Board'):(isTeacher()?'Class board':'My board'),today:isTeacher()?'My day':'Today',week:isTeacher()?'Weekly reports':'My week',mp:'Marking period',lessons:'Lessons & polls',asks:'Asks',sync:'Schoology sync',help:'Help'};
   $('#pageTitle').textContent = titles[UI.page]||'';
   const onBoard = UI.page==='board';
   $('#boardActions').innerHTML = onBoard ? `<div class="seg" role="tablist" aria-label="View"><button data-view="table" class="${UI.view==='table'?'on':''}">Table</button><button data-view="kanban" class="${UI.view==='kanban'?'on':''}">Kanban</button></div>
@@ -2031,7 +2177,7 @@ function openMenu(target,kind,id){
   if(kind==='pri') m.innerHTML = PRI.map(s=>`<button class="pill" style="background:${s.color}" data-set="priority" data-id="${id}" data-val="${s.id}">${s.label}</button>`).join('');
   if(kind==='notifs'){
     const ns = notifsFor(S.viewer);
-    const verb = n => ({return:'returned for revisions',done:'marked done',feedback:n.to==='all'?'asked everyone for feedback on':'asked you for feedback on',reply:'replied on',help:'sent you an ask',lesson:'scheduled a lesson:',lessonreq:'requested a lesson:',poll:'posted a poll:',added:'added you to',assigned:'assigned you',post:'posted on',avatar:'sent a picture to approve',avatarok:'approved your picture',avatarno:'declined your picture',merge:'asked to combine projects',merged:'combined projects:',mergeno:'declined combining'})[n.kind]||'updated';
+    const verb = n => ({return:'returned for revisions',done:'marked done',feedback:n.to==='all'?'asked everyone for feedback on':'asked you for feedback on',reply:'replied on',help:'sent you an ask',lesson:'scheduled a lesson:',lessonreq:'requested a lesson:',poll:'posted a poll:',added:'added you to',assigned:'assigned you',post:'posted on',credit:'submitted work for credit:',creditok:'counted your',creditback:'sent back your',avatar:'sent a picture to approve',avatarok:'approved your picture',avatarno:'declined your picture',merge:'asked to combine projects',merged:'combined projects:',mergeno:'declined combining'})[n.kind]||'updated';
     const tgt = n => { const i=n.itemId&&item(n.itemId); if(i) return i.title; const p=n.projectId&&proj(n.projectId); if(p) return p.name; const a=n.askId&&askById(n.askId); if(a&&a.kind==='feedback'){ const ai=a.itemId&&item(a.itemId); return ai?ai.title:(proj(a.projectId)?.name||''); } return ''; };
     m.innerHTML = `<div class="nhead"><span>Notifications</span>${ns.length?'<button class="linkbtn" data-readall>Mark all read</button>':''}</div>` + (ns.length ? ns.map(n=>{ const u=!n.readBy.includes(S.viewer);
       return `<button class="nitem ${u?'unread':''}" data-notif="${n.id}">${av(n.by)}<span><span class="nt"><strong>${esc(first(n.by))}</strong> ${verb(n)} ${tgt(n)?`<strong>${esc(tgt(n))}</strong>`:''}${n.text?`<br><em>“${esc(n.text)}”</em>`:''}</span><span class="nw">${esc(n.at)}</span></span></button>`; }).join('') : '<span class="hint" style="padding:8px">You’re all caught up.</span>');
@@ -2116,7 +2262,7 @@ function saveAssignment(editId){
 
 /* ---------- Events ---------- */
 document.addEventListener('click',e=>{
-  const t = e.target.closest('button,[data-open],[data-openweek],a,summary');
+  const t = e.target.closest('button,[data-open],[data-openweek],[data-mpview],a,summary');
   if(!e.target.closest('#menu') && !e.target.closest('[data-status],[data-pri],#btnBell')) closeMenu();
   if(UI.filterOpen && !e.target.closest('#fpanel,#btnFilter')){ UI.filterOpen=false; renderHead(); }
   if(e.target.id==='modal'){ closeModal(); return; }
@@ -2125,6 +2271,18 @@ document.addEventListener('click',e=>{
   if(t.tagName==='SUMMARY' || t.tagName==='A') return;
   if(d.help){ e.preventDefault(); UI.page='help'; UI.helpOpen=d.help; UI.helpQ=''; closeModal(); if(!(CI&&CI.required)) closeCheckin(); render(); setTimeout(()=>$('#help-'+d.help)?.scrollIntoView({block:'center'}),50); return; }
   if(d.me){ becomes(d.me); return; }
+  if(d.mpview){ UI.mpStudent=d.mpview; render(); setTimeout(()=>{ const el=$('#mpview'); if(el && el.scrollIntoView) el.scrollIntoView({behavior:'smooth',block:'start'}); },30); return; }
+  if(d.mpsubmit){ const c=S.settings.find(x=>x.id===d.mpsubmit); if(c) mpSubmitModal(c); return; }
+  if(d.mpsend){ const c=S.settings.find(x=>x.id===d.mpsend); if(!c) return; const url=normUrl($('#mfUrl').value)||$('#mfFile').value; const ref=$('#mfRef').value.trim();
+    if(!url){ toast('Pick your final file or paste a link'); return; } if(ref.length<15){ $('#mfRef').focus(); toast('Write a short reflection first'); return; }
+    Object.assign(c,{status:'submitted',finalUrl:url,reflection:ref,submittedAt:Date.now()}); delete c.note;
+    notify('t','credit',{text:`${levelLabel(c.level)}: ${targetTitle(c.target)}`}); closeModal(); render(); toast('Sent to Mr. P'); return; }
+  if(d.mpok){ const c=S.settings.find(x=>x.id===d.mpok); if(!c) return; const lv=$(`[data-mpcreditlevel="${c.id}"]`)?.value||c.level;
+    Object.assign(c,{status:'credited',level:lv,mp:currentMp().id,creditedAt:Date.now()}); notify(c.by,'creditok',{text:`${levelLabel(lv)}: ${targetTitle(c.target)}`}); render(); toast('Counted'); return; }
+  if(d.mpback){ const c=S.settings.find(x=>x.id===d.mpback); const inp=$(`[data-k="mpback:${d.mpback}"]`); const note=(inp?.value||'').trim(); if(!c) return;
+    if(!note){ inp?.focus(); toast('Add a note so they know what to do'); return; }
+    Object.assign(c,{status:'returned',note}); inp.value=''; notify(c.by,'creditback',{text:note}); render(); toast('Sent back'); return; }
+  if(d.mpuncredit){ const c=S.settings.find(x=>x.id===d.mpuncredit); if(!c||!confirm('Undo this credit? It goes back to waiting.')) return; c.status='submitted'; delete c.mp; render(); return; }
   if(d.merge){ const P=proj(d.merge), T=proj($(`[data-k="mtarget:${d.merge}"]`)?.value||''); if(!P) return; if(!T){ toast('Pick the bigger project first'); return; }
     const mode=$(`[data-k="mconv:${d.merge}"]`)?.checked?'convert':'nest';
     if(canAdminProject(T)){
@@ -2312,6 +2470,14 @@ document.addEventListener('change',e=>{
   if(t.id==='fGroup'){ UI.groupBy=t.value; render(); return; }
   if(t.id==='wkStudent'){ UI.wkStudent=t.value; render(); return; }
   if(t.id==='restoreFile'){ const f=t.files&&t.files[0]; t.value=''; if(f && isTeacher()) restoreBackup(f); return; }
+  if(t.id==='mpStudent'){ UI.mpStudent=t.value; render(); return; }
+  if(d.mplevel){ const [pid,key]=d.mplevel.split('|'); if(!canTag(pid)) return; const id=claimId(pid,key); const ex=S.settings.find(x=>x.id===id);
+    if(!t.value){ if(ex && ['submitted','credited'].includes(ex.status)){ render(); return; } S.settings=S.settings.filter(x=>x.id!==id); render(); return; }
+    if(!ex && conflictFor(pid,key)){ toast('Already counted in a related item'); render(); return; }
+    if(ex) ex.level=t.value; else S.settings.push({id,by:pid,target:key,level:t.value,role:'',status:'planned',...nowStamp()});
+    render(); if(!ex) setTimeout(()=>$(`[data-mprole="${id}"]`)?.focus(),30); return; }
+  if(d.mprole){ const c=S.settings.find(x=>x.id===d.mprole); if(c){ c.role=t.value.trim().slice(0,80); render(); } return; }
+  if(d.mpcfg){ const c=ensureMpConfig(); const v=t.value; if(d.mpcfg==='start'){ if(v) c.start=v; } else if(d.mpcfg==='length'){ c.length=Math.max(5,Math.min(120,+v||45)); } else { c.targets={...c.targets,[d.mpcfg]:Math.max(0,Math.min(20,+v||0))}; } render(); return; }
   if(t.id==='askAll'){ syncAskAll(); return; }
   if(d.moveitem){ const i=item(d.moveitem), T=proj(t.value); if(!i||!T) return; if(!confirm(`Move “${i.title}”${subsOf(i.id).length?' and its subitems':''} to “${T.name}”?`)){ t.value=''; return; }
     const added=moveItem(i,T); render(); toast(`Moved to “${T.name}”`+(added.length?` · added ${added.map(first).join(', ')} to it`:'')); return; }
