@@ -711,7 +711,7 @@ const CFG = window.JARVIS_CONFIG || {};
 const SUPABASE_URL = CFG.url || 'PASTE_YOUR_PROJECT_URL';
 const SUPABASE_ANON_KEY = CFG.anonKey || 'PASTE_YOUR_ANON_KEY';
 const LOGIN_DOMAIN = 'jarvis.local';
-const APP_VERSION = '3.0.1';
+const APP_VERSION = '3.0.2';
 const APP_DATE = 'Sep 25, 2026';
 
 /* ---------- Dates ---------- */
@@ -2193,7 +2193,7 @@ function renderRoster(){
     <td class="ractions">${p.active?`<button class="btn tiny" data-rreset="${p.id}">Reset password</button><button class="btn tiny" data-redit="${p.id}">Edit</button><button class="linkbtn" data-roff="${p.id}">Turn off</button>`:`<button class="btn tiny" data-ron="${p.id}">Turn back on</button>`}</td></tr>`;
   return `<div class="hello"><h2>Roster</h2><span class="grow"></span><button class="btn primary" data-rimport>Import spreadsheet</button><button class="btn" data-radd>Add a student</button></div>
     <p class="hint" style="max-width:760px">Students sign in with the username and password you give them. Passwords are shown only once, so print the sign-in cards. <b>Reset password</b> makes a new one and the old one stops working. <b>Turn off</b> blocks sign-in (for students who leave) but keeps their work.</p>
-    <input type="file" id="rosterFile" accept=".xlsx,.xls,.csv" hidden>
+    <input type="file" id="rosterFile" accept=".xlsx,.csv" hidden>
     ${on.length?`<div class="tablewrap" style="--g:var(--accent)"><table class="roster"><thead><tr><th class="c-item">Student</th><th>Username</th><th>Grade</th><th>Major</th><th></th></tr></thead><tbody>${on.map(row).join('')}</tbody></table></div>`:'<div class="empty">No students yet. Import your spreadsheet or add students one at a time.</div>'}
     ${off.length?`<details class="psec" data-sec="rosteroff" style="margin-top:14px"><summary><span class="st">Turned off</span><span class="hint">${off.length}</span></summary><div class="tablewrap" style="border:0"><table class="roster"><tbody>${off.map(row).join('')}</tbody></table></div></details>`:''}`;
 }
@@ -2206,11 +2206,47 @@ function parseCSV(text){
   if(cur!==''||row.length){ row.push(cur); rows.push(row); }
   return rows;
 }
+/* Built-in .xlsx reader (no outside download needed): unzips with the browser and reads the sheet XML */
+async function unzip(buf){
+  const dv=new DataView(buf), dec=new TextDecoder(); let eo=-1;
+  for(let i=buf.byteLength-22;i>=Math.max(0,buf.byteLength-65557);i--){ if(dv.getUint32(i,true)===0x06054b50){ eo=i; break; } }
+  if(eo<0) throw new Error('That file isn’t a readable .xlsx file.');
+  const n=dv.getUint16(eo+10,true); let p=dv.getUint32(eo+16,true); const files={};
+  for(let k=0;k<n;k++){ const method=dv.getUint16(p+10,true), csize=dv.getUint32(p+20,true), nl=dv.getUint16(p+28,true), el=dv.getUint16(p+30,true), cl=dv.getUint16(p+32,true), lho=dv.getUint32(p+42,true);
+    files[dec.decode(new Uint8Array(buf,p+46,nl))]={method,csize,lho}; p+=46+nl+el+cl; }
+  return async name=>{ const f=files[name]; if(!f) return null; const start=f.lho+30+dv.getUint16(f.lho+26,true)+dv.getUint16(f.lho+28,true); const data=new Uint8Array(buf,start,f.csize);
+    if(f.method===0) return dec.decode(data);
+    const out=await new Response(new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer(); return dec.decode(out); };
+}
+const colIdx = ref => { let n=0; for(const ch of String(ref).replace(/[0-9]/g,'')) n=n*26+(ch.charCodeAt(0)-64); return n-1; };
+async function readXlsx(buf){
+  const get=await unzip(buf), X=s=>new DOMParser().parseFromString(s,'application/xml');
+  const wb=X(await get('xl/workbook.xml')), rels=X(await get('xl/_rels/workbook.xml.rels'));
+  const sheets=[...wb.getElementsByTagName('sheet')].map(s=>({name:s.getAttribute('name'),rid:s.getAttribute('r:id')}));
+  const pick=sheets.find(s=>/roster/i.test(s.name))||sheets[0];
+  const rel=[...rels.getElementsByTagName('Relationship')].find(r=>r.getAttribute('Id')===pick.rid);
+  let path=rel.getAttribute('Target'); path=path.startsWith('/')?path.slice(1):'xl/'+path.replace(/^\.\//,'');
+  const ssx=await get('xl/sharedStrings.xml');
+  const strings=ssx?[...X(ssx).getElementsByTagName('si')].map(si=>[...si.getElementsByTagName('t')].map(t=>t.textContent).join('')):[];
+  const rows=[];
+  for(const r of X(await get(path)).getElementsByTagName('row')){ const row=[];
+    for(const c of r.getElementsByTagName('c')){ const t=c.getAttribute('t'), v=c.getElementsByTagName('v')[0];
+      row[colIdx(c.getAttribute('r'))] = t==='s' ? (strings[+(v&&v.textContent)]||'') : t==='inlineStr' ? [...c.getElementsByTagName('t')].map(x=>x.textContent).join('') : (v?v.textContent:''); }
+    rows.push(Array.from(row,x=>x??'')); }
+  return rows;
+}
 function loadSheetJS(){ return window.XLSX ? Promise.resolve() : new Promise((res,rej)=>{ const s=document.createElement('script'); s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'; s.onload=res; s.onerror=()=>rej(new Error('Couldn’t load the spreadsheet reader')); document.head.appendChild(s); }); }
 async function readRosterFile(file){
   let rows;
   if(/\.csv$/i.test(file.name)) rows=parseCSV(await file.text());
-  else { await loadSheetJS(); const wb=XLSX.read(await file.arrayBuffer(),{type:'array'}); const ws=wb.Sheets['Roster']||wb.Sheets[wb.SheetNames[0]]; rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''}); }
+  else if(/\.xlsx$/i.test(file.name)){
+    const buf=await file.arrayBuffer();
+    try{ rows=await readXlsx(buf); }
+    catch(e){ console.error('built-in xlsx reader', e);
+      try{ await loadSheetJS(); const wb=XLSX.read(buf,{type:'array'}); const ws=wb.Sheets['Roster']||wb.Sheets[wb.SheetNames[0]]; rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''}); }
+      catch(e2){ throw new Error('Couldn’t read that spreadsheet. In Excel or Google Sheets, save it as CSV and import the CSV instead.'); } }
+  }
+  else throw new Error('Pick the .xlsx roster file (or a .csv).');
   const hi=rows.findIndex(r=>r.some(c=>/first/i.test(String(c))) && r.some(c=>/last/i.test(String(c))));
   if(hi<0) throw new Error('Couldn’t find the “First name” and “Last name” columns.');
   const H=rows[hi].map(c=>String(c).toLowerCase());
