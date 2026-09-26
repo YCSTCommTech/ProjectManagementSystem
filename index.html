@@ -602,6 +602,59 @@ input,textarea,select{max-width:100%;box-sizing:border-box}
 .viewas select{border:1px solid var(--line);background:var(--surface);border-radius:7px;padding:6px 8px}
 .asview{border:2px dashed var(--accent);border-radius:12px;padding:12px}
 
+.micwrap{position:relative;display:block;flex:1;min-width:0;width:100%}
+.micwrap>textarea,.micwrap>input{width:100%;padding-right:38px!important}
+.micbtn{position:absolute;right:6px;top:6px;width:28px;height:28px;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--ink-2);display:grid;place-items:center;padding:0;cursor:pointer;z-index:1}
+.micwrap:not(.ta) .micbtn{top:50%;transform:translateY(-50%)}
+.micbtn:hover{color:var(--accent);border-color:var(--accent)}
+.micbtn.on{background:var(--danger);border-color:var(--danger);color:#fff;animation:micpulse 1.2s infinite}
+@keyframes micpulse{0%{box-shadow:0 0 0 0 rgba(200,54,63,.5)}70%{box-shadow:0 0 0 9px rgba(200,54,63,0)}100%{box-shadow:0 0 0 0 rgba(200,54,63,0)}}
+@media (prefers-reduced-motion: reduce){.micbtn.on{animation:none}}
+.speak{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--ink-2);padding:0;vertical-align:middle;cursor:pointer;flex:none}
+.speak:hover,.speak.on{color:var(--accent);border-color:var(--accent)}
+.speak.on{background:var(--accent-soft)}
+.helpbody>.speak{float:right;margin-left:8px}
+.morebtn{color:var(--ink-2)!important}
+body.simple{font-size:17px}
+body.simple .nav button{font-size:16px;padding:10px 12px}
+body.simple .hcard h3{font-size:17px}
+body.simple .simplecol{display:flex;flex-direction:column;gap:14px;max-width:680px}
+body.simple table .c-people,body.simple table .c-pri,body.simple table .c-link,body.simple table .c-proj{display:none}
+body.simple table{min-width:0}
+body.simple tr.row td{height:48px}
+body.simple .pill{font-size:14px}
+body.simple .tag.fb{display:none}
+.whoami{display:flex;align-items:center;gap:10px;padding:4px 6px 6px}
+.whoami .av{width:34px;height:34px;font-size:13px;margin:0;border:0}
+.whoami b{display:block;font-size:14px;line-height:1.2}
+.whoami small{color:var(--ink-3);font-size:12px}
+.gatebox.signin{max-width:380px}
+.gatebox.signin form{display:flex;flex-direction:column;gap:12px;margin-top:6px}
+.gatebox.signin label{display:flex;flex-direction:column;gap:5px;font-weight:600;font-size:14px}
+.gatebox.signin input{border:1px solid var(--line);background:var(--surface);border-radius:9px;padding:11px 12px;font-size:16px}
+.gatebox.signin .btn.primary{padding:11px;font-size:16px}
+.gatebox .brand-mark{background:#095641}
+.ractions{display:flex;gap:6px;align-items:center;justify-content:flex-end;flex-wrap:wrap;padding:6px 10px!important}
+tr.offrow{opacity:.6}
+table.roster td code,.previewtbl code{font-size:13px}
+.previewtbl{max-height:52vh;overflow:auto}
+.previewtbl table{min-width:640px}
+.previewtbl td{padding:4px 6px}
+.previewtbl input,.previewtbl select{border:1px solid var(--line);background:var(--surface-2);border-radius:6px;padding:5px 7px;width:100%}
+.previewtbl tr.bad td{background:rgba(200,54,63,.06)}
+.err{color:var(--danger);font-weight:600}
+.note.bad{background:rgba(200,54,63,.08);border-color:var(--danger)}
+.mfoot .hint{margin-right:auto;align-self:center}
+
+.badge[hidden]{display:none!important}
+.modalbox.wide{width:min(940px,100%)}
+.previewtbl td:nth-child(1){min-width:180px}.previewtbl td:nth-child(2){width:110px}.previewtbl td:nth-child(3){width:150px}.previewtbl td:nth-child(4){width:150px}.previewtbl td:nth-child(5){width:170px}
+.whoami .av{box-shadow:0 0 0 2px rgba(255,255,255,.55)}
+#gate .gatebox.signin{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:28px;margin:10vh auto 0;box-shadow:var(--shadow)}
+.modalbox .tablewrap table{min-width:0;width:100%}
+.modalbox .tablewrap{overflow:auto}
+.modalbox .tablewrap td,.modalbox .tablewrap th{text-align:left;padding:6px 10px}
+
 </style>
 </head>
 <body>
@@ -609,21 +662,18 @@ input,textarea,select{max-width:100%;box-sizing:border-box}
   <aside class="side">
     <div class="brand"><span class="brand-mark"><i style="background:#00954C"></i><i style="background:#FFFFFF"></i><i style="background:#807F83"></i><i style="background:#7CC9A0"></i></span>JARVIS</div>
     <div class="viewer">
-      <h3>You are</h3>
-      <select id="viewer" aria-label="You are"></select>
+      <div class="whoami" id="whoami"></div>
       <button class="linkbtn myprof" data-profile>Edit my profile</button>
-      <p>Test mode: fake characters only — no real names or info.</p>
+      <button class="linkbtn myprof" id="btnSimple"></button>
     </div>
     <div class="navwrap"><nav class="nav" id="nav"></nav></div>
     <div class="side-foot">
       <span class="live" id="live"><i></i> Connecting…</span>
-      <button class="linkbtn" id="btnSwitch">Switch character</button>
       <button class="linkbtn" id="btnTheme">Light / dark</button>
-      <button class="linkbtn" id="btnReset">Load fresh demo data</button>
+      <button class="linkbtn" id="btnSignOut">Sign out</button>
       <button class="linkbtn" id="btnBackup">Download backup</button>
       <button class="linkbtn" id="btnRestore">Restore from backup</button>
       <input type="file" id="restoreFile" accept="application/json,.json" hidden>
-      <button class="linkbtn" id="btnClear">Clear the whole board</button>
       <span class="vertag" id="verTag"></span>
     </div>
   </aside>
@@ -660,8 +710,8 @@ input,textarea,select{max-width:100%;box-sizing:border-box}
 const CFG = window.JARVIS_CONFIG || {};
 const SUPABASE_URL = CFG.url || 'PASTE_YOUR_PROJECT_URL';
 const SUPABASE_ANON_KEY = CFG.anonKey || 'PASTE_YOUR_ANON_KEY';
-const TEACHER_PIN = String(CFG.teacherPin || '2468');
-const APP_VERSION = '2.7';
+const LOGIN_DOMAIN = 'jarvis.local';
+const APP_VERSION = '3.0';
 const APP_DATE = 'Sep 25, 2026';
 
 /* ---------- Dates ---------- */
@@ -695,20 +745,21 @@ const PRI = [{id:'low',label:'Low',color:'var(--p-low)'},{id:'med',label:'Medium
 const MAJORS = ['Video','Photo','Graphic Design','Animation','Web'];
 const GCOLORS = ['#00954C','#3F7FD9','#9A7BE0','#E0617A','#EE9E2F','#16A3B8','#7A8C2E','#C2519E'];
 const AVCOL = ['#C2519E','#16A3B8','#7A5BD6','#D9772B','#2E8B57','#C0392B','#3F6FD8','#8C6A1F','#B0487A','#1F8A8A','#6A58C9','#C0662A','#3A7D44','#A93A3A','#2F62C4','#7D6420','#9C3F8E','#207C9A','#5E4DB8','#B8582B','#2D7F6B','#8A4FB0','#B24B4B'];
-const CAST = [
-  ['Marty McFly',2027,'Video'],['Hermione Granger',2027,'Web'],['Ferris Bueller',2027,'Video'],['Elle Woods',2027,'Graphic Design'],
-  ['Luke Skywalker',2027,'Animation'],['Katniss Everdeen',2027,'Photo'],['Indiana Jones',2027,'Photo'],['Ellen Ripley',2027,'Video'],
-  ['Buzz Lightyear',2028,'Animation'],['Mia Thermopolis',2028,'Graphic Design'],['Miles Morales',2028,'Graphic Design'],['Rocky Balboa',2028,'Video'],
-  ['Wednesday Addams',2028,'Photo'],['Harry Potter',2028,'Web'],['Dorothy Gale',2028,'Web'],['Forrest Gump',2028,'Video'],
-  ['Po',2028,'Animation'],['Lara Croft',2028,'Graphic Design'],['Mulan',2028,'Photo'],
-  ['Ace Trappola',2027,'Graphic Design'],['Pigeon',2028,'Web'],['Daredevil',2027,'Photo'],['Kevin Day',2028,'Animation']
-];
-const PEOPLE = { t:{id:'t',name:'Mr. P',role:'teacher',color:'#095641'} };
-CAST.forEach(([name,grad,major],ix)=>{ const id='s'+(ix+1); PEOPLE[id]={id,name,role:'student',grad,major,color:AVCOL[ix%AVCOL.length]}; });
-const STUDENTS = Object.values(PEOPLE).filter(p=>p.role==='student').sort((a,b)=>a.name.localeCompare(b.name));
-const SENIORS = STUDENTS.filter(s=>s.grad===2027), JUNIORS = STUDENTS.filter(s=>s.grad===2028);
-const gradLabel = g => g===2027 ? 'Senior' : 'Junior';
-const LOCAL_KEY = 'jarvis-test-me';
+/* People come from the roster (people table) after sign-in */
+const PEOPLE = {};
+let STUDENTS = [], SENIORS = [], JUNIORS = [];
+const SENIOR_YEAR = (()=>{ const d=new Date(); return d.getMonth()>=6 ? d.getFullYear()+1 : d.getFullYear(); })();
+const JUNIOR_YEAR = SENIOR_YEAR + 1;
+const gradLabel = g => g===SENIOR_YEAR ? 'Senior' : g===JUNIOR_YEAR ? 'Junior' : (g && g<SENIOR_YEAR ? 'Graduated' : 'Student');
+const gradFromLabel = l => /senior/i.test(l||'') ? SENIOR_YEAR : /junior/i.test(l||'') ? JUNIOR_YEAR : null;
+function hashColor(pid){ let h=0; for(const c of String(pid)) h=(h*31+c.charCodeAt(0))>>>0; return AVCOL[h%AVCOL.length]; }
+function setPeople(rows){
+  for(const k of Object.keys(PEOPLE)) delete PEOPLE[k];
+  for(const r of rows) PEOPLE[r.pid] = {id:r.pid, uid:r.id, username:r.username, name:r.name, role:r.role, grad:r.grad, major:r.major||'', active:r.active, color: r.role==='teacher'?'#095641':hashColor(r.pid)};
+  STUDENTS = Object.values(PEOPLE).filter(p=>p.role==='student' && p.active).sort((a,b)=>a.name.localeCompare(b.name));
+  SENIORS = STUDENTS.filter(s=>s.grad===SENIOR_YEAR); JUNIORS = STUDENTS.filter(s=>s.grad===JUNIOR_YEAR);
+}
+const LOCAL_KEY = 'jarvis-prefs';
 const TABLES = ['projects','assignments','items','notifs','syncs','asks','lessons','polls','checkins','weeks','settings'];
 const APPEND = new Set(['thread','history','readBy','replies','plus','responses']);
 const rid = p => p + Math.random().toString(36).slice(2,9) + Date.now().toString(36).slice(-4);
@@ -744,147 +795,65 @@ function studentsFor(aud){
 }
 function audienceLabel(aud){
   if(!aud) return '';
-  if(typeof aud==='string'){ if(aud==='all') return 'Everyone'; const [k,v]=aud.split(':'); return k==='grad'?(+v===2027?'Seniors':'Juniors'):v+' majors'; }
+  if(typeof aud==='string'){ if(aud==='all') return 'Everyone'; const [k,v]=aud.split(':'); return k==='grad'?(+v===SENIOR_YEAR?'Seniors':'Juniors'):v+' majors'; }
   if(aud.all) return 'Everyone';
-  const parts=[]; (aud.grads||[]).forEach(g=>parts.push(g===2027?'Seniors':'Juniors')); (aud.majors||[]).forEach(m=>parts.push(m+' majors'));
+  const parts=[]; (aud.grads||[]).forEach(g=>parts.push(g===SENIOR_YEAR?'Seniors':g===JUNIOR_YEAR?'Juniors':'Class of '+g)); (aud.majors||[]).forEach(m=>parts.push(m+' majors'));
   if((aud.students||[]).length) parts.push(aud.students.length+' student'+(aud.students.length===1?'':'s'));
   return parts.join(' + ')||'Nobody yet';
 }
 
-/* ---------- Seed data (fake characters only) ---------- */
-function seed(){
-  const nid = ()=> rid('i');
-  const ws = weekStartOf(todayISO()), lastWs = addDays(ws,-7);
-  const TPL = 'https://docs.google.com/document/d/TEMPLATE/copy';
-  const file = (label,url,by,d,v=1) => ({id:rid('f'),label,versions:Array.from({length:v},(_,k)=>({v:k+1,url:url+(k?'-v'+(k+1):''),by,...stampAt(d-(v-1-k),10+k,5),note:k?'Revised':''}))});
-  const projects = [
-    {id:'p1',name:'Homecoming Hype Video',description:'60-second hype video for the homecoming assembly. Fast cuts, crowd energy, band audio. Final due before the pep rally.',owner:'s1',roles:{s1:'admin',s3:'editor'},major:'Video',color:GCOLORS[0],private:false,thread:[],files:[file('Script + shot list','https://docs.google.com/document/d/demo-script','s1',-6)]},
-    {id:'p2',name:'Spartan TV Episode 3',description:'Weekly morning show. Rundown, anchor scripts, lower-thirds, and live switching in vMix.',owner:'s8',roles:{s8:'admin',s12:'editor',s10:'editor'},major:'Video',color:GCOLORS[1],private:false,thread:[],files:[]},
-    {id:'p3',name:'Senior Portrait Mini-Sessions',description:'15-minute portrait sessions for six seniors. Two-light setup in the studio.',owner:'s6',roles:{s6:'admin',s13:'editor'},major:'Photo',color:GCOLORS[2],private:true,thread:[],files:[]}
-  ];
-  const assignments = [
-    {id:'aw0',title:'Weekly Report – week of '+fmt(lastWs),audience:{all:true},due:addDays(lastWs,4),priority:'med',template:'',weekly:true,weekStart:lastWs,description:'Built from your daily check-ins and weekly prompts in JARVIS.'},
-    {id:'aw1',title:'Weekly Report – week of '+fmt(ws),audience:{all:true},due:addDays(ws,4),priority:'med',template:'',weekly:true,weekStart:ws,description:'Built from your daily check-ins and weekly prompts in JARVIS.'},
-    {id:'a3',title:'Lighting Safety Quiz',audience:{grads:[2028]},due:wkday(2),priority:'high',template:'',description:'Take the lighting safety quiz before using the studio lights.'},
-    {id:'a6',title:'Three-Point Lighting Setup',audience:{grads:[2027]},due:wkday(2),priority:'high',template:'',description:'Set up key, fill, and back light on a subject. Submit a photo of the setup and one test shot.'},
-    {id:'a4',title:'Portfolio Review Sign-up',audience:{grads:[2027]},due:wkday(10),priority:'low',template:''},
-    {id:'a5',title:'Ronin Gimbal Checkout',audience:{majors:['Video']},due:wkday(8),priority:'med',template:''}
-  ];
-  const st = {
-    aw0:{s2:'done',s4:'done',s7:'done',s9:'done',s11:'done',s3:'sub',s6:'sub',s10:'sub',s14:'sub',s20:'done',s22:'sub'},
-    a3:{s9:'done'}, a6:{s4:'done',s7:'sub'}, a5:{s1:'done'}
-  };
-  const items = [];
-  for(const a of assignments){
-    for(const s of studentsFor(a.audience)){
-      const status = (st[a.id]&&st[a.id][s.id])||'not';
-      const files = (!a.weekly && (status==='sub'||status==='done')) ? [file('Submission','https://docs.google.com/document/d/demo-'+s.id+'-'+a.id,s.id,-2)] : [];
-      items.push({id:nid(),source:'assignment',assignmentId:a.id,title:a.title,description:'',assignees:[s.id],status,due:a.due,priority:a.priority,projectId:null,parentId:null,files,thread:[]});
-    }
-  }
-  const T = (projectId,title,assignees,status,due,priority,extra={}) => { const it={id:nid(),source:'task',title,description:'',assignees,status,due,priority,projectId,parentId:null,files:[],thread:[],...extra}; items.push(it); return it; };
-  const script = T('p1','Script & shot list',['s1'],'done',wkday(-6),'med',{description:'Two-column script with a shot list for each beat.'});
-  script.files=[file('Script draft','https://docs.google.com/document/d/demo-script','s1',-6,2)];
-  const iv = T('p1','Interview band director',['s3'],'work',wkday(2),'high');
-  iv.thread.push({id:rid('u'),by:'t',text:'Put a lav on him — the gym echo will wreck the boom audio.',...stampAt(-3,9,20)},{id:rid('u'),by:'s3',text:'Booked the lav kit for Thursday.',...stampAt(-2,13,5)});
-  const br = T('p1','B-roll: pep rally',['s1','s3'],'not',wkday(4),'med');
-  T('p1','Reserve Ronin',['s1'],'done',wkday(1),'low',{parentId:br.id});
-  T('p1','Charge batteries + clear cards',['s3'],'not',wkday(3),'low',{parentId:br.id});
-  T('p1','Rough cut',['s1'],'not',wkday(9),'high');
-  T('p2','Rundown',['s8'],'work',wkday(1),'med');
-  const gp = T('p2','Graphics package',['s10'],'pause',wkday(-1),'high');
-  gp.thread.push({id:rid('u'),by:'s10',text:'Waiting on the new Spartan TV logo files.',...stampAt(-1,10,40)});
-  T('p2','Anchor script',['s12'],'not',wkday(3),'med');
-  T('p3','Book six seniors',['s6'],'work',wkday(7),'med');
-  T('p3','Lighting test',['s13'],'done',wkday(-3),'med');
-  T('p3','Retouch + deliver',['s6'],'not',wkday(14),'low');
-  for(const it of items){
-    const who = it.assignees[0]||'t';
-    const path = it.status==='not'?[]:it.status==='work'?['work']:it.status==='pause'?['work','pause']:it.status==='sub'?['work','sub']:(it.source==='assignment'?['work','sub','done']:['work','done']);
-    let prev='not', d=-8; const h=[{kind:'created',by:it.source==='assignment'?'t':who,...stampAt(-8,8,5)}];
-    for(const to of path){ d=Math.min(d+1,-1); h.push({kind:'status',by:(to==='done'&&it.source==='assignment')?'t':who,from:prev,to,...stampAt(d,9+(d+8),10)}); prev=to; }
-    it.history=h;
-  }
-  const find=(sid,aid)=>items.find(i=>i.assignmentId===aid&&i.assignees[0]===sid);
-  const hist = (sid,aid,steps)=>{ const it=find(sid,aid); let prev='not';
-    it.history=[{kind:'created',by:'t',...stampAt(-8,8,5)}].concat(steps.map(([to,by,[d,hr,mn],note])=>{ const e={kind:'status',by,from:prev,to,...stampAt(d,hr,mn)}; if(note) e.note=note; prev=to; return e; })); };
-  hist('s7','a6',[['work','s7',[-2,9,40]],['sub','s7',[-2,13,12]],['work','t',[-1,8,30],'Your fill light is too hot — try it at half power and reshoot.'],['sub','s7',[-1,14,5]]]);
-  find('s7','a6').files=[file('Submission','https://docs.google.com/document/d/demo-s7-a6','s7',-1,2)];
-  const b1 = {id:'b1',...stampAt(-3,15,40),count:2,missing:0};
-  for(const sid of ['s4','s7']){ const it=find(sid,'aw0'); it.syncId='b1'; it.history.push({kind:'sync',by:'t',...stampAt(-3,15,40)}); }
-
-  /* weeks: last week's reports for a few students */
-  const weeks = [];
-  const wk = (sid,ans,done) => weeks.push({id:`wk_${sid}_${lastWs}`,by:sid,weekStart:lastWs,answers:ans,stages:{monday:stampAt(-7,8,30).ts,mid:stampAt(-5,9,0).ts,...(done?{friday:stampAt(-3,11,0).ts}:{})}});
-  wk('s2',{q1:'Finish the portfolio site home page and have it live on GitHub Pages by Friday.',q2:'Testing a CSS scroll animation.',q3:'Feedback on my color palette.',q4:'Yes — nav and hero are done.',q5:'Nothing big.',q6:'Nav + hero sections, deployed a test build.',q7:'The scroll animation actually worked!',q8:'Project grid — ran out of time.',q9:'The Figma lesson helped me plan the grid.',q10:'Build the project grid.'},true);
-  wk('s4',{q1:'Three logo concepts for the band.',q2:'Hand-lettering practice.',q3:'Approval to print a test poster.',q4:'Mostly — two of three concepts done.',q5:'Had a game Wednesday.',q6:'All three concepts, vectorized.',q7:'The lettering on concept 2.',q8:'Mockups — next week.',q9:'Talked with Mr. P about kerning.',q10:'Mockups.'},true);
-  wk('s3',{q1:'Interview the band director and log the footage.',q2:'Try a slider shot.',q3:'Lav mic kit.',q4:'Behind — the director was out.',q5:'Sick Tuesday.'},false);
-
-  /* check-ins: previous class day for about half the class */
-  const pd = prevWeekday(todayISO());
-  const lines = {s1:'Storyboarding the pep rally B-roll.',s2:'Building the project grid on my site.',s3:'Prepping interview questions.',s6:'Booking portrait sessions.',s8:'Writing the rundown for episode 3.',s9:'Walk cycle keyframes.',s10:'Stuck on lower-thirds until logo files come in.',s12:'Anchor script draft.',s13:'Lighting test for portraits.',s20:'Band logo concepts.',s22:'Shooting product photos.'};
-  const projFor = sid => ({s1:['p1'],s3:['p1'],s8:['p2'],s10:['p2'],s12:['p2'],s6:['p3'],s13:['p3']})[sid]||[];
-  const checkins = Object.entries(lines).map(([sid,line])=>({id:`ci_${sid}_${pd}`,by:sid,date:pd,active:projFor(sid).map(p=>'p:'+p),line,...stampAt(-1,8,10),blocks:{},custom:[]}));
-  checkins.push({id:`ci_s5_${pd}`,by:'s5',date:pd,absent:true,active:[],line:'',...stampAt(-1,8,0),blocks:{},custom:[]});
-
-  /* asks */
-  const asks = [
-    {id:'k1',kind:'feedback',by:'s1',to:'all',itemId:script.id,projectId:'p1',fileId:script.files[0].id,fileV:2,note:'Does the opening hook work?',open:true,replies:[{id:rid('r'),by:'s16',text:'Hook is strong — maybe cut the first two seconds of black.',...stampAt(-2,14,2)}],...stampAt(-2,13,15)},
-    {id:'k2',kind:'help',helpType:'equipment',by:'s1',to:['t'],projectId:'p1',note:'Can I take the Ronin + 2 batteries Thursday for pep rally B-roll?',open:true,replies:[],...stampAt(-1,11,20)},
-    {id:'k3',kind:'lesson',by:'s11',title:'Camera tracking in After Effects',note:'I want to put text into a moving shot.',open:true,plus:['s11','s1','s16','s12','s23'],replies:[],...stampAt(-4,10,0)},
-    {id:'k4',kind:'lesson',by:'s20',title:'Illustrator pen tool drills',note:'',open:true,plus:['s20','s10'],replies:[],...stampAt(-2,12,0)}
-  ];
-  const lessons = [
-    {id:'L1',title:'Premiere: color grading basics',description:'Lumetri scopes, correcting white balance, and matching two shots.',date:todayISO(),start:'10:00',end:'10:30',seats:6,signups:['s1','s3','s12'],by:'t'},
-    {id:'L2',title:'Lighting ratios on set',description:'Key-to-fill ratios and how to read them with a light meter.',date:wkday(2),start:'09:15',end:'09:45',seats:8,signups:['s6','s13'],by:'t'}
-  ];
-  const polls = [
-    {id:'q1',question:'What should our next group lesson be?',kind:'choice',options:['Camera tracking','Logo design process','Stop-motion basics','Portfolio website tips'],audience:{all:true},namesToMe:true,classSees:'counts',open:true,responses:[{by:'s1',val:'Camera tracking',...stampAt(-1,9,0)},{by:'s20',val:'Logo design process',...stampAt(-1,9,5)},{by:'s12',val:'Camera tracking',...stampAt(-1,9,6)}],...stampAt(-1,8,50)}
-  ];
-  const notifs=[
-    {id:'n1',to:'s7',kind:'return',itemId:find('s7','a6').id,by:'t',...stampAt(-1,8,30),text:'Your fill light is too hot — try it at half power and reshoot.',readBy:[]},
-    {id:'n2',to:'all',kind:'feedback',askId:'k1',itemId:script.id,by:'s1',...stampAt(-2,13,15),text:'Does the opening hook work?',readBy:[]},
-    {id:'n3',to:'s1',kind:'reply',askId:'k1',itemId:script.id,by:'s16',...stampAt(-2,14,2),text:'Hook is strong — maybe cut the first two seconds of black.',readBy:[]},
-    {id:'n4',to:'t',kind:'help',askId:'k2',by:'s1',...stampAt(-1,11,20),text:'Can I take the Ronin + 2 batteries Thursday for pep rally B-roll?',readBy:[]}
-  ];
-  return {projects, assignments, items, notifs, syncs:[b1], asks, lessons, polls, checkins, weeks, settings:[]};
-}
 
 /* ---------- State ---------- */
 let S = {viewer:null, prefs:{timeline:'split',panelW:560}}; TABLES.forEach(t=>S[t]=[]);
-let LAST_VIEWER = null, teacherOk = false;
-try{ const L=JSON.parse(localStorage.getItem(LOCAL_KEY)||'{}'); if(L.viewer && PEOPLE[L.viewer]) LAST_VIEWER=L.viewer; if(L.prefs) S.prefs={...S.prefs,...L.prefs}; }catch(e){}
+try{ const L=JSON.parse(localStorage.getItem(LOCAL_KEY)||'{}'); if(L.prefs) S.prefs={...S.prefs,...L.prefs}; }catch(e){}
 const UI = {page:'home',view:'table',groupBy:'project',scope:'all',major:'',student:'',overdue:false,dueWeek:false,status:'',filterOpen:false,q:'',project:'',collapsed:new Set(),openSubs:new Set(),panel:null,
-  sec:{}, flip:new Set(), mpStudent:'', helpQ:'', helpOpen:null, wkStudent:'', wkStart:null, homeGrade:'', lastThread:{}, askForm:false, wide:false};
-function saveLocal(){ try{ localStorage.setItem(LOCAL_KEY, JSON.stringify({viewer:S.viewer||LAST_VIEWER,prefs:S.prefs})); }catch(e){} }
+  sec:{}, flip:new Set(), mpStudent:'', more:false, helpQ:'', helpOpen:null, wkStudent:'', wkStart:null, homeGrade:'', lastThread:{}, askForm:false, wide:false};
+function saveLocal(){ try{ localStorage.setItem(LOCAL_KEY, JSON.stringify({prefs:S.prefs})); }catch(e){} }
 function save(){ saveLocal(); persist(); }
 const nid = ()=> rid('i');
 
 /* ---------- Shared database (Supabase) ---------- */
-let sb = null, ready = false, live = false, everLive = false;
+let sb = null, ready = false, live = false, everLive = false, channel = null;
 const shadow = {}; TABLES.forEach(t=>shadow[t]=new Map());
-function send(p){ Promise.resolve(p).then(r=>{ if(r && r.error){ console.error(r.error); toast('Couldn’t save that change. Check the connection.'); } }).catch(e=>{ console.error(e); toast('Couldn’t save that change. Check the connection.'); }); }
+const chains = {};
+function niceError(e){ const m=String(e&&e.message||e||''); return m.includes('JARVIS:') ? m.split('JARVIS:')[1].trim() : (/fetch|network/i.test(m)?'No connection — check the Wi-Fi.':'That didn’t save.'); }
+async function refetchRow(t,id){
+  try{ const {data}=await sb.from(t).select('id,data').eq('id',id).maybeSingle();
+    const arr=S[t], ix=arr.findIndex(o=>o.id===id);
+    if(data){ const o=normalize(t,data.data); if(ix>=0) arr[ix]=o; else arr.push(o); shadow[t].set(id,JSON.stringify(o)); }
+    else { if(ix>=0) arr.splice(ix,1); shadow[t].delete(id); }
+    scheduleRender();
+  }catch(e){}
+}
+function write(t,id,op,payload,k){
+  const key=t+':'+id;
+  chains[key]=(chains[key]||Promise.resolve()).then(async()=>{
+    const {error}=await sb.rpc('jarvis_write',{op,tbl:t,rid:id,payload:payload===undefined?null:payload,k:k||null});
+    if(error){ console.error(t,id,op,error); toast(niceError(error)); await refetchRow(t,id); }
+  }).catch(e=>{ console.error(e); toast(niceError(e)); });
+  return chains[key];
+}
 function persist(){
-  if(!sb || !ready) return;
+  if(!sb || !ready || !S.viewer) return;
   for(const t of TABLES){
     const sh = shadow[t], seen = new Set();
     for(const o of S[t]){
       seen.add(o.id);
       const cur = JSON.stringify(o), old = sh.get(o.id);
       if(old === cur) continue;
-      if(old === undefined){ send(sb.from(t).upsert({id:o.id,data:o})); sh.set(o.id,cur); continue; }
+      if(old === undefined){ write(t,o.id,'put',o); sh.set(o.id,cur); continue; }
       const prev = JSON.parse(old), patch = {};
       for(const k of new Set([...Object.keys(prev),...Object.keys(o)])){
         const a = prev[k], b = o[k];
         if(JSON.stringify(a) === JSON.stringify(b)) continue;
         if(APPEND.has(k) && Array.isArray(a) && Array.isArray(b) && b.length > a.length && JSON.stringify(b.slice(0,a.length)) === JSON.stringify(a))
-          send(sb.rpc('append_row',{tbl:t,rid:o.id,k,vals:b.slice(a.length)}));
+          write(t,o.id,'append',b.slice(a.length),k);
         else patch[k] = (b === undefined ? null : b);
       }
-      if(Object.keys(patch).length) send(sb.rpc('patch_row',{tbl:t,rid:o.id,patch}));
+      if(Object.keys(patch).length) write(t,o.id,'patch',patch);
       sh.set(o.id,cur);
     }
-    for(const id of [...sh.keys()]) if(!seen.has(id)){ send(sb.from(t).delete().eq('id',id)); sh.delete(id); }
+    for(const id of [...sh.keys()]) if(!seen.has(id)){ write(t,id,'delete'); sh.delete(id); }
   }
 }
 /* Fill in missing fields so old (v1) rows or half-saved rows can never crash a screen */
@@ -904,12 +873,17 @@ function normalize(t,o){
   if(t==='weeks'){ obj('answers'); obj('stages'); }
   return o;
 }
+async function loadPeople(){
+  const {data,error}=await sb.from('people').select('id,pid,username,name,role,grad,major,active').limit(2000);
+  if(error) throw error; setPeople(data||[]);
+}
 async function loadAll(){
+  await loadPeople();
   for(const t of TABLES){
     const {data,error} = await sb.from(t).select('id,data').limit(10000);
     if(error) throw error;
     S[t] = data.map(r=>normalize(t,r.data));
-    shadow[t] = new Map(data.map(r=>[r.id,JSON.stringify(r.data)]));
+    shadow[t] = new Map(S[t].map(o=>[o.id,JSON.stringify(o)]));
   }
 }
 function applyRemote(t,p){
@@ -926,9 +900,10 @@ function applyRemote(t,p){
   scheduleRender();
 }
 function subscribe(){
-  const ch = sb.channel('jarvis-live');
-  for(const t of TABLES) ch.on('postgres_changes',{event:'*',schema:'public',table:t},p=>applyRemote(t,p));
-  ch.subscribe(async status=>{
+  if(channel){ sb.removeChannel(channel); channel=null; }
+  channel = sb.channel('jarvis-live');
+  for(const t of TABLES) channel.on('postgres_changes',{event:'*',schema:'public',table:t},p=>applyRemote(t,p));
+  channel.subscribe(async status=>{
     const wasLive = live; live = (status === 'SUBSCRIBED'); renderLive();
     if(live && everLive && !wasLive){ try{ await loadAll(); scheduleRender(); }catch(e){} }
     if(live) everLive = true;
@@ -936,49 +911,62 @@ function subscribe(){
 }
 function renderLive(){ const el=$('#live'); if(!el) return; el.className='live '+(live?'on':''); el.lastChild.textContent = live?' Live':' Reconnecting…'; }
 let renderTimer=null, pendingRender=false;
-const typing = ()=>{ const a=document.activeElement; return !!a && a.matches && a.matches('textarea, input[type=text], input:not([type]), input[type=url], input[type=date], input[type=time], input[type=number]') && !a.matches('#fSearch,#helpSearch'); };
+const typing = ()=>{ const a=document.activeElement; return !!a && a.matches && a.matches('textarea, input[type=text], input:not([type]), input[type=url], input[type=date], input[type=time], input[type=number], input[type=password]') && !a.matches('#fSearch,#helpSearch'); };
 function scheduleRender(){ clearTimeout(renderTimer); renderTimer=setTimeout(()=>{ if(typing()){ pendingRender=true; return; } pendingRender=false; if(S.viewer) render(); },90); }
 document.addEventListener('focusout',()=>setTimeout(()=>{ if(pendingRender && !typing()){ pendingRender=false; if(S.viewer) render(); } },60));
-async function wipeAll(){
-  for(const t of TABLES){ const {error}=await sb.from(t).delete().neq('id','__none__'); if(error) throw error; S[t]=[]; shadow[t].clear(); }
-}
-async function loadDemo(){
-  await wipeAll();
-  const d = seed();
-  for(const t of TABLES){
-    if(!d[t] || !d[t].length) continue;
-    const {error} = await sb.from(t).upsert(d[t].map(o=>({id:o.id,data:o}))); if(error) throw error;
-    S[t] = d[t]; shadow[t] = new Map(d[t].map(o=>[o.id,JSON.stringify(o)]));
-  }
-}
 
-/* ---------- Who are you? ---------- */
+/* ---------- Sign in ---------- */
+function brandHTML(){ return `<div class="brand big"><span class="brand-mark"><i style="background:#00954C"></i><i style="background:#FFFFFF"></i><i style="background:#807F83"></i><i style="background:#7CC9A0"></i></span>JARVIS</div>`; }
 function showGate(msg){
   const g=$('#gate'); g.hidden=false;
-  if(msg){ g.innerHTML=`<div class="gatebox"><h2>Almost ready</h2><p>${msg}</p></div>`; return; }
-  updateAvatarStyles();
-  const btn = p => `<button class="who" data-me="${p.id}">${av(p.id)}<span><b>${esc(p.name)}</b><small>${p.role==='teacher'?'Teacher':gradLabel(p.grad)+', '+esc(p.major)}</small></span></button>`;
-  g.innerHTML = `<div class="gatebox"><div class="brand big"><span class="brand-mark"><i style="background:#00954C"></i><i style="background:#FFFFFF"></i><i style="background:#807F83"></i><i style="background:#7CC9A0"></i></span>JARVIS</div>
-    <h2>Who are you today?</h2>
-    ${LAST_VIEWER?`<button class="who again" data-me="${LAST_VIEWER}">${av(LAST_VIEWER)}<span><b>Continue as ${esc(PEOPLE[LAST_VIEWER].name)}</b><small>Last time on this device</small></span></button>`:''}<p>Pick the character Mr. P gave you. Everything you do is shared live with the class. Character names only — no real names or personal info.</p>
-    <h3>Seniors</h3><div class="whogrid">${SENIORS.map(btn).join('')}</div>
-    <h3>Juniors</h3><div class="whogrid">${JUNIORS.map(btn).join('')}</div>
-    <h3>Teacher</h3><div class="whogrid">${btn(PEOPLE.t)}</div></div>`;
+  if(msg){ g.innerHTML=`<div class="gatebox signin">${brandHTML()}<h2>Almost ready</h2><p>${msg}</p>${sb?'<button class="btn" id="btnSignOutGate">Sign out</button>':''}</div>`; return; }
+  g.innerHTML=`<div class="gatebox signin">${brandHTML()}<h2>Sign in</h2>
+    <form id="signinForm" autocomplete="on">
+      <label>Username<input id="siUser" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required></label>
+      <label>Password<input id="siPass" name="password" type="password" autocomplete="current-password" required></label>
+      <button class="btn primary" type="submit" id="siBtn">Sign in</button>
+      <p class="hint" id="siMsg">Forgot your password? Ask Mr. P to reset it.</p>
+    </form></div>`;
+  setTimeout(()=>$('#siUser')?.focus(),30);
 }
-function becomes(pid){
-  if(pid==='t' && !teacherOk){ const pin=prompt('Teacher PIN'); if(pin!==TEACHER_PIN){ toast('Wrong PIN'); return false; } teacherOk=true; }
-  S.viewer=pid; LAST_VIEWER=pid; saveLocal(); $('#gate').hidden=true; closeMenu(); closeModal(); closeCheckin();
-  resetFilters(); Object.assign(UI,{page:'home',project:'',wkStudent:'',wkStart:null}); closePanel(); ensureWeeklyReport(); render(); maybeCheckin(); return true;
+function hideGate(){ const g=$('#gate'); g.hidden=true; g.innerHTML=''; }
+async function signIn(){
+  const u=($('#siUser').value||'').trim().toLowerCase().replace(/@.*$/,''), p=$('#siPass').value;
+  if(!u||!p) return;
+  $('#siBtn').disabled=true; $('#siMsg').textContent='Signing in…';
+  const {error}=await sb.auth.signInWithPassword({email:`${u}@${LOGIN_DOMAIN}`, password:p});
+  if(error){ $('#siBtn').disabled=false; $('#siMsg').textContent = /invalid/i.test(error.message)?'That username and password don’t match. Try again, or ask Mr. P to reset it.':/banned/i.test(error.message)?'This account is turned off. Talk to Mr. P.':error.message; $('#siPass').value=''; $('#siPass').focus(); return; }
+  await startSession();
+}
+async function signOut(){
+  try{ stopMic(); }catch(e){}
+  closePanel(); closeModal(); closeCheckin();
+  if(channel){ sb.removeChannel(channel); channel=null; }
+  await sb.auth.signOut();
+  S.viewer=null; ready=false; TABLES.forEach(t=>{ S[t]=[]; shadow[t].clear(); });
+  $('#board').innerHTML=''; showGate();
+}
+async function startSession(){
+  const {data:{session}}=await sb.auth.getSession();
+  if(!session){ showGate(); return; }
+  try{ await loadAll(); }catch(e){ console.error(e); showGate('Couldn’t load JARVIS: <b>'+esc(e.message||String(e))+'</b>. If it mentions a missing table or function, run the v3 setup SQL.'); return; }
+  const mine=Object.values(PEOPLE).find(p=>p.uid===session.user.id);
+  if(!mine){ showGate('You’re signed in, but your account isn’t on the class roster yet. Ask Mr. P to add you.'); return; }
+  if(!mine.active){ showGate('This account is turned off. Talk to Mr. P.'); return; }
+  S.viewer=mine.id; ready=true; hideGate(); subscribe();
+  resetFilters(); Object.assign(UI,{page:'home',project:'',wkStudent:'',wkStart:null,more:false});
+  if(ensureWeeklyReport()) persist();
+  render(); maybeCheckin();
 }
 async function boot(){
   if(!window.supabase || SUPABASE_URL.startsWith('PASTE') || SUPABASE_ANON_KEY.startsWith('PASTE')){
     showGate('This board can’t find its settings. Make sure <b>config.js</b> is uploaded to the same GitHub folder as <b>index.html</b>, then refresh.'); return; }
   if(/\/rest\/v1/.test(SUPABASE_URL)){ showGate('The Supabase URL in <b>config.js</b> should end at <b>.supabase.co</b>. Remove the <b>/rest/v1</b> part.'); return; }
-  sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  try{ await loadAll(); }catch(e){ console.error(e); showGate('Couldn’t reach the database: <b>'+esc(e.message||String(e))+'</b>. If it mentions a missing table, run the new setup SQL (v2).'); return; }
-  ready = true; subscribe();
-  if(ensureWeeklyReport()) persist();
-  showGate();
+  sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {auth:{persistSession:true, autoRefreshToken:true}});
+  sb.auth.onAuthStateChange((ev)=>{ if(ev==='SIGNED_OUT' && S.viewer){ S.viewer=null; ready=false; showGate(); } });
+  document.addEventListener('submit',e=>{ if(e.target.id==='signinForm'){ e.preventDefault(); signIn(); } });
+  document.addEventListener('click',e=>{ if(e.target.id==='btnSignOutGate') signOut(); });
+  await startSession();
 }
 
 /* ---------- Backup + restore (teacher) ---------- */
@@ -994,17 +982,12 @@ async function restoreBackup(file){
   let data; try{ data=JSON.parse(await file.text()); }catch(e){ toast('That file isn’t a JARVIS backup'); return; }
   if(!data || data.app!=='JARVIS' || !data.tables){ toast('That file isn’t a JARVIS backup'); return; }
   const when=data.exportedAt?new Date(data.exportedAt).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'an unknown date';
-  if(!confirm(`Replace EVERYTHING on the board with the backup from ${when}? All changes since then will be erased.`)) return;
+  if(!confirm(`Replace EVERYTHING on the board with the backup from ${when}? All changes since then will be erased. (Student accounts aren’t affected.)`)) return;
   if(prompt('Type RESTORE to confirm')!=='RESTORE'){ toast('Restore canceled'); return; }
-  try{
-    await wipeAll();
-    for(const t of TABLES){
-      const rows=(data.tables[t]||[]).filter(o=>o&&o.id).map(o=>normalize(t,o));
-      for(let k=0;k<rows.length;k+=400){ const {error}=await sb.from(t).upsert(rows.slice(k,k+400).map(o=>({id:o.id,data:o}))); if(error) throw error; }
-      S[t]=rows; shadow[t]=new Map(rows.map(o=>[o.id,JSON.stringify(o)]));
-    }
-    closePanel(); render(); toast('Backup restored');
-  }catch(e){ console.error(e); toast('Restore failed: '+(e.message||e)+'. Try again, or restore an older backup.'); }
+  const tables={}; TABLES.forEach(t=>tables[t]=(data.tables[t]||[]).filter(o=>o&&o.id).map(o=>normalize(t,o)));
+  const {data:n,error}=await sb.rpc('jarvis_restore',{backup:tables});
+  if(error){ toast('Restore failed: '+niceError(error)); return; }
+  await loadAll(); closePanel(); render(); toast(`Backup restored (${n} records)`);
 }
 
 /* ---------- Helpers ---------- */
@@ -1150,7 +1133,7 @@ function ensureWeeklyReport(){
     S.assignments.push(a); changed=true;
   }
   const have=new Set(S.items.filter(i=>i.assignmentId===a.id).map(i=>i.assignees[0]));
-  for(const s of studentsFor(a.audience)) if(!have.has(s.id)){
+  for(const s of studentsFor(a.audience).filter(s=>isTeacher()||s.id===S.viewer)) if(!have.has(s.id)){
     S.items.push({id:`iw_${ws}_${s.id}`,source:'assignment',assignmentId:a.id,title:a.title,description:'',assignees:[s.id],status:'not',due:studentLastDay(s.id,ws),priority:a.priority,projectId:null,parentId:null,files:[],thread:[],history:[{kind:'created',by:'t',...nowStamp()}]});
     changed=true;
   }
@@ -1164,7 +1147,7 @@ function orderTree(list){ const ids=new Set(list.map(p=>p.id)); const out=[]; li
 const inView = pid => !!UI.project && !!pid && (pid===UI.project || proj(pid)?.parentId===UI.project);
 function sysPost(o,text){ (o.thread=o.thread||[]).push({id:rid('u'),by:S.viewer,text,sys:true,...nowStamp()}); }
 function doNest(P,T){ P.parentId=T.id; sysPost(P,`Moved inside “${T.name}”`); sysPost(T,`“${P.name}” is now part of this project`); }
-function doUnnest(P){ const T=proj(P.parentId); P.parentId=null; sysPost(P,`Taken back out of “${T?T.name:'a project'}”`); if(T) sysPost(T,`“${P.name}” was taken back out`); }
+function doUnnest(P){ const T=proj(P.parentId); P.parentId=null; sysPost(P,`Taken back out of “${T?T.name:'a project'}”`); if(T && canEditProject(T)) sysPost(T,`“${P.name}” was taken back out`); }
 function doConvert(P,T){
   const all=S.items.filter(i=>i.projectId===P.id);
   const status = all.length && all.every(complete) ? 'done' : all.some(i=>i.status!=='not') ? 'work' : 'not';
@@ -1183,19 +1166,21 @@ function doConvert(P,T){
   sysPost(T,`“${P.name}” was turned into an item in this project`);
   return it;
 }
-function runMerge(P,T,mode){
-  const who=membersOf(P).filter(x=>x!==S.viewer);
-  let it=null;
-  if(mode==='nest') doNest(P,T); else it=doConvert(P,T);
-  who.forEach(x=>notify(x,'merged',{projectId:T.id,text:`“${P.name}” ${mode==='nest'?'is now inside':'is now an item in'} “${T.name}”`}));
-  return it;
+async function runMerge(pId,tId,mode,askId,pname_,tname){
+  const P=proj(pId), who=P?membersOf(P).filter(x=>x!==S.viewer):[], tid=tId;
+  const {data:newId,error}=await sb.rpc('jarvis_merge',{p_id:pId,t_id:tId,mode,ask_id:askId||null});
+  if(error){ toast(niceError(error)); return {ok:false}; }
+  who.forEach(x=>notify(x,'merged',{projectId:tid,text:`“${pname_}” ${mode==='nest'?'is now inside':'is now an item in'} “${tname}”`}));
+  await loadAll(); render();
+  return {ok:true,itemId:newId};
 }
 function moveItem(i,T){
   const from=proj(i.projectId);
   i.projectId=T.id; subsOf(i.id).forEach(s=>s.projectId=T.id);
   logEvent(i,{kind:'moved',from:from?from.name:'',to:T.name});
-  const added=i.assignees.filter(a=>a!=='t' && !T.roles[a]); added.forEach(a=>T.roles[a]='editor');
-  return added;
+  const added=i.assignees.filter(a=>a!=='t' && !T.roles[a]);
+  if(canAdminProject(T)){ added.forEach(a=>T.roles[a]='editor'); return {added,missing:[]}; }
+  return {added:[],missing:added};
 }
 
 /* ---------- Board: visibility + filtering ---------- */
@@ -1209,11 +1194,11 @@ function visibleTop(){
   }
   if(UI.project==='assign') list = list.filter(i=>i.source==='assignment');
   else if(UI.project) list = list.filter(i=>inView(i.projectId));
-  if(UI.scope==='mine') list = list.filter(i=>i.assignees.includes(v));
+  if(UI.scope==='mine' || SIMPLE()) list = list.filter(i=>i.assignees.includes(v));
   if(UI.scope==='review') list = list.filter(i=>i.status==='sub');
   if(UI.scope==='class') list = list.filter(i=>i.source==='assignment');
   if(UI.scope==='changes') list = list.filter(i=>i.assignees.includes(v) && needsChanges(i));
-  if(UI.scope==='g2027'||UI.scope==='g2028'){ const g=+UI.scope.slice(1); list = list.filter(i=>i.assignees.some(a=>PEOPLE[a]?.grad===g) || (i.projectId && membersOf(proj(i.projectId)||{roles:{}}).some(a=>PEOPLE[a]?.grad===g))); }
+  if(UI.scope==='gS'||UI.scope==='gJ'){ const g=UI.scope==='gS'?SENIOR_YEAR:JUNIOR_YEAR; list = list.filter(i=>i.assignees.some(a=>PEOPLE[a]?.grad===g) || (i.projectId && membersOf(proj(i.projectId)||{roles:{}}).some(a=>PEOPLE[a]?.grad===g))); }
   if(UI.major) list = list.filter(i=> i.assignees.some(a=>PEOPLE[a]?.major===UI.major) || (i.projectId && proj(i.projectId)?.major===UI.major));
   if(UI.student) list = list.filter(i=> i.assignees.includes(UI.student) || (i.projectId && (proj(i.projectId)?.roles||{})[UI.student]));
   if(UI.overdue) list = list.filter(i=> isOverdue(i) || subsOf(i.id).some(isOverdue));
@@ -1224,7 +1209,7 @@ function visibleTop(){
 }
 const filtersActive = ()=> (UI.scope!=='all'&&UI.scope!=='wholeclass')||UI.major||UI.student||UI.overdue||UI.dueWeek||UI.status||UI.q;
 const SHOW_OPTS = () => isTeacher()
-  ? [['all','Everyone'],['review','Needs my review'],['class','Class assignments'],['g2027','Seniors'],['g2028','Juniors']]
+  ? [['all','Everyone'],['review','Needs my review'],['class','Class assignments'],['gS','Seniors'],['gJ','Juniors']]
   : [['all','My work'],['mine','Only my items'],['class','Class assignments'],['changes','Returned to me'],['wholeclass','Whole class (public projects)']];
 function activeFilters(){
   const a=[], so=SHOW_OPTS().find(x=>x[0]===UI.scope);
@@ -1312,8 +1297,8 @@ function battery(items){
 }
 function renderBoardPage(){
   const list = visibleTop();
-  if(!S.items.length && !S.projects.length) return isTeacher() ? `<div class="empty">The shared board is empty. <button class="btn primary" data-loaddemo style="margin-left:8px">Load demo data</button></div>` : `<div class="empty">The board is empty. Click <b>+ New project</b> to start one.</div>`;
-  if(UI.view==='kanban') return renderKanban(list);
+  if(!S.items.length && !S.projects.length) return `<div class="empty">Nothing here yet. Click <b>+ New project</b> to start one.</div>`;
+  if(UI.view==='kanban' && !SIMPLE()) return renderKanban(list);
   const groups = buildGroups(list);
   if(!groups.length) return `<div class="empty">Nothing here yet. ${isTeacher()?'':'Click <b>+ New project</b> to start one, or '}try “Everything” in the filters.</div>`;
   const showProj = UI.groupBy!=='project';
@@ -1332,7 +1317,7 @@ function renderBoardPage(){
         ${g.kind==='project'?`<button class="gname linklike" data-open="p:${g.project.id}">${esc(g.name)}</button>`:`<span class="gname">${esc(g.name)}</span>`}
         <span class="gcount">${rollup ? new Set(g.items.map(i=>i.assignmentId)).size+' assignments' : g.items.length+' item'+(g.items.length===1?'':'s')}${g.sub?' · '+esc(g.sub):''}</span>${extra}</div>
       <div class="tablewrap"><table>
-        <thead><tr><th class="c-item">Item</th><th>People</th><th>Status</th><th>Due</th><th>Priority</th>${showProj?'<th>Project</th>':''}<th>File</th></tr></thead>
+        <thead><tr><th class="c-item">Item</th><th class="c-people">People</th><th class="c-status">Status</th><th class="c-due">Due</th><th class="c-pri">Priority</th>${showProj?'<th class="c-proj">Project</th>':''}<th class="c-link">File</th></tr></thead>
         <tbody>${ rollup
             ? [...new Set(g.items.map(i=>i.assignmentId))].map(aid=>rollupHTML(aid,g.items.filter(i=>i.assignmentId===aid),showProj)).join('')
             : g.items.map(i=>rowHTML(i,false,showProj)).join('')}
@@ -1386,7 +1371,7 @@ function sec(key,title,content,defOpen,extra=''){
 }
 function ppHTML(key, opts, selected, o={}){
   const sel = selected instanceof Set ? selected : new Set(selected||[]);
-  const groups = [['Teacher',opts.filter(x=>x==='t')],['Seniors',opts.filter(x=>PEOPLE[x]?.grad===2027)],['Juniors',opts.filter(x=>PEOPLE[x]?.grad===2028)]].filter(g=>g[1].length);
+  const groups = [['Teacher',opts.filter(x=>x==='t')],['Seniors',opts.filter(x=>PEOPLE[x]?.grad===SENIOR_YEAR)],['Juniors',opts.filter(x=>PEOPLE[x]?.grad===JUNIOR_YEAR)],['Others',opts.filter(x=>x!=='t'&&PEOPLE[x]&&PEOPLE[x].grad!==SENIOR_YEAR&&PEOPLE[x].grad!==JUNIOR_YEAR)]].filter(g=>g[1].length);
   const sc = (o.shortcuts||[]).map(s=>`<button class="chip small" data-ppall="${key}" data-ids="${s.ids.join(',')}" ${o.disabled?'disabled':''}>${esc(s.label)}</button>`).join('');
   const chip = pid => { const on=sel.has(pid); const locked=(o.locked||[]).includes(pid);
     return `<label class="ck ${on?'on':''} ${locked?'off':''}"><input type="checkbox" data-pp="${key}" value="${pid}" ${on?'checked':''} ${o.disabled||locked?'disabled':''}>${av(pid)}${esc(pid==='t'?'Mr. P':first(pid))}${on&&o.roles?`<select data-pprole="${key}" data-pid="${pid}" ${o.disabled||locked?'disabled':''} aria-label="Role">${['viewer','editor','admin'].map(r=>`<option value="${r}" ${o.roles[pid]===r?'selected':''}>${r[0].toUpperCase()+r.slice(1)}</option>`).join('')}</select>`:''}</label>`; };
@@ -1413,7 +1398,7 @@ function fileOwner(ownerKey){ const [k,id]=ownerKey.split(':'); return k==='p'?p
 function askTitle(a){
   if(a.kind==='feedback') return `${esc(first(a.by))} asked ${esc(toName(a.to))} for feedback`;
   if(a.kind==='help') return `${esc(first(a.by))} → Mr. P: ${esc(HELP_TYPES[a.helpType]||'Help')}`;
-  if(a.kind==='merge'){ const P=proj(a.projectId), T=proj(a.targetId); return `${esc(first(a.by))} wants to ${a.mode==='nest'?'put':'turn'} “${esc(P?P.name:'a project')}” ${a.mode==='nest'?'inside':'into an item in'} “${esc(T?T.name:'a project')}”${a.result?' · '+a.result:''}`; }
+  if(a.kind==='merge'){ const P=proj(a.projectId), T=proj(a.targetId); return `${esc(first(a.by))} wants to ${a.mode==='nest'?'put':'turn'} “${esc(P?P.name:(a.projectName||'a project'))}” ${a.mode==='nest'?'inside':'into an item in'} “${esc(T?T.name:(a.targetName||'a project'))}”${a.result?' · '+a.result:''}`; }
   return `Lesson request: ${esc(a.title)}`;
 }
 function askCardHTML(a,o={}){
@@ -1432,10 +1417,10 @@ function askCardHTML(a,o={}){
     <summary><span class="st">${askTitle(a)}</span>${a.open?'':'<span class="tag">Closed</span>'}<span class="hint">${(a.replies||[]).length} repl${(a.replies||[]).length===1?'y':'ies'} · ${esc(a.at)}</span></summary>
     <div class="askbody">
       ${target?`<div class="hint">On ${target}</div>`:''}
-      ${a.note?`<div class="asknote">“${esc(a.note)}”</div>`:''}
+      ${a.note?`<div class="asknote">“${esc(a.note)}” ${speakBtn(a.note)}</div>`:''}
       ${f?`<div class="hint">About <a href="${esc(fv?fv.url:latestUrl(f))}" target="_blank" rel="noopener">${esc(f.label)} v${fv?fv.v:f.versions.length}</a></div>`:''}
       ${replies?`<div class="thread">${replies}</div>`:''}
-      ${a.open && canReplyAsk(a)?`<div class="replyrow"><input data-k="reply:${a.id}" placeholder="${a.kind==='lesson'?'Add a comment':a.by===S.viewer?'Add a reply':a.kind==='help'?'Reply to '+esc(first(a.by)):'Write your feedback'}"><button class="btn tiny" data-reply="${a.id}">Reply</button></div>`:''}
+      ${a.open && canReplyAsk(a)?`<div class="replyrow"><input data-voice data-k="reply:${a.id}" placeholder="${a.kind==='lesson'?'Add a comment':a.by===S.viewer?'Add a reply':a.kind==='help'?'Reply to '+esc(first(a.by)):'Write your feedback'}"><button class="btn tiny" data-reply="${a.id}">Reply</button></div>`:''}
       ${mergeNote}<div class="askacts">${mergeBtns}${plus}${sched}${canClose?`<button class="linkbtn" data-closeask="${a.id}">${a.open?'Close':'Reopen'}</button>`:''}</div>
     </div></details>`;
 }
@@ -1446,7 +1431,7 @@ function askFormHTML(targetKey,files,priv){
     <label class="ck ${priv?'off':''}"><input type="checkbox" id="askAll" ${priv?'disabled':''}> Everyone</label>
     ${priv?`<div class="hint">This is private, so pick specific people${isTeacher()?'':' (ask Mr. P or a project admin to make it visible)'}.</div>`:''}
     ${ppHTML('ask',opts,[],{shortcuts:[{label:'Seniors',ids:SENIORS.map(s=>s.id).filter(x=>x!==S.viewer)},{label:'Juniors',ids:JUNIORS.map(s=>s.id).filter(x=>x!==S.viewer)}]})}
-    <input data-k="asknote:${targetKey}" placeholder="What do you want feedback on? (optional)">
+    <input data-voice data-k="asknote:${targetKey}" placeholder="What do you want feedback on? (optional)">
     <div class="askacts"><button class="btn primary tiny" data-sendask="${targetKey}">Ask</button><button class="linkbtn" data-cancelask>Cancel</button></div></div>`;
 }
 
@@ -1457,7 +1442,7 @@ function updatesHTML(thread){
   const groups=[]; for(const t of sorted){ const k=relDay(t.ts); let g=groups.find(x=>x.k===k); if(!g){ g={k,posts:[]}; groups.push(g); } g.posts.push(t); }
   const few = thread.length<=6;
   return groups.map(g=>`<details class="dgroup" data-sec="upd:${g.k}" ${(UI.sec['upd:'+g.k] ?? (few||g.k==='Today'||g.k==='Yesterday'))?'open':''}><summary>${esc(g.k)} <span class="hint">${g.posts.length}</span></summary>
-    <div class="thread">${g.posts.map(t=>`<div class="post">${av(t.by)}<div class="bubble"><div class="who">${nameTag(t.by)}<span class="when">${esc(t.at)}</span></div>${esc(t.text)}</div></div>`).join('')}</div></details>`).join('');
+    <div class="thread">${g.posts.map(t=>`<div class="post">${av(t.by)}<div class="bubble"><div class="who">${nameTag(t.by)}<span class="when">${esc(t.at)}</span>${t.by==='t'?speakBtn(t.text):''}</div>${esc(t.text)}</div></div>`).join('')}</div></details>`).join('');
 }
 function historyHTML(i){
   let h=(i.history||[]).map(e=>({...e}));
@@ -1549,8 +1534,8 @@ function itemBody(i){
     </div>`;
   h += sec('fields','Details',fields,true);
   h += sec('people', p?'Assigned to':'Student', people, true, p?`<span class="hint">${i.assignees.length}</span>`:'');
-  const desc = a && a.description && i.source==='assignment' ? `<div class="desc">${esc(a.description)}</div>` : '';
-  h += sec('desc','Description', desc + (ed && i.source==='task' ? `<textarea class="descbox" data-f="description" placeholder="Add details, notes, a plan…">${esc(i.description||'')}</textarea>` : (i.description?`<div class="desc">${esc(i.description)}</div>`:(desc?'':'<div class="hint">No description.</div>'))), true);
+  const desc = a && a.description && i.source==='assignment' ? `<div class="desc">${esc(a.description)} ${speakBtn(a.description)}</div>` : '';
+  h += sec('desc','Description', desc + (ed && i.source==='task' ? `<textarea class="descbox" data-f="description" placeholder="Add details, notes, a plan…">${esc(i.description||'')}</textarea>` : (i.description?`<div class="desc">${esc(i.description)} ${speakBtn(i.description)}</div>`:(desc?'':'<div class="hint">No description.</div>'))), true);
   if(i.source==='task' && !i.parentId) h += sec('subs','Subitems', `<div class="subs">${subs.map(s=>`<div class="sub">${statusPill(s)}<span><button class="title" data-open="i:${s.id}">${esc(s.title)}</button></span>${avatars(s.assignees)}</div>`).join('')}${ed?`<input data-addsub="${i.id}" data-k="addsub:${i.id}" placeholder="+ Add subitem (press Enter)">`:''}</div>`, true, `<span class="hint">${subs.filter(complete).length}/${subs.length}</span>`);
   if(!(a&&a.weekly)) h += sec('files', a?'Your submission & files':'Files', filesHTML('i:'+i.id, i.files, cs, a?'Add a link to your work, then set the status to Submitted.':'No files yet.'), true, `<span class="hint">${(i.files||[]).length}</span>`);
   const asks = openAsksFor({itemId:i.id}).sort((x,y)=>tsOf(y)-tsOf(x));
@@ -1608,7 +1593,7 @@ function pollHTML(q){
   if(!isTeacher() && q.open){
     if(q.kind==='choice') answer = `<div class="checks">${q.options.map(o=>`<button class="chip ${mineR&&mineR.val===o?'on':''}" data-vote="${q.id}" data-val="${esc(o)}">${esc(o)}</button>`).join('')}</div>`;
     else if(q.kind==='scale') answer = `<div class="checks">${[1,2,3,4,5].map(n=>`<button class="chip ${mineR&&+mineR.val===n?'on':''}" data-vote="${q.id}" data-val="${n}">${n}</button>`).join('')}<span class="hint">1 = not interested · 5 = very</span></div>`;
-    else answer = `<div class="replyrow"><input data-k="poll:${q.id}" placeholder="${mineR?'Update your answer':'Your answer'}" value="${mineR?esc(mineR.val):''}"><button class="btn tiny" data-votetext="${q.id}">Send</button></div>`;
+    else answer = `<div class="replyrow"><input data-voice data-k="poll:${q.id}" placeholder="${mineR?'Update your answer':'Your answer'}" value="${mineR?esc(mineR.val):''}"><button class="btn tiny" data-votetext="${q.id}">Send</button></div>`;
   }
   let results='';
   if(canSee && resp.length){
@@ -1624,6 +1609,7 @@ function pollHTML(q){
 }
 const pollsFor = v => S.polls.filter(q=> v==='t' || studentsFor(q.audience).some(s=>s.id===v));
 function renderHomeStudent(){
+  if(SIMPLE()) return renderHomeSimple();
   const v=S.viewer, t=todayISO(), ws=weekStartOf(t), ci=checkin(v,t);
   const mine = S.items.filter(i=>!i.parentId && i.assignees.includes(v));
   const due = mine.filter(i=>!complete(i) && i.due && (isOverdue(i) || i.due<=dayOff(3))).sort((a,b)=>a.due.localeCompare(b.due));
@@ -1647,7 +1633,7 @@ function renderHomeStudent(){
 }
 function renderHomeTeacher(){
   const t=todayISO();
-  if(!S.items.length && !S.projects.length) return `<div class="empty" style="margin-top:16px">The shared board is empty. <button class="btn primary" data-loaddemo style="margin-left:8px">Load demo data</button></div>`;
+  if(!STUDENTS.length) return `<div class="empty" style="margin-top:16px">Welcome to JARVIS. Start by adding your students. <button class="btn primary" data-page="roster" style="margin-left:8px">Go to Roster</button></div>`;
   const roster = STUDENTS.filter(s=>!UI.homeGrade || s.grad===+UI.homeGrade);
   const rows = roster.map(s=>{ const ci=checkin(s.id,t); const classDay=isClassDay(s.id,t);
     const status = ci&&ci.absent ? '<span class="tag">Absent</span>' : ci&&ci.line ? `<span class="tag ok">${esc(new Date(ci.ts).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}))}</span>` : (classDay?'<span class="tag chg">Not yet</span>':'<span class="hint">No class</span>');
@@ -1659,7 +1645,7 @@ function renderHomeTeacher(){
   let h = `<div class="hello"><h2>Class today</h2><span class="hint">${esc(fmtDay(t))}</span></div>
     <div class="stats"><div><b>${inN}/${roster.length}</b><span>checked in</span></div><div><b>${absN}</b><span>absent</span></div>
       <button data-gotoreview><b>${review}</b><span>to review</span></button><button data-page="asks"><b>${help}</b><span>open asks</span></button><button data-page="lessons"><b>${lreq}</b><span>lesson requests</span></button><button data-page="mp"><b>${S.settings.filter(x=>x.id.startsWith('claim_')&&x.status==='submitted').length}</b><span>credit requests</span></button></div>
-    <div class="filters" style="margin:10px 0 8px">${['','2027','2028'].map(g=>`<button class="chip ${UI.homeGrade===g?'on':''}" data-homegrade="${g}">${g===''?'Everyone':g==='2027'?'Seniors':'Juniors'}</button>`).join('')}<span class="hint">Click a student to open their week.</span></div>
+    <div class="filters" style="margin:10px 0 8px">${['',String(SENIOR_YEAR),String(JUNIOR_YEAR)].map(g=>`<button class="chip ${UI.homeGrade===g?'on':''}" data-homegrade="${g}">${g===''?'Everyone':g===String(SENIOR_YEAR)?'Seniors':'Juniors'}</button>`).join('')}<span class="hint">Click a student to open their week.</span></div>
     <div class="tablewrap" style="--g:var(--accent)"><table class="roster"><thead><tr><th class="c-item">Student</th><th>Grade · major</th><th>Check-in</th><th>Working on</th><th>Today’s line</th></tr></thead><tbody>${rows}</tbody></table></div>`;
   const pend=S.settings.filter(x=>x.id.startsWith('profile_') && x.imgPending && PEOPLE[x.id.slice(8)]);
   const pendCard = pend.length ? card('Pictures to approve', pend.map(x=>{ const pid=x.id.slice(8); return `<div class="mrow"><span class="av big sh-${x.shape||'circle'}" style="background:center/cover url(${x.imgPending});color:transparent"></span><b>${esc(realName(pid))}</b><button class="btn tiny primary" data-avok="${pid}">Approve</button><button class="btn tiny" data-avno="${pid}">Decline</button></div>`; }).join('')) : '';
@@ -1726,7 +1712,7 @@ function stageForm(pid,ws,stg,editable){
   const canType = editable && !locked && !final;
   let body = '';
   if(stg.id==='monday'){ const prev=weekDoc(pid,addDays(ws,-7)); if(prev&&prev.answers&&prev.answers.q10) body+=`<div class="hint">Last week you said your first priority would be: “${esc(prev.answers.q10)}”</div>`; }
-  body += stg.qs.map(q=>`<label class="wq"><span>${esc(WEEKLY_Q[q])}</span>${canType?`<textarea data-wq="${q}" data-ws="${ws}" rows="2">${esc(w.answers[q]||'')}</textarea>`:`<div class="wa">${w.answers[q]?esc(w.answers[q]):'<span class="hint">—</span>'}</div>`}</label>`).join('');
+  body += stg.qs.map(q=>`<label class="wq"><span>${esc(WEEKLY_Q[q])} ${speakBtn(WEEKLY_Q[q])}</span>${canType?`<textarea data-wq="${q}" data-ws="${ws}" rows="2">${esc(w.answers[q]||'')}</textarea>`:`<div class="wa">${w.answers[q]?esc(w.answers[q]):'<span class="hint">—</span>'}</div>`}</label>`).join('');
   if(stg.id==='monday' && canType && w.answers.q3) body+=`<button class="btn tiny" data-q3ask="${ws}">Send my Q3 to Mr. P as an Ask</button>`;
   if(stg.id==='friday' && w.stages.friday && wi && wi.status==='work' && editable) body=`<div class="note">Mr. P sent your weekly report back. Check his note on the report item, update your answers, and resubmit.</div>`+body;
   if(canType) body+=`<button class="btn primary" data-stage="${stg.id}" data-ws="${ws}">${stg.id==='friday'?(doneAt?'Resubmit my weekly report':'Save and submit my weekly report'):(doneAt?'Update ':'Save ')+stg.label}</button>`;
@@ -1735,9 +1721,11 @@ function stageForm(pid,ws,stg,editable){
 }
 function renderWeek(){
   const t=todayISO();
+  const simple=SIMPLE();
   if(!UI.wkStart) UI.wkStart=weekStartOf(t);
   const ws=UI.wkStart;
-  const pid = isTeacher() ? (UI.wkStudent||STUDENTS[0].id) : S.viewer;
+  const pid = isTeacher() ? (UI.wkStudent||(STUDENTS[0]&&STUDENTS[0].id)) : S.viewer;
+  if(!pid) return '<div class="empty">Add students on the Roster page first.</div>';
   const w=weekDoc(pid,ws);
   const nav = `<div class="weeknav"><button class="btn tiny" data-wk="-7">‹ Prev</button><b>Week of ${esc(fmt(ws))}</b><button class="btn tiny" data-wk="7" ${ws>=weekStartOf(t)?'disabled':''}>Next ›</button></div>`;
   let h = `<div class="hello"><h2>${isTeacher()?'Weekly reports':'My week'}</h2>${helpDot('weekly')}</div>`;
@@ -1755,7 +1743,8 @@ function renderWeek(){
   h += dayStrip(pid,ws,!isTeacher() && ws===weekStartOf(t));
   const wi=weeklyItem(pid,ws);
   if(isTeacher() && wi) h += `<div class="note">Weekly report status: <b>${stat(wi.status).label}</b>. <button class="btn tiny" data-open="i:${wi.id}">Open to review</button></div>`;
-  h += `<div class="weekgrid"><div>${STAGES.map(s=>stageForm(pid,ws,s,!isTeacher())).join('')}</div><aside class="weekside"><h3>${isTeacher()?'Their':'Your'} week at a glance</h3>${logisticsHTML(pid,ws)}</aside></div>`;
+  const due=stageDue(pid,ws), stagesShown = simple ? STAGES.filter(s=>s.id===due) : STAGES;
+  h += `<div class="weekgrid"><div>${stagesShown.length?stagesShown.map(s=>stageForm(pid,ws,s,!isTeacher())).join(''):'<div class="empty">You’re all caught up on this week’s questions.</div>'}</div><aside class="weekside"><h3>${isTeacher()?'Their':'Your'} week at a glance</h3>${logisticsHTML(pid,ws)}</aside></div>`;
   return h;
 }
 
@@ -1763,7 +1752,7 @@ function renderWeek(){
 function lessonCard(l){
   const n=(l.signups||[]).length, mine=(l.signups||[]).includes(S.viewer), past=l.date<todayISO();
   return `<div class="lcard ${past?'past':''}"><div class="lhead"><b>${esc(l.title)}</b><span class="hint">${esc(fmtDay(l.date))} · ${esc(fmtTime(l.start))}–${esc(fmtTime(l.end))}</span></div>
-    ${l.description?`<div class="desc">${esc(l.description)}</div>`:''}
+    ${l.description?`<div class="desc">${esc(l.description)} ${speakBtn(l.title+'. '+l.description)}</div>`:''}
     <div class="lfoot"><span class="seats"><i style="width:${Math.min(100,n/l.seats*100)}%"></i></span><span class="hint">${n}/${l.seats} seats</span>${avatars(l.signups||[],8)}
       ${isTeacher()?`<button class="linkbtn" data-editlesson="${l.id}">Edit</button><button class="linkbtn" data-dellesson="${l.id}">Delete</button>`:past?'':(mine?`<button class="btn tiny" data-leave="${l.id}">Leave</button>`:(n<l.seats?`<button class="btn tiny primary" data-signup="${l.id}">Sign up</button>`:'<span class="tag">Full</span>'))}</div></div>`;
 }
@@ -1832,6 +1821,7 @@ function markSynced(aidFilter){
 
 /* ---------- Help wiki ---------- */
 const HELP = [
+  {id:'signin',title:'Signing in, passwords, and signing out',tags:'sign in log in login password username forgot reset sign out logout',body:'<p>Sign in with the username and password on the card Mr. P gave you. You stay signed in on your own device.</p><p><b>Forgot your password?</b> Ask Mr. P to reset it. You’ll get a new one. <b>Want your own password?</b> Open <b>Edit my profile</b> and use <b>Change my password</b>.</p><p>On a shared computer, tap <b>Sign out</b> at the bottom of the sidebar when you’re done.</p>'},
   {id:'start',title:'Getting started: the five places',tags:'nav navigation menu home board today week lessons asks',body:'<p><b>Home</b> is your daily briefing: what’s due, what needs changes, who’s waiting on you. <b>Board</b> has every project and assignment. <b>Today</b> is your schedule. <b>My week</b> holds your weekly report. <b>Lessons</b> shows lessons and polls.</p><p>Two buttons follow you everywhere: <b>Ask</b> (top right) and <b>+ New project</b> on the board.</p>'},
   {id:'checkin',title:'Daily check-in',tags:'check in morning line active required',body:'<p>Every class day starts with a check-in: tap the projects you’re working on and write one line about what’s happening. It takes 20 seconds. Yesterday’s picks are pre-selected.</p><p>Change it anytime with <b>Edit check-in</b> on Home.</p>'},
   {id:'weekly',title:'Your weekly report',tags:'weekly report monday midweek friday reflect absent last day',body:'<p>The weekly report fills in as you go: the <b>Monday game plan</b> on your first day of the week, a short <b>midweek check-in</b>, and the <b>Friday reflection</b>. Your daily check-ins show on the side so you don’t have to remember everything.</p><p>Missed a day? Open <b>My week</b> and tap <b>Mark absent</b>. Short week? Tap <b>Today is the last day of my week</b> and the Friday questions open.</p>'},
@@ -1847,17 +1837,18 @@ const HELP = [
   {id:'profile',title:'Your icon',tags:'profile avatar icon color shape picture emoji',body:'<p>Click <b>Edit my profile</b> under your name in the sidebar. Pick a color, a shape, and what goes inside: your initials, a letter or emoji, or a picture.</p><p>Pictures should be your own artwork, not photos of people. They show up after Mr. P approves them.</p>'},
   {id:'combine',title:'Combining projects',tags:'merge combine nest inside move project item sub-project',body:'<p>Started something that turned out to be part of a bigger project? Open your project’s <b>Details</b>, then <b>Combine with another project</b>.</p><p><b>Put it inside</b> keeps it as its own group inside the bigger project, with everything intact, and can be undone. <b>Turn it into an item</b> makes it one item with subitems, and is permanent. If you’re not an admin of the bigger project, its admins approve it first.</p><p>To move just one item, open it and use <b>Move to</b>.</p>'},
   {id:'mp',title:'Marking period: major, minor, micro',tags:'marking period major minor micro projects count credit shelf role',body:'<p>Each marking period you aim for at least <b>one major, five minor, and three micro</b> projects. Open <b>Marking period</b> and pick Major, Minor, or Micro next to your work. You can tag a whole project, or just the item or subitem you did. The same project can be a major for one person and a minor for another.</p><p>Write your role (“Director”, “Graphics”). When it’s finished, tap <b>It’s finished — submit for credit</b>, add your final file and a short reflection, and Mr. P counts it. Counted work fills your shelf at the top.</p>'},
+  {id:'simple',title:'Simplified view, voice typing, and read-aloud',tags:'simple simplified overwhelmed less voice dictate talk microphone read aloud listen speaker',body:'<p>Feeling like there’s too much on the screen? Tap <b>Simplified view</b> under your name. You’ll see just Home, your Board, and My week, with bigger text. Everything else is under <b>More</b>. Tap it again to go back.</p><p>Tap the <b>microphone</b> in a text box to talk instead of type. Tap it again to stop. Tap the <b>speaker</b> next to instructions or questions to hear them read out loud.</p>'},
   {id:'bell',title:'Notifications',tags:'bell notifications unread',body:'<p>The bell shows returns, feedback requests, replies, and new lessons. Click one to jump to it.</p>'}
 ];
 function renderHelp(){
   const q=UI.helpQ.toLowerCase().trim();
   const list = HELP.filter(a=>!q || (a.title+' '+a.tags+' '+a.body.replace(/<[^>]+>/g,' ')).toLowerCase().includes(q));
   return `<div class="hello"><h2>Help</h2></div><input type="search" id="helpSearch" class="bigsearch" placeholder="Search help — try “submit”, “version”, or “absent”" value="${esc(UI.helpQ)}">
-    <div class="helplist">${list.length?list.map(a=>`<details class="psec" data-sec="help:${a.id}" ${(UI.helpOpen===a.id || (q && list.length<=3))?'open':''} id="help-${a.id}"><summary><span class="st">${esc(a.title)}</span></summary><div class="psec-body helpbody">${a.body}</div></details>`).join(''):'<div class="empty">No help articles match. Try another word, or use <b>Ask</b> to ask Mr. P.</div>'}</div>`;
+    <div class="helplist">${list.length?list.map(a=>`<details class="psec" data-sec="help:${a.id}" ${(UI.helpOpen===a.id || (q && list.length<=3))?'open':''} id="help-${a.id}"><summary><span class="st">${esc(a.title)}</span></summary><div class="psec-body helpbody">${speakBtn(a.title+'. '+a.body)}${a.body}</div></details>`).join(''):'<div class="empty">No help articles match. Try another word, or use <b>Ask</b> to ask Mr. P.</div>'}</div>`;
 }
 
 /* ---------- Modal ---------- */
-function openModal(html){ const m=$('#modal'); m.innerHTML=`<div class="modalbox" role="dialog" aria-modal="true">${html}</div>`; m.hidden=false; const f=m.querySelector('input,textarea,select'); if(f) setTimeout(()=>f.focus(),30); }
+function openModal(html){ const m=$('#modal'); m.innerHTML=`<div class="modalbox ${html.includes('mhead wide')?'wide':''}" role="dialog" aria-modal="true">${html}</div>`; m.hidden=false; const f=m.querySelector('input,textarea,select'); if(f) setTimeout(()=>f.focus(),30); }
 function closeModal(){ const m=$('#modal'); if(m){ m.hidden=true; m.innerHTML=''; } }
 function assignmentForm(a){
   const edit=!!a; a=a||{title:'',description:'',audience:{all:true},due:dayOff(7),priority:'med',template:''};
@@ -1872,7 +1863,7 @@ function assignmentForm(a){
     </div>
     <div class="sech small">Assign to ${edit?'<span class="hint">(adding people creates their copies; nobody is removed)</span>':''}</div>
     <div class="checks"><label class="ck ${aud.all?'on':''}"><input type="checkbox" id="audAll" ${aud.all?'checked':''}> Everyone</label>
-      ${[2027,2028].map(g=>`<label class="ck ${(aud.grads||[]).includes(g)?'on':''}"><input type="checkbox" class="audGrad" value="${g}" ${(aud.grads||[]).includes(g)?'checked':''}> ${g===2027?'Seniors':'Juniors'}</label>`).join('')}
+      ${[SENIOR_YEAR,JUNIOR_YEAR].map(g=>`<label class="ck ${(aud.grads||[]).includes(g)?'on':''}"><input type="checkbox" class="audGrad" value="${g}" ${(aud.grads||[]).includes(g)?'checked':''}> ${g===SENIOR_YEAR?'Seniors':'Juniors'}</label>`).join('')}
       ${MAJORS.map(m=>`<label class="ck ${(aud.majors||[]).includes(m)?'on':''}"><input type="checkbox" class="audMajor" value="${m}" ${(aud.majors||[]).includes(m)?'checked':''}> ${m}</label>`).join('')}</div>
     <details class="psec"><summary><span class="st">Or pick individual students</span></summary>${ppHTML('aud',STUDENTS.map(s=>s.id).sort((x,y)=>PEOPLE[x].grad-PEOPLE[y].grad),aud.students||[])}</details>
     <p class="hint" id="audCount"></p>
@@ -1893,7 +1884,7 @@ function pollForm(){
     <div class="fields"><label>Question</label><input id="pQ" placeholder="e.g. Who wants a Premiere keyframing lesson?">
       <label>Type</label><select id="pKind"><option value="choice">Multiple choice</option><option value="scale">Interest 1–5</option><option value="text">Short answer</option></select>
       <label>Options</label><textarea id="pOpts" rows="4" placeholder="One option per line (multiple choice only)"></textarea>
-      <label>Who</label><select id="pAud"><option value="all">Everyone</option><option value="2027">Seniors</option><option value="2028">Juniors</option></select>
+      <label>Who</label><select id="pAud"><option value="all">Everyone</option><option value="${SENIOR_YEAR}">Seniors</option><option value="${JUNIOR_YEAR}">Juniors</option></select>
       <label>You see</label><select id="pNames"><option value="1">Names with answers</option><option value="0">Anonymous answers</option></select>
       <label>Class sees</label><select id="pClass"><option value="counts">Results, no names</option><option value="names">Results with names</option><option value="hidden">Nothing (only you see results)</option></select></div>
     <div class="mfoot"><button class="btn primary" data-savepoll>Post poll</button></div>`;
@@ -1940,7 +1931,7 @@ function drawCheckin(){
       <h3 class="sech small">What are you working on today? <span class="hint">Tap all that apply</span></h3>
       <div class="checks">${opts.length?opts.map(([k,l])=>`<button class="chip ${CI.active.has(k)?'on':''}" data-ciact="${k}">${esc(l)}</button>`).join(''):'<span class="hint">You’re not on any projects yet — that’s okay. Write what you’re doing below.</span>'}</div>
       <h3 class="sech small">One line: what’s happening today?</h3>
-      <input id="ciLine" maxlength="200" placeholder="e.g. Color grading the pep rally cut, stuck on skin tones" value="${esc(ci&&ci.line||'')}">
+      <input id="ciLine" data-voice maxlength="200" placeholder="e.g. Color grading the pep rally cut, stuck on skin tones" value="${esc(ci&&ci.line||'')}">
       <div class="mfoot"><button class="btn primary" data-cisave>Check in</button></div></div>`;
   } else {
     const w=weekDoc(v,ws)||{answers:{}}; const prev=weekDoc(v,addDays(ws,-7));
@@ -1948,9 +1939,9 @@ function drawCheckin(){
     el.innerHTML=`<div class="modalbox cibox"><div class="mhead"><h2>${parseISO(t).getDay()===1?'Monday game plan':'Your game plan for this week'}</h2>${CI.required?'':'<button class="x" data-cicancel>×</button>'}</div>
       <p class="hint">${parseISO(t).getDay()===1?'Three questions to set up your week.':'You missed Monday, so let’s set up your week now.'}</p>
       ${prev&&prev.answers&&prev.answers.q10?`<div class="note">Last Friday you said your first priority would be: “${esc(prev.answers.q10)}”</div>`:''}
-      <label class="wq"><span>1. ${esc(WEEKLY_Q.q1)}</span>${myTasks.length?`<div class="hint">Tap to add, then say a little about each.</div><div class="checks">${myTasks.map(([k,l])=>`<button class="chip small ${CI.focus.has(k)?'on':''}" data-cifocus="${k}">${esc(l)}</button>`).join('')}</div>`:''}<textarea id="ciq1" rows="2">${esc(w.answers.q1||'')}</textarea></label>
-      <label class="wq"><span>2. ${esc(WEEKLY_Q.q2)}</span><textarea id="ciq2" rows="2">${esc(w.answers.q2||'')}</textarea></label>
-      <label class="wq"><span>3. ${esc(WEEKLY_Q.q3)}</span><textarea id="ciq3" rows="2">${esc(w.answers.q3||'')}</textarea></label>
+      <label class="wq"><span>1. ${esc(WEEKLY_Q.q1)} ${speakBtn(WEEKLY_Q.q1)}</span>${myTasks.length?`<div class="hint">Tap to add, then say a little about each.</div><div class="checks">${myTasks.map(([k,l])=>`<button class="chip small ${CI.focus.has(k)?'on':''}" data-cifocus="${k}">${esc(l)}</button>`).join('')}</div>`:''}<textarea id="ciq1" rows="2">${esc(w.answers.q1||'')}</textarea></label>
+      <label class="wq"><span>2. ${esc(WEEKLY_Q.q2)} ${speakBtn(WEEKLY_Q.q2)}</span><textarea id="ciq2" rows="2">${esc(w.answers.q2||'')}</textarea></label>
+      <label class="wq"><span>3. ${esc(WEEKLY_Q.q3)} ${speakBtn(WEEKLY_Q.q3)}</span><textarea id="ciq3" rows="2">${esc(w.answers.q3||'')}</textarea></label>
       <label class="toggle"><input type="checkbox" id="ciq3ask"> Also send my answer to #3 to Mr. P as an Ask</label>
       <div class="mfoot"><button class="btn primary" data-ciplan>Save game plan</button></div></div>`;
   }
@@ -1970,7 +1961,8 @@ function openProfile(pid){
     <h3 class="sech small">Inside the icon</h3>
     <div class="checks">${[['initials','Initials'],['text','Letters or emoji'],['img','Picture']].map(([k,l])=>`<button class="chip small ${k===PR.mode?'on':''}" data-prmode="${k}">${l}</button>`).join('')}</div>
     <div id="prModeBox"></div>
-    <div class="mfoot"><button class="btn primary" data-prsave>Save profile</button></div>`);
+    <div class="mfoot"><button class="btn primary" data-prsave>Save profile</button></div>
+    ${self?`<details class="psec"><summary><span class="st">Change my password</span></summary><div class="psec-body"><div class="fields"><label>New password</label><input type="password" id="pw1" autocomplete="new-password"><label>Again</label><input type="password" id="pw2" autocomplete="new-password"></div><button class="btn tiny" data-pwsave>Change password</button></div></details>`:''}`);
   drawPrMode(); drawPrPrev();
 }
 function drawPrMode(){
@@ -2059,7 +2051,7 @@ function claimCard(c,showWho){
   return `<div class="claim lv-${c.level}"><div class="chead">${showWho?av(c.by)+`<b>${esc(realName(c.by))}</b> · `:''}<span class="lvtag lv-${c.level}">${levelLabel(c.level)}</span>
       ${tgt?`<button class="title" data-open="${c.target.startsWith('p:')?c.target:'i:'+c.target.slice(2)}">${esc(targetTitle(c.target))}</button>`:`<span>${esc(targetTitle(c.target))}</span>`}${statusTag(c)}</div>
     ${c.role?`<div class="hint">Role: ${esc(c.role)}</div>`:''}
-    ${c.status==='returned'&&c.note?`<div class="note">Mr. P: “${esc(c.note)}”</div>`:''}
+    ${c.status==='returned'&&c.note?`<div class="note">Mr. P: “${esc(c.note)}” ${speakBtn(c.note)}</div>`:''}
     ${c.reflection&&c.status!=='planned'?`<div class="asknote">“${esc(c.reflection)}”</div>`:''}
     ${c.finalUrl?`<a href="${esc(c.finalUrl)}" target="_blank" rel="noopener" class="hint">Open final work</a>`:''}
     ${acts?`<div class="askacts">${acts}</div>`:''}</div>`;
@@ -2104,17 +2096,229 @@ function mpSubmitModal(c){
     <div class="mfoot"><button class="btn primary" data-mpsend="${c.id}">Send to Mr. P</button></div>`);
 }
 
+/* ---------- Voice typing (mic) ---------- */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let REC = null, recEl = null, recBtn = null;
+const MIC_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v5"/></svg>';
+function attachMics(root){
+  if(!SR) return;
+  (root||document).querySelectorAll('textarea, input[data-voice]').forEach(el=>{
+    if(el.dataset.mic || el.disabled || el.readOnly || el.type==='hidden') return;
+    el.dataset.mic='1';
+    const w=document.createElement('span'); w.className='micwrap'+(el.tagName==='TEXTAREA'?' ta':'');
+    el.parentNode.insertBefore(w,el); w.appendChild(el);
+    const b=document.createElement('button'); b.type='button'; b.className='micbtn'; b.title='Talk to type'; b.setAttribute('aria-label','Talk to type'); b.innerHTML=MIC_SVG;
+    b.addEventListener('mousedown',ev=>ev.preventDefault());
+    b.addEventListener('click',ev=>{ ev.preventDefault(); ev.stopPropagation(); toggleMic(el,b); });
+    w.appendChild(b);
+  });
+}
+function stopMic(){ if(REC){ try{ REC.stop(); }catch(e){} } }
+function toggleMic(el,btn){
+  if(REC && recEl===el){ stopMic(); return; }
+  stopMic();
+  const rec=new SR(); rec.lang='en-US'; rec.interimResults=true; rec.continuous=true;
+  el.focus();
+  const start=el.selectionStart ?? el.value.length, end=el.selectionEnd ?? el.value.length;
+  const before=el.value.slice(0,start), after=el.value.slice(end);
+  const pad = before && !/\s$/.test(before) ? ' ' : '';
+  let finalText='';
+  rec.onresult=e=>{
+    let interim='';
+    for(let k=e.resultIndex;k<e.results.length;k++){ const r=e.results[k]; if(r.isFinal) finalText+=r[0].transcript; else interim+=r[0].transcript; }
+    let spoken=(finalText+interim).replace(/^\s+/,'');
+    if(!before.trim() || /[.!?]\s*$/.test(before)) spoken=spoken.charAt(0).toUpperCase()+spoken.slice(1);
+    el.value=before+pad+spoken+after;
+    const pos=(before+pad+spoken).length; try{ el.setSelectionRange(pos,pos); }catch(x){}
+    el.dispatchEvent(new Event('input',{bubbles:true}));
+  };
+  rec.onerror=e=>{ if(e.error==='not-allowed'||e.error==='service-not-allowed') toast('Allow the microphone to use voice typing'); else if(e.error==='no-speech') toast('Didn’t hear anything — try again'); };
+  rec.onend=()=>{ btn.classList.remove('on'); if(REC===rec){ REC=null; recEl=null; recBtn=null; } el.dispatchEvent(new Event('change',{bubbles:true})); };
+  try{ rec.start(); }catch(e){ toast('Voice typing couldn’t start'); return; }
+  REC=rec; recEl=el; recBtn=btn; btn.classList.add('on'); toast('Listening… tap the mic again to stop');
+}
+new MutationObserver(()=>{ clearTimeout(attachMics._t); attachMics._t=setTimeout(()=>attachMics(document),30); }).observe(document.body,{childList:true,subtree:true});
+
+/* ---------- Read aloud ---------- */
+const TTS = 'speechSynthesis' in window;
+const SPK_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></svg>';
+const speakBtn = text => (TTS && text && String(text).trim()) ? `<button class="speak" data-speak="${esc(String(text).replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim())}" title="Read aloud" aria-label="Read aloud">${SPK_SVG}</button>` : '';
+let speakingBtn=null;
+function speak(text,btn){
+  if(!TTS) return;
+  const was=speakingBtn; speechSynthesis.cancel(); if(was){ was.classList.remove('on'); speakingBtn=null; if(was===btn) return; }
+  const u=new SpeechSynthesisUtterance(text); u.rate=.95; u.lang='en-US';
+  u.onend=u.onerror=()=>{ if(speakingBtn===btn){ btn.classList.remove('on'); speakingBtn=null; } };
+  speakingBtn=btn; btn.classList.add('on'); speechSynthesis.speak(u);
+}
+
+/* ---------- Simplified view ---------- */
+const SIMPLE = () => !!S.viewer && !isTeacher() && !!profile(S.viewer).simple;
+function renderHomeSimple(){
+  const v=S.viewer, t=todayISO(), ci=checkin(v,t);
+  const mine=S.items.filter(i=>i.assignees.includes(v) && !complete(i) && !(i.assignmentId && asn(i.assignmentId)?.weekly));
+  const next=[...mine].filter(i=>i.due).sort((a,b)=>a.due.localeCompare(b.due))[0] || mine[0];
+  const back=S.items.filter(i=>i.assignees.includes(v) && needsChanges(i));
+  const les=S.lessons.filter(l=>l.date===t && (l.signups||[]).includes(v));
+  const stage=stageDue(v,weekStartOf(t));
+  const hr=new Date().getHours(); const greet = hr<12?'Good morning':hr<17?'Good afternoon':'Good evening';
+  let h=`<div class="hello"><h2>${greet}, ${esc(first(v))}</h2><span class="hint">${esc(fmtDay(t))}</span></div><div class="simplecol">`;
+  h+=card('Today', ci&&ci.line?`<div class="ciline">“${esc(ci.line)}”</div><button class="btn tiny" data-editcheckin>Change</button>`:`<button class="btn primary" data-editcheckin>Check in</button>`);
+  if(back.length) h+=card('Sent back to you', back.map(miniRow).join('')+'<p class="hint">Open it to read Mr. P’s note.</p>');
+  h+=card('Next up', next?`${miniRow(next)}<button class="btn primary" data-open="i:${next.id}">Open it</button>`:'<div class="hint">Nothing due. Nice.</div>');
+  if(stage && stage!=='monday') h+=card(stage==='mid'?'Midweek check-in':'Friday reflection','<button class="btn primary" data-page="week">Answer it</button>');
+  if(les.length) h+=card('Your lesson today', les.map(lessonMini).join(''));
+  return h+'</div>';
+}
+
+/* ---------- Roster (teacher): accounts, import, passwords, sign-in cards ---------- */
+async function adminCall(body){
+  const {data,error}=await sb.functions.invoke('jarvis-admin',{body});
+  if(error){ let msg=error.message||'Something went wrong.'; try{ const j=await error.context.json(); if(j&&j.error) msg=j.error; }catch(e){}
+    if(/Failed to send|not found|404/i.test(msg)) msg='The account helper isn’t set up yet (Edge Function “jarvis-admin”).'; throw new Error(msg); }
+  if(data && data.error) throw new Error(data.error);
+  return data;
+}
+const suggestUser = (first,last) => (last||'').trim() ? ((first||'').trim()[0]||'') + last.trim() : (first||'').trim();
+const cleanUser = u => String(u||'').toLowerCase().replace(/[^a-z0-9]/g,'').slice(0,30);
+function uniqueUser(base,taken){ let u=cleanUser(base)||'student', n=2, out=u; while(taken.has(out)) out=u+(n++); taken.add(out); return out; }
+function renderRoster(){
+  const all=Object.values(PEOPLE).filter(p=>p.role==='student').sort((a,b)=>a.name.localeCompare(b.name));
+  const on=all.filter(p=>p.active), off=all.filter(p=>!p.active);
+  const row=p=>`<tr class="${p.active?'':'offrow'}"><td class="c-item"><div class="cell-item">${av(p.id)}<b>${esc(p.name)}</b></div></td><td><code>${esc(p.username)}</code></td><td>${esc(gradLabel(p.grad))}</td><td>${esc(p.major||'—')}</td>
+    <td class="ractions">${p.active?`<button class="btn tiny" data-rreset="${p.id}">Reset password</button><button class="btn tiny" data-redit="${p.id}">Edit</button><button class="linkbtn" data-roff="${p.id}">Turn off</button>`:`<button class="btn tiny" data-ron="${p.id}">Turn back on</button>`}</td></tr>`;
+  return `<div class="hello"><h2>Roster</h2><span class="grow"></span><button class="btn primary" data-rimport>Import spreadsheet</button><button class="btn" data-radd>Add a student</button></div>
+    <p class="hint" style="max-width:760px">Students sign in with the username and password you give them. Passwords are shown only once, so print the sign-in cards. <b>Reset password</b> makes a new one and the old one stops working. <b>Turn off</b> blocks sign-in (for students who leave) but keeps their work.</p>
+    <input type="file" id="rosterFile" accept=".xlsx,.xls,.csv" hidden>
+    ${on.length?`<div class="tablewrap" style="--g:var(--accent)"><table class="roster"><thead><tr><th class="c-item">Student</th><th>Username</th><th>Grade</th><th>Major</th><th></th></tr></thead><tbody>${on.map(row).join('')}</tbody></table></div>`:'<div class="empty">No students yet. Import your spreadsheet or add students one at a time.</div>'}
+    ${off.length?`<details class="psec" data-sec="rosteroff" style="margin-top:14px"><summary><span class="st">Turned off</span><span class="hint">${off.length}</span></summary><div class="tablewrap" style="border:0"><table class="roster"><tbody>${off.map(row).join('')}</tbody></table></div></details>`:''}`;
+}
+/* --- spreadsheet reading --- */
+function parseCSV(text){
+  const rows=[]; let row=[], cur='', q=false;
+  for(let i=0;i<text.length;i++){ const c=text[i];
+    if(q){ if(c==='"'){ if(text[i+1]==='"'){ cur+='"'; i++; } else q=false; } else cur+=c; }
+    else if(c==='"') q=true; else if(c===','){ row.push(cur); cur=''; } else if(c==='\n'||c==='\r'){ if(c==='\r'&&text[i+1]==='\n') i++; row.push(cur); rows.push(row); row=[]; cur=''; } else cur+=c; }
+  if(cur!==''||row.length){ row.push(cur); rows.push(row); }
+  return rows;
+}
+function loadSheetJS(){ return window.XLSX ? Promise.resolve() : new Promise((res,rej)=>{ const s=document.createElement('script'); s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'; s.onload=res; s.onerror=()=>rej(new Error('Couldn’t load the spreadsheet reader')); document.head.appendChild(s); }); }
+async function readRosterFile(file){
+  let rows;
+  if(/\.csv$/i.test(file.name)) rows=parseCSV(await file.text());
+  else { await loadSheetJS(); const wb=XLSX.read(await file.arrayBuffer(),{type:'array'}); const ws=wb.Sheets['Roster']||wb.Sheets[wb.SheetNames[0]]; rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''}); }
+  const hi=rows.findIndex(r=>r.some(c=>/first/i.test(String(c))) && r.some(c=>/last/i.test(String(c))));
+  if(hi<0) throw new Error('Couldn’t find the “First name” and “Last name” columns.');
+  const H=rows[hi].map(c=>String(c).toLowerCase());
+  const col=re=>H.findIndex(h=>re.test(h));
+  const cf=col(/first/), cl=col(/last/), cg=col(/grade|year/), cm=col(/major/), cu=col(/user/);
+  return rows.slice(hi+1).map(r=>({first:String(r[cf]??'').trim(), last:String(r[cl]??'').trim(), grade:String(cg>=0?r[cg]:'').trim(), major:String(cm>=0?r[cm]:'').trim(), username:String(cu>=0?r[cu]:'').trim()})).filter(r=>r.first||r.last);
+}
+let RIMP=[];
+function rosterPreview(list){
+  const taken=new Set(Object.values(PEOPLE).map(p=>p.username));
+  RIMP=list.map(r=>({name:(r.first+' '+r.last).trim(), grade:/senior/i.test(r.grade)?'Senior':/junior/i.test(r.grade)?'Junior':'', major:MAJORS.find(m=>m.toLowerCase()===r.major.toLowerCase())||'', username:uniqueUser(r.username||suggestUser(r.first,r.last),taken)}));
+  drawPreview();
+}
+function drawPreview(){
+  const existing=new Set(Object.values(PEOPLE).map(p=>p.username));
+  const counts={}; RIMP.forEach(r=>counts[r.username]=(counts[r.username]||0)+1);
+  const bad=r=>!r.name?'Needs a name':!/^[a-z0-9]{2,30}$/.test(r.username)?'Username needs 2+ letters':existing.has(r.username)?'Username already used':counts[r.username]>1?'Duplicate username':!r.grade?'Pick a grade':'';
+  const n=RIMP.filter(r=>!bad(r)).length;
+  openModal(`<div class="mhead wide"><h2>Check the roster</h2><button class="x" data-closemodal>×</button></div>
+    <p class="hint" style="margin:0">Fix anything in red, then create the accounts. Passwords are made for you.</p>
+    <div class="tablewrap previewtbl"><table><thead><tr><th>Name</th><th>Grade</th><th>Major</th><th>Username</th><th></th></tr></thead><tbody>
+    ${RIMP.map((r,i)=>{ const e=bad(r); return `<tr class="${e?'bad':''}"><td><input data-rp="${i}" data-f="name" value="${esc(r.name)}"></td>
+      <td><select data-rp="${i}" data-f="grade"><option value="">—</option>${['Senior','Junior'].map(g=>`<option ${r.grade===g?'selected':''}>${g}</option>`).join('')}</select></td>
+      <td><select data-rp="${i}" data-f="major"><option value="">—</option>${MAJORS.map(m=>`<option ${r.major===m?'selected':''}>${m}</option>`).join('')}</select></td>
+      <td><input data-rp="${i}" data-f="username" value="${esc(r.username)}"></td><td class="small">${e?`<span class="err">${e}</span>`:'<span class="tag ok">Ready</span>'}</td></tr>`; }).join('')}
+    </tbody></table></div>
+    <div class="mfoot"><span class="hint">${n} of ${RIMP.length} ready</span><button class="btn primary" data-rcreate ${n?'':'disabled'}>Create ${n} account${n===1?'':'s'}</button></div>`);
+}
+async function createAccounts(){
+  const existing=new Set(Object.values(PEOPLE).map(p=>p.username));
+  const ok=RIMP.filter(r=>r.name && /^[a-z0-9]{2,30}$/.test(r.username) && !existing.has(r.username) && r.grade);
+  const btn=$('[data-rcreate]'); if(btn){ btn.disabled=true; btn.textContent='Creating accounts…'; }
+  try{
+    const out=[];
+    for(let i=0;i<ok.length;i+=20){ const d=await adminCall({action:'create',students:ok.slice(i,i+20).map(r=>({name:r.name,username:r.username,grad:gradFromLabel(r.grade),major:r.major}))}); out.push(...(d.results||[])); }
+    await loadPeople(); if(ensureWeeklyReport()) persist(); render(); showPasswords(out,'New accounts');
+  }catch(e){ toast(e.message); if(btn){ btn.disabled=false; btn.textContent='Try again'; } }
+}
+let LASTPW=[];
+function showPasswords(list,title){
+  LASTPW=list.filter(r=>r.password);
+  const errs=list.filter(r=>r.error);
+  openModal(`<div class="mhead"><h2>${esc(title)}</h2><button class="x" data-closemodal>×</button></div>
+    <div class="note"><b>Print or write these down now.</b> Passwords can’t be shown again. If one gets lost, just reset it.</div>
+    ${LASTPW.length?`<div class="tablewrap"><table><thead><tr><th>Name</th><th>Username</th><th>Password</th></tr></thead><tbody>${LASTPW.map(r=>`<tr><td>${esc(r.name)}</td><td><code>${esc(r.username)}</code></td><td><code>${esc(r.password)}</code></td></tr>`).join('')}</tbody></table></div>`:''}
+    ${errs.length?`<div class="note bad">${errs.map(r=>`${esc(r.name||r.username)}: ${esc(r.error)}`).join('<br>')}</div>`:''}
+    <div class="mfoot">${LASTPW.length?'<button class="btn primary" data-rprint>Print sign-in cards</button>':''}<button class="btn" data-closemodal>Done</button></div>`);
+}
+function printCards(){
+  const url=location.origin+location.pathname;
+  const w=window.open('','_blank'); if(!w){ toast('Allow pop-ups to print cards'); return; }
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>JARVIS sign-in cards</title><style>
+    body{font-family:Arial,sans-serif;margin:0;padding:12mm;color:#18221D}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:6mm}
+    .card{border:2px solid #095641;border-radius:4mm;padding:6mm;break-inside:avoid;min-height:48mm}
+    .top{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #DCE2DF;padding-bottom:3mm;margin-bottom:3mm}
+    .brand{font-weight:800;color:#095641;font-size:18px}.name{font-weight:700;font-size:15px}
+    .k{font-size:11px;color:#56605B;text-transform:uppercase;letter-spacing:.05em;margin-top:3mm}.v{font-family:Consolas,monospace;font-size:20px;font-weight:700}
+    .url{font-size:10px;color:#56605B;margin-top:3mm;word-break:break-all}
+    @media print{body{padding:8mm}}</style></head><body><div class="grid">${LASTPW.map(r=>`<div class="card"><div class="top"><span class="brand">JARVIS</span><span class="name">${esc(r.name)}</span></div>
+      <div class="k">Username</div><div class="v">${esc(r.username)}</div><div class="k">Password</div><div class="v">${esc(r.password)}</div><div class="url">${esc(url)}</div></div>`).join('')}</div>
+    <scr${''}ipt>setTimeout(()=>window.print(),300)</scr${''}ipt></body></html>`);
+  w.document.close();
+}
+function addStudentModal(){
+  openModal(`<div class="mhead"><h2>Add a student</h2><button class="x" data-closemodal>×</button></div>
+    <div class="fields"><label>First name</label><input id="raFirst"><label>Last name</label><input id="raLast">
+      <label>Grade</label><select id="raGrade"><option>Senior</option><option>Junior</option></select>
+      <label>Major</label><select id="raMajor"><option value="">—</option>${MAJORS.map(m=>`<option>${m}</option>`).join('')}</select>
+      <label>Username</label><input id="raUser" placeholder="Filled in from the name"></div>
+    <div class="mfoot"><button class="btn primary" data-raddgo>Create account</button></div>`);
+}
+function editStudentModal(pid){
+  const p=PEOPLE[pid];
+  openModal(`<div class="mhead"><h2>Edit ${esc(p.name)}</h2><button class="x" data-closemodal>×</button></div>
+    <div class="fields"><label>Name</label><input id="reName" value="${esc(p.name)}">
+      <label>Grade</label><select id="reGrade">${['Senior','Junior'].map(g=>`<option ${gradLabel(p.grad)===g?'selected':''}>${g}</option>`).join('')}</select>
+      <label>Major</label><select id="reMajor"><option value="">—</option>${MAJORS.map(m=>`<option ${p.major===m?'selected':''}>${m}</option>`).join('')}</select>
+      <label>Username</label><span><code>${esc(p.username)}</code> <span class="hint">(can’t be changed)</span></span></div>
+    <div class="mfoot"><button class="btn primary" data-resave="${pid}">Save</button></div>`);
+}
+async function rosterClick(d,t){
+  if(d.rimport!==undefined){ $('#rosterFile').click(); return true; }
+  if(d.radd!==undefined){ addStudentModal(); return true; }
+  if(d.raddgo!==undefined){ const f=$('#raFirst').value.trim(), l=$('#raLast').value.trim(); if(!f||!l){ toast('Add a first and last name'); return true; }
+    const taken=new Set(Object.values(PEOPLE).map(p=>p.username)); const u=cleanUser($('#raUser').value)||uniqueUser(suggestUser(f,l),taken);
+    RIMP=[{name:f+' '+l,grade:$('#raGrade').value,major:$('#raMajor').value,username:u}]; await createAccounts(); return true; }
+  if(d.rcreate!==undefined){ await createAccounts(); return true; }
+  if(d.rprint!==undefined){ printCards(); return true; }
+  if(d.redit){ editStudentModal(d.redit); return true; }
+  if(d.resave){ const p=PEOPLE[d.resave]; const {error}=await sb.from('people').update({name:$('#reName').value.trim()||p.name, grad:gradFromLabel($('#reGrade').value), major:$('#reMajor').value||null}).eq('pid',d.resave);
+    if(error){ toast(niceError(error)); return true; } await loadPeople(); closeModal(); render(); toast('Saved'); return true; }
+  if(d.rreset){ const p=PEOPLE[d.rreset]; if(!confirm(`Make a new password for ${p.name}? Their old one will stop working.`)) return true;
+    try{ const r=await adminCall({action:'reset',pid:d.rreset}); showPasswords([r],'New password'); }catch(e){ toast(e.message); } return true; }
+  if(d.roff||d.ron){ const pid=d.roff||d.ron, p=PEOPLE[pid]; if(d.roff && !confirm(`Turn off ${p.name}’s account? They won’t be able to sign in, but their work stays.`)) return true;
+    try{ await adminCall({action:'setActive',pid,active:!!d.ron}); await loadPeople(); render(); toast(d.ron?'Account turned back on':'Account turned off'); }catch(e){ toast(e.message); } return true; }
+  return false;
+}
+
 /* ---------- Render ---------- */
 const PAGES = () => isTeacher()
-  ? [['home','Class today'],['board','Board'],['today','My day'],['week','Weekly reports'],['mp','Marking period'],['lessons','Lessons & polls'],['asks','Asks'],['sync','Schoology sync'],['help','Help']]
+  ? [['home','Class today'],['board','Board'],['today','My day'],['week','Weekly reports'],['mp','Marking period'],['lessons','Lessons & polls'],['asks','Asks'],['sync','Schoology sync'],['roster','Roster'],['help','Help']]
   : [['home','Home'],['board','Board'],['today','Today'],['week','My week'],['mp','Marking period'],['lessons','Lessons & polls'],['asks','Asks'],['help','Help']];
 function pageHTML(){
+  if(SIMPLE() && !UI.more && !['home','board','week'].includes(UI.page)) UI.page='home';
   switch(UI.page){
     case 'home': return isTeacher()?renderHomeTeacher():renderHomeStudent();
     case 'board': return renderBoardPage();
     case 'today': return renderToday();
     case 'week': return renderWeek();
     case 'mp': return renderMp();
+    case 'roster': return isTeacher()?renderRoster():'';
     case 'lessons': return renderLessons();
     case 'asks': return renderAsks();
     case 'sync': return isTeacher()?renderSync():'';
@@ -2125,7 +2329,7 @@ function pageHTML(){
 function showCrash(where,e){
   console.error(where,e);
   const B=$('#board'); if(!B) return;
-  B.innerHTML=`<div class="empty crash"><b>Something broke while drawing this screen.</b><br>Take a screenshot of this box and send it to Mr. P.<br><code>${esc(where)}: ${esc(e&&e.message||String(e))}</code>${isTeacher()?'<br><br>If you upgraded from the first version, click <b>Load fresh demo data</b> in the sidebar.':''}</div>`;
+  B.innerHTML=`<div class="empty crash"><b>Something broke while drawing this screen.</b><br>Take a screenshot of this box and send it to Mr. P.<br><code>${esc(where)}: ${esc(e&&e.message||String(e))}</code></div>`;
 }
 function render(){
   if(!S.viewer) return;
@@ -2139,12 +2343,16 @@ function render(){
   save();
 }
 function renderSide(){
-  const sel = $('#viewer');
-  sel.innerHTML = `<option value="t">Mr. P (teacher)</option><optgroup label="Seniors">${SENIORS.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('')}</optgroup><optgroup label="Juniors">${JUNIORS.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('')}</optgroup>`;
-  sel.value = S.viewer;
+  const m=me(); $('#whoami').innerHTML = `${av(S.viewer)}<span><b>${esc(m.name)}</b><small>${m.role==='teacher'?'Teacher':gradLabel(m.grad)+(m.major?' · '+esc(m.major):'')}</small></span>`;
   const counts = {mp: isTeacher()?S.settings.filter(x=>x.id.startsWith('claim_')&&x.status==='submitted').length:claimsOf(S.viewer).filter(c=>c.status==='returned').length, asks: asksWaitingOnMe().filter(a=>a.kind!=='lesson').length, sync: isTeacher()?syncPending():0, week: (!isTeacher() && stageDue(S.viewer,weekStartOf(todayISO())))?1:0};
-  let h = PAGES().map(([k,l])=>`<button data-page="${k}" class="${UI.page===k&&!(k==='board'&&UI.project)?'on':''}">${l}${counts[k]?`<span class="navcount">${counts[k]}</span>`:''}</button>`).join('');
+  const simple=SIMPLE();
+  document.body.classList.toggle('simple',simple);
+  $('#btnSimple').style.display=isTeacher()?'none':''; $('#btnSimple').textContent=`Simplified view: ${simple?'On':'Off'}`;
+  let pages=PAGES();
+  if(simple){ const core=pages.filter(([k])=>['home','board','week'].includes(k)); pages = UI.more ? [...core,...pages.filter(([k])=>!['home','board','week'].includes(k))] : core; }
+  let h = pages.map(([k,l])=>`<button data-page="${k}" class="${UI.page===k&&!(k==='board'&&UI.project)?'on':''}">${l}${counts[k]?`<span class="navcount">${counts[k]}</span>`:''}</button>`).join('');
   const b = (p,list) => `<button data-nav="${p.id}" class="${UI.page==='board'&&UI.project===p.id?'on':''} ${p.parentId&&list&&list.some(x=>x.id===p.parentId)?'child':''}"><span class="dot" style="background:${p.color}"></span><span class="nl">${esc(p.name)}</span>${p.private?`<span class="lock">${ICON.lock}</span>`:''}</button>`;
+  if(simple){ h += `<button data-more class="morebtn">${UI.more?'Less ▴':'More ▾'}</button>`; $('#nav').innerHTML = h; ['#btnBackup','#btnRestore'].forEach(x=>$(x).style.display='none'); $('#verTag').textContent=`JARVIS v${APP_VERSION} · ${APP_DATE}`; return; }
   if(isTeacher()){ const L=orderTree(S.projects); h += '<h5>Projects</h5>' + L.map(p=>b(p,L)).join(''); }
   else {
     const mine = orderTree(S.projects.filter(p=>(p.roles||{})[S.viewer])), others = orderTree(S.projects.filter(p=>!(p.roles||{})[S.viewer] && !p.private));
@@ -2152,18 +2360,18 @@ function renderSide(){
     if(others.length) h += '<h5>Class projects</h5>' + others.map(p=>b(p,others)).join('');
   }
   $('#nav').innerHTML = h;
-  ['#btnReset','#btnClear','#btnBackup','#btnRestore'].forEach(x=>$(x).style.display=isTeacher()?'':'none');
+  ['#btnBackup','#btnRestore'].forEach(x=>$(x).style.display=isTeacher()?'':'none');
   $('#verTag').textContent=`JARVIS v${APP_VERSION} · ${APP_DATE}`;
 }
 function renderHead(){
-  const titles = {home:isTeacher()?'Class today':'Home',board:UI.project==='assign'?'Class assignments':UI.project?(proj(UI.project)?.name||'Board'):(isTeacher()?'Class board':'My board'),today:isTeacher()?'My day':'Today',week:isTeacher()?'Weekly reports':'My week',mp:'Marking period',lessons:'Lessons & polls',asks:'Asks',sync:'Schoology sync',help:'Help'};
+  const titles = {home:isTeacher()?'Class today':'Home',board:UI.project==='assign'?'Class assignments':UI.project?(proj(UI.project)?.name||'Board'):(isTeacher()?'Class board':'My board'),today:isTeacher()?'My day':'Today',week:isTeacher()?'Weekly reports':'My week',mp:'Marking period',roster:'Roster',lessons:'Lessons & polls',asks:'Asks',sync:'Schoology sync',help:'Help'};
   $('#pageTitle').textContent = titles[UI.page]||'';
   const onBoard = UI.page==='board';
-  $('#boardActions').innerHTML = onBoard ? `<div class="seg" role="tablist" aria-label="View"><button data-view="table" class="${UI.view==='table'?'on':''}">Table</button><button data-view="kanban" class="${UI.view==='kanban'?'on':''}">Kanban</button></div>
+  $('#boardActions').innerHTML = onBoard && SIMPLE() ? `<button class="btn" data-newproject>+ New project</button>` : onBoard ? `<div class="seg" role="tablist" aria-label="View"><button data-view="table" class="${UI.view==='table'?'on':''}">Table</button><button data-view="kanban" class="${UI.view==='kanban'?'on':''}">Kanban</button></div>
     <button class="btn" data-newproject>+ New project</button>${isTeacher()?'<button class="btn" data-newassign>+ New assignment</button>':''}` : '';
   const had = document.activeElement && document.activeElement.id==='fSearch';
-  $('#filters').innerHTML = onBoard ? renderBoardFilters() : '';
-  $('#filters').style.display = onBoard ? '' : 'none';
+  $('#filters').innerHTML = onBoard && !SIMPLE() ? renderBoardFilters() : '';
+  $('#filters').style.display = onBoard && !SIMPLE() ? '' : 'none';
   if(had){ const s=$('#fSearch'); if(s){ s.focus(); s.setSelectionRange(s.value.length,s.value.length); } }
   const uc=unread(S.viewer); $('#bellCount').hidden=!uc; $('#bellCount').textContent=uc;
   $('#btnAsk').textContent = isTeacher() ? 'Asks' : 'Ask';
@@ -2270,7 +2478,12 @@ document.addEventListener('click',e=>{
   const d = t.dataset;
   if(t.tagName==='SUMMARY' || t.tagName==='A') return;
   if(d.help){ e.preventDefault(); UI.page='help'; UI.helpOpen=d.help; UI.helpQ=''; closeModal(); if(!(CI&&CI.required)) closeCheckin(); render(); setTimeout(()=>$('#help-'+d.help)?.scrollIntoView({block:'center'}),50); return; }
-  if(d.me){ becomes(d.me); return; }
+  if(isTeacher() && (d.rimport!==undefined||d.radd!==undefined||d.raddgo!==undefined||d.rcreate!==undefined||d.rprint!==undefined||d.redit||d.resave||d.rreset||d.roff||d.ron)){ rosterClick(d,t); return; }
+  if(d.pwsave!==undefined){ const a=$('#pw1').value, b=$('#pw2').value; if(a.length<8){ toast('Use at least 8 characters'); return; } if(a!==b){ toast('The two passwords don’t match'); return; }
+    t.disabled=true; sb.auth.updateUser({password:a}).then(({error})=>{ t.disabled=false; if(error){ toast(error.message); return; } $('#pw1').value=''; $('#pw2').value=''; toast('Password changed'); }); return; }
+  if(d.speak!==undefined){ e.preventDefault(); e.stopPropagation(); speak(d.speak,t); return; }
+  if(t.id==='btnSimple'){ if(isTeacher()) return; const p=ensureProfile(S.viewer); p.simple=!p.simple; UI.more=false; if(p.simple){ UI.view='table'; resetFilters(); } render(); toast(p.simple?'Simplified view on. Tap it again anytime to switch back.':'Standard view'); return; }
+  if(d.more!==undefined){ UI.more=!UI.more; render(); return; }
   if(d.mpview){ UI.mpStudent=d.mpview; render(); setTimeout(()=>{ const el=$('#mpview'); if(el && el.scrollIntoView) el.scrollIntoView({behavior:'smooth',block:'start'}); },30); return; }
   if(d.mpsubmit){ const c=S.settings.find(x=>x.id===d.mpsubmit); if(c) mpSubmitModal(c); return; }
   if(d.mpsend){ const c=S.settings.find(x=>x.id===d.mpsend); if(!c) return; const url=normUrl($('#mfUrl').value)||$('#mfFile').value; const ref=$('#mfRef').value.trim();
@@ -2287,18 +2500,19 @@ document.addEventListener('click',e=>{
     const mode=$(`[data-k="mconv:${d.merge}"]`)?.checked?'convert':'nest';
     if(canAdminProject(T)){
       if(mode==='convert' && !confirm(`Turn “${P.name}” into an item inside “${T.name}”? This can’t be undone.`)) return;
-      const it=runMerge(P,T,mode); render(); if(it) openPanel('i:'+it.id); toast(mode==='nest'?`“${P.name}” is now inside “${T.name}”`:`“${P.name}” is now an item in “${T.name}”`);
+      const pn=P.name, tn=T.name; closePanel(); runMerge(P.id,T.id,mode,null,pn,tn).then(r=>{ if(!r.ok) return; if(r.itemId) openPanel('i:'+r.itemId); toast(mode==='nest'?`“${pn}” is now inside “${tn}”`:`“${pn}” is now an item in “${tn}”`); });
     } else {
-      const a={id:rid('k'),kind:'merge',by:S.viewer,projectId:P.id,targetId:T.id,mode,to:adminsOf(T),note:'',open:true,replies:[],...nowStamp()};
+      const a={id:rid('k'),kind:'merge',by:S.viewer,projectId:P.id,targetId:T.id,projectName:P.name,targetName:T.name,mode,to:adminsOf(T),note:'',open:true,replies:[],...nowStamp()};
       S.asks.push(a); a.to.forEach(x=>notify(x,'merge',{askId:a.id,projectId:T.id,text:askTitle(a).replace(/<[^>]+>/g,'')}));
       render(); toast(`Sent to ${toName(a.to)} to approve`);
     }
     return; }
-  if(d.mergeok||d.mergeno){ const a=askById(d.mergeok||d.mergeno); if(!a||!a.open) return; const P=proj(a.projectId), T=proj(a.targetId);
+  if(d.mergeok||d.mergeno){ const a=askById(d.mergeok||d.mergeno); if(!a||!a.open) return; const P=proj(a.projectId)||{id:a.projectId,name:a.projectName||'their project'}, T=proj(a.targetId);
     if(d.mergeno){ a.open=false; a.result='declined'; notify(a.by,'mergeno',{projectId:a.projectId,text:''}); render(); toast('Declined'); return; }
-    if(!P||!T){ a.open=false; a.result='project gone'; render(); toast('One of those projects no longer exists'); return; }
+    if(!T){ a.open=false; a.result='project gone'; render(); toast('That project no longer exists'); return; }
     if(a.mode==='convert' && !confirm(`Turn “${P.name}” into an item inside “${T.name}”? This can’t be undone.`)) return;
-    a.open=false; a.result='approved'; runMerge(P,T,a.mode); notify(a.by,'merged',{projectId:T.id,text:`Approved: “${P.name}” ${a.mode==='nest'?'is now inside':'is now an item in'} “${T.name}”`}); render(); toast('Combined'); return; }
+    const txt=`Approved: “${P.name}” ${a.mode==='nest'?'is now inside':'is now an item in'} “${T.name}”`, by=a.by, tid=T.id;
+    runMerge(P.id,T.id,a.mode,a.id,P.name,T.name).then(r=>{ if(r.ok){ notify(by,'merged',{projectId:tid,text:txt}); render(); toast('Combined'); } }); return; }
   if(d.unnest){ const P=proj(d.unnest); if(!P) return; doUnnest(P); render(); toast('Taken back out'); return; }
   if(d.profile!==undefined){ openProfile(S.viewer); return; }
   if(d.editprofile){ e.stopPropagation(); openProfile(d.editprofile); return; }
@@ -2408,7 +2622,7 @@ document.addEventListener('click',e=>{
   if(d.newver){ const [ok,fid]=d.newver.split('|'); addVersion(ok,fid); return; }
   if(d.addfile){ addFile(d.addfile); return; }
   if(d.priv!==undefined){ const p=proj(UI.panel.split(':')[1]); if(!p||!canAdminProject(p)) return; p.private=d.priv==='1'; render(); toast(p.private?'Private: only its people and Mr. P can see it':'Visible to the whole class'); return; }
-  if(d.delproject){ const p=proj(d.delproject); if(!p||!confirm(`Delete “${p.name}” and all its items?`)) return; childrenOf(p.id).forEach(c=>c.parentId=null); S.items=S.items.filter(i=>i.projectId!==p.id); S.projects=S.projects.filter(x=>x.id!==p.id); closePanel(); render(); toast('Project deleted'); return; }
+  if(d.delproject){ const p=proj(d.delproject); if(!p||!confirm(`Delete “${p.name}” and all its items?`)) return; childrenOf(p.id).forEach(c=>{ if(canAdminProject(c)) c.parentId=null; }); S.items=S.items.filter(i=>i.projectId!==p.id); S.projects=S.projects.filter(x=>x.id!==p.id); closePanel(); render(); toast('Project deleted'); return; }
   if(d.delitem){ const i=item(d.delitem); if(!i||!confirm('Delete “'+i.title+'”'+(subsOf(i.id).length?' and its subitems':'')+'?')) return;
     const kill=new Set([i.id,...subsOf(i.id).map(x=>x.id)]); S.items=S.items.filter(x=>!kill.has(x.id)); closePanel(); render(); toast('Item deleted'); return; }
   if(d.post){ const ta=$('#postText'); const tx=(ta.value||'').trim(); if(!tx) return; const [k,id]=d.post.split(':'); const o=k==='i'?item(id):proj(id); if(!o) return;
@@ -2431,13 +2645,7 @@ document.addEventListener('click',e=>{
   if(d.syncall!==undefined){ markSynced(); return; }
   if(d.syncone){ markSynced(d.syncone); return; }
   if(t.id==='newpill'){ t.hidden=true; const B=$('#pbody'); B.scrollTop=B.scrollHeight; return; }
-  if(t.id==='btnReset' || d.loaddemo!==undefined){ if(!isTeacher()) return; if(!confirm('Replace everything with fresh demo data? Everyone’s changes will be erased.')) return;
-    loadDemo().then(()=>{ Object.assign(UI,{scope:'all',major:'',student:'',overdue:false,q:'',project:''}); closePanel(); render(); toast('Fresh demo data loaded'); }).catch(e=>{ console.error(e); toast('Couldn’t reset: '+(e.message||'check the connection')); }); return; }
-  if(t.id==='btnClear'){ if(!isTeacher()||!confirm('Erase everything on the shared board? This can’t be undone.')) return;
-    wipeAll().then(()=>{ closePanel(); render(); toast('Board cleared'); }).catch(e=>{ console.error(e); toast('Couldn’t clear'); }); return; }
-  if(t.id==='btnBackup'){ if(isTeacher()) downloadBackup(); return; }
-  if(t.id==='btnRestore'){ if(isTeacher()) $('#restoreFile').click(); return; }
-  if(t.id==='btnSwitch'){ closePanel(); closeCheckin(); showGate(); return; }
+  if(t.id==='btnSignOut'){ if(confirm('Sign out of JARVIS on this device?')) signOut(); return; }
   if(t.id==='btnTheme'){ const r=document.documentElement; const dark = r.dataset.theme ? r.dataset.theme==='dark' : matchMedia('(prefers-color-scheme: dark)').matches; r.dataset.theme = dark?'light':'dark'; return; }
 });
 $('#scrim').addEventListener('click',closePanel);
@@ -2460,7 +2668,6 @@ document.addEventListener('keydown',e=>{
 });
 document.addEventListener('change',e=>{
   const t=e.target, d=t.dataset;
-  if(t.id==='viewer'){ if(!becomes(t.value)) t.value=S.viewer; return; }
   if(t.id==='fMajor'){ UI.major=t.value; render(); return; }
   if(t.id==='fStudent'){ UI.student=t.value; render(); return; }
   if(t.id==='fOverdue'){ UI.overdue=t.checked; render(); return; }
@@ -2469,6 +2676,8 @@ document.addEventListener('change',e=>{
   if(d.fshow){ UI.scope=d.fshow; render(); return; }
   if(t.id==='fGroup'){ UI.groupBy=t.value; render(); return; }
   if(t.id==='wkStudent'){ UI.wkStudent=t.value; render(); return; }
+  if(t.id==='rosterFile'){ const f=t.files&&t.files[0]; t.value=''; if(f) readRosterFile(f).then(list=>{ if(!list.length){ toast('No students found in that file'); return; } rosterPreview(list); }).catch(e=>toast(e.message)); return; }
+  if(d.rp!==undefined){ const r=RIMP[+d.rp]; if(r){ r[d.f]= d.f==='username'?cleanUser(t.value):t.value.trim(); drawPreview(); } return; }
   if(t.id==='restoreFile'){ const f=t.files&&t.files[0]; t.value=''; if(f && isTeacher()) restoreBackup(f); return; }
   if(t.id==='mpStudent'){ UI.mpStudent=t.value; render(); return; }
   if(d.mplevel){ const [pid,key]=d.mplevel.split('|'); if(!canTag(pid)) return; const id=claimId(pid,key); const ex=S.settings.find(x=>x.id===id);
@@ -2480,7 +2689,7 @@ document.addEventListener('change',e=>{
   if(d.mpcfg){ const c=ensureMpConfig(); const v=t.value; if(d.mpcfg==='start'){ if(v) c.start=v; } else if(d.mpcfg==='length'){ c.length=Math.max(5,Math.min(120,+v||45)); } else { c.targets={...c.targets,[d.mpcfg]:Math.max(0,Math.min(20,+v||0))}; } render(); return; }
   if(t.id==='askAll'){ syncAskAll(); return; }
   if(d.moveitem){ const i=item(d.moveitem), T=proj(t.value); if(!i||!T) return; if(!confirm(`Move “${i.title}”${subsOf(i.id).length?' and its subitems':''} to “${T.name}”?`)){ t.value=''; return; }
-    const added=moveItem(i,T); render(); toast(`Moved to “${T.name}”`+(added.length?` · added ${added.map(first).join(', ')} to it`:'')); return; }
+    const r=moveItem(i,T); render(); toast(`Moved to “${T.name}”`+(r.added.length?` · added ${r.added.map(first).join(', ')} to it`:'')+(r.missing.length?` · ask its admin to add ${r.missing.map(first).join(', ')}`:'')); return; }
   if(t.id==='prFile' && t.files && t.files[0]){ shrinkImage(t.files[0]).then(u=>{ PR.img=u; PR.clearImg=false; drawPrPrev(); }).catch(()=>toast('Couldn’t read that image')); return; }
   if(t.id==='audAll' || t.classList.contains('audGrad') || t.classList.contains('audMajor')){
     t.closest('.ck')?.classList.toggle('on',t.checked);
@@ -2496,7 +2705,7 @@ document.addEventListener('change',e=>{
     else if(k==='aud'){ if(t.checked){ const all=$('#audAll'); all.checked=false; all.closest('.ck').classList.remove('on'); } updAudCount(); }
     return; }
   if(d.pprole){ const p=proj(d.pprole.split(':')[1]); if(p && d.pid!==p.owner){ p.roles[d.pid]=t.value; render(); } return; }
-  if(d.sdays){ const pid=UI.wkStudent||STUDENTS[0].id; const w=ensureWeek(pid,UI.wkStart); let days=weekDays(pid,UI.wkStart); days = t.checked?[...new Set([...days,d.sdays])]:days.filter(x=>x!==d.sdays); w.days=days.sort(); if(!w.days.length){ toast('Keep at least one day'); w.days=[d.sdays]; } syncWeeklyDue(UI.wkStart); render(); return; }
+  if(d.sdays){ const pid=UI.wkStudent||(STUDENTS[0]&&STUDENTS[0].id); if(!pid) return; const w=ensureWeek(pid,UI.wkStart); let days=weekDays(pid,UI.wkStart); days = t.checked?[...new Set([...days,d.sdays])]:days.filter(x=>x!==d.sdays); w.days=days.sort(); if(!w.days.length){ toast('Keep at least one day'); w.days=[d.sdays]; } syncWeeklyDue(UI.wkStart); render(); return; }
   if(d.cdays){ const id='week_'+UI.wkStart; let c=S.settings.find(x=>x.id===id); const all=[0,1,2,3,4].map(k=>addDays(UI.wkStart,k)); if(!c){ c={id,days:all}; S.settings.push(c); } c.days = t.checked?[...new Set([...(c.days||all),d.cdays])].sort():(c.days||all).filter(x=>x!==d.cdays); if(!c.days.length){ c.days=[d.cdays]; toast('Keep at least one day'); } syncWeeklyDue(UI.wkStart); render(); toast('Class week updated · report due '+dow(classLastDay(UI.wkStart))); return; }
   if(d.block){ const c=ensureCheckin(S.viewer,todayISO()); if(d.block.startsWith('c:')){ const x=c.custom.find(y=>'c:'+y.id===d.block); if(x) x[d.edge]=t.value; } else { c.blocks[d.block]={...(c.blocks[d.block]||{}),[d.edge]:t.value}; } render(); return; }
 });
