@@ -655,6 +655,16 @@ table.roster td code,.previewtbl code{font-size:13px}
 .modalbox .tablewrap{overflow:auto}
 .modalbox .tablewrap td,.modalbox .tablewrap th{text-align:left;padding:6px 10px}
 
+.rin{border:1px solid transparent;background:transparent;border-radius:6px;padding:5px 7px;font:inherit;color:inherit;width:100%;min-width:0}
+.rin:hover{border-color:var(--line)}
+.rin:focus{border-color:var(--accent);background:var(--surface);outline:none}
+.rname{font-weight:700}
+.ruser{font-family:Consolas,monospace;font-size:13px}
+table.roster select.rin{appearance:auto}
+.pwopts{display:flex;flex-direction:column;gap:12px;margin-top:6px}
+.pwown{display:flex;gap:8px}
+.pwown input{flex:1;border:1px solid var(--line);background:var(--surface-2);border-radius:8px;padding:8px 10px}
+
 </style>
 </head>
 <body>
@@ -711,8 +721,8 @@ const CFG = window.JARVIS_CONFIG || {};
 const SUPABASE_URL = CFG.url || 'PASTE_YOUR_PROJECT_URL';
 const SUPABASE_ANON_KEY = CFG.anonKey || 'PASTE_YOUR_ANON_KEY';
 const LOGIN_DOMAIN = 'jarvis.local';
-const APP_VERSION = '3.0.2';
-const APP_DATE = 'Sep 25, 2026';
+const APP_VERSION = '0.9';
+const APP_DATE = 'Sep 26, 2026';
 
 /* ---------- Dates ---------- */
 const localISO = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -2189,10 +2199,13 @@ function uniqueUser(base,taken){ let u=cleanUser(base)||'student', n=2, out=u; w
 function renderRoster(){
   const all=Object.values(PEOPLE).filter(p=>p.role==='student').sort((a,b)=>a.name.localeCompare(b.name));
   const on=all.filter(p=>p.active), off=all.filter(p=>!p.active);
-  const row=p=>`<tr class="${p.active?'':'offrow'}"><td class="c-item"><div class="cell-item">${av(p.id)}<b>${esc(p.name)}</b></div></td><td><code>${esc(p.username)}</code></td><td>${esc(gradLabel(p.grad))}</td><td>${esc(p.major||'—')}</td>
-    <td class="ractions">${p.active?`<button class="btn tiny" data-rreset="${p.id}">Reset password</button><button class="btn tiny" data-redit="${p.id}">Edit</button><button class="linkbtn" data-roff="${p.id}">Turn off</button>`:`<button class="btn tiny" data-ron="${p.id}">Turn back on</button>`}</td></tr>`;
-  return `<div class="hello"><h2>Roster</h2><span class="grow"></span><button class="btn primary" data-rimport>Import spreadsheet</button><button class="btn" data-radd>Add a student</button></div>
-    <p class="hint" style="max-width:760px">Students sign in with the username and password you give them. Passwords are shown only once, so print the sign-in cards. <b>Reset password</b> makes a new one and the old one stops working. <b>Turn off</b> blocks sign-in (for students who leave) but keeps their work.</p>
+  const row=p=>`<tr class="${p.active?'':'offrow'}"><td class="c-item"><div class="cell-item">${av(p.id)}<input class="rin rname" data-rname="${p.id}" value="${esc(p.name)}" aria-label="Name" ${p.active?'':'disabled'}></div></td>
+    <td><input class="rin ruser" data-ruser="${p.id}" value="${esc(p.username)}" aria-label="Username" ${p.active?'':'disabled'}></td>
+    <td><select class="rin" data-rgrade="${p.id}" aria-label="Grade" ${p.active?'':'disabled'}>${['Senior','Junior'].map(g=>`<option ${gradLabel(p.grad)===g?'selected':''}>${g}</option>`).join('')}${['Senior','Junior'].includes(gradLabel(p.grad))?'':`<option selected>${esc(gradLabel(p.grad))}</option>`}</select></td>
+    <td><select class="rin" data-rmajor="${p.id}" aria-label="Major" ${p.active?'':'disabled'}><option value="">—</option>${MAJORS.map(m=>`<option ${p.major===m?'selected':''}>${m}</option>`).join('')}</select></td>
+    <td class="ractions">${p.active?`<button class="btn tiny" data-rreset="${p.id}">Password</button><button class="linkbtn" data-roff="${p.id}">Turn off</button>`:`<button class="btn tiny" data-ron="${p.id}">Turn back on</button>`}</td></tr>`;
+  return `<div class="hello"><h2>Roster</h2><span class="grow"></span><button class="btn" data-rcaps>Capitalize names</button><button class="btn primary" data-rimport>Import spreadsheet</button><button class="btn" data-radd>Add a student</button></div>
+    <p class="hint" style="max-width:780px">Click any name, username, grade, or major to change it. It saves when you click away. Usernames are always lowercase, and sign-in ignores capitals, so <code>JSmith</code> works too. <b>Password</b> lets you make a new random one or type one in. Students can also set their own under <b>Edit my profile</b>. <b>Turn off</b> blocks sign-in but keeps their work.</p>
     <input type="file" id="rosterFile" accept=".xlsx,.csv" hidden>
     ${on.length?`<div class="tablewrap" style="--g:var(--accent)"><table class="roster"><thead><tr><th class="c-item">Student</th><th>Username</th><th>Grade</th><th>Major</th><th></th></tr></thead><tbody>${on.map(row).join('')}</tbody></table></div>`:'<div class="empty">No students yet. Import your spreadsheet or add students one at a time.</div>'}
     ${off.length?`<details class="psec" data-sec="rosteroff" style="margin-top:14px"><summary><span class="st">Turned off</span><span class="hint">${off.length}</span></summary><div class="tablewrap" style="border:0"><table class="roster"><tbody>${off.map(row).join('')}</tbody></table></div></details>`:''}`;
@@ -2328,7 +2341,31 @@ function editStudentModal(pid){
       <label>Username</label><span><code>${esc(p.username)}</code> <span class="hint">(can’t be changed)</span></span></div>
     <div class="mfoot"><button class="btn primary" data-resave="${pid}">Save</button></div>`);
 }
+const titleCase = s => String(s).toLowerCase().replace(/(^|[\s\-'’])([a-z])/g,(m,a,b)=>a+b.toUpperCase()).replace(/\bMc([a-z])/g,(m,c)=>'Mc'+c.toUpperCase());
+async function savePerson(pid,fields){ const {error}=await sb.from('people').update(fields).eq('pid',pid); if(error){ toast(niceError(error)); } await loadPeople(); render(); return !error; }
+async function rosterChange(t){
+  const d=t.dataset;
+  if(d.rname){ const v=t.value.trim(); if(!v){ t.value=PEOPLE[d.rname].name; return true; } if(v!==PEOPLE[d.rname].name && await savePerson(d.rname,{name:v})) toast('Name saved'); return true; }
+  if(d.rgrade){ if(await savePerson(d.rgrade,{grad:gradFromLabel(t.value)})) toast('Grade saved'); return true; }
+  if(d.rmajor){ if(await savePerson(d.rmajor,{major:t.value||null})) toast('Major saved'); return true; }
+  if(d.ruser){ const p=PEOPLE[d.ruser], u=cleanUser(t.value); t.value=u; if(!u||u===p.username){ t.value=p.username; return true; }
+    try{ await adminCall({action:'rename',pid:d.ruser,username:u}); await loadPeople(); render(); toast(`Username is now ${u} — tell ${p.name.split(' ')[0]}`); }catch(e){ t.value=p.username; toast(e.message); } return true; }
+  return false;
+}
+function passwordModal(pid){
+  const p=PEOPLE[pid];
+  openModal(`<div class="mhead"><h2>Password for ${esc(p.name)}</h2><button class="x" data-closemodal>×</button></div>
+    <p class="hint" style="margin:0">Their old password stops working as soon as you change it.</p>
+    <div class="pwopts"><button class="btn primary" data-rpwrandom="${pid}">Make a random password</button>
+      <div class="pwown"><input type="text" id="rpwOwn" placeholder="Or type one (8+ characters)" autocomplete="off"><button class="btn" data-rpwset="${pid}">Set it</button></div></div>`);
+}
 async function rosterClick(d,t){
+  if(d.rcaps!==undefined){ const list=Object.values(PEOPLE).filter(p=>p.role==='student' && titleCase(p.name)!==p.name); if(!list.length){ toast('All names are already capitalized'); return true; }
+    if(!confirm(`Fix capitalization on ${list.length} name${list.length===1?'':'s'}? (e.g. “${list[0].name}” → “${titleCase(list[0].name)}”)`)) return true;
+    for(const p of list){ await sb.from('people').update({name:titleCase(p.name)}).eq('pid',p.id); } await loadPeople(); render(); toast('Names capitalized'); return true; }
+  if(d.rpwrandom){ try{ const r=await adminCall({action:'reset',pid:d.rpwrandom}); showPasswords([r],'New password'); }catch(e){ toast(e.message); } return true; }
+  if(d.rpwset){ const pw=$('#rpwOwn').value.trim(); if(pw.length<8){ toast('Use at least 8 characters'); return true; }
+    try{ const r=await adminCall({action:'setPassword',pid:d.rpwset,password:pw}); showPasswords([r],'New password'); }catch(e){ toast(e.message); } return true; }
   if(d.rimport!==undefined){ $('#rosterFile').click(); return true; }
   if(d.radd!==undefined){ addStudentModal(); return true; }
   if(d.raddgo!==undefined){ const f=$('#raFirst').value.trim(), l=$('#raLast').value.trim(); if(!f||!l){ toast('Add a first and last name'); return true; }
@@ -2339,8 +2376,7 @@ async function rosterClick(d,t){
   if(d.redit){ editStudentModal(d.redit); return true; }
   if(d.resave){ const p=PEOPLE[d.resave]; const {error}=await sb.from('people').update({name:$('#reName').value.trim()||p.name, grad:gradFromLabel($('#reGrade').value), major:$('#reMajor').value||null}).eq('pid',d.resave);
     if(error){ toast(niceError(error)); return true; } await loadPeople(); closeModal(); render(); toast('Saved'); return true; }
-  if(d.rreset){ const p=PEOPLE[d.rreset]; if(!confirm(`Make a new password for ${p.name}? Their old one will stop working.`)) return true;
-    try{ const r=await adminCall({action:'reset',pid:d.rreset}); showPasswords([r],'New password'); }catch(e){ toast(e.message); } return true; }
+  if(d.rreset){ passwordModal(d.rreset); return true; }
   if(d.roff||d.ron){ const pid=d.roff||d.ron, p=PEOPLE[pid]; if(d.roff && !confirm(`Turn off ${p.name}’s account? They won’t be able to sign in, but their work stays.`)) return true;
     try{ await adminCall({action:'setActive',pid,active:!!d.ron}); await loadPeople(); render(); toast(d.ron?'Account turned back on':'Account turned off'); }catch(e){ toast(e.message); } return true; }
   return false;
@@ -2518,7 +2554,7 @@ document.addEventListener('click',e=>{
   const d = t.dataset;
   if(t.tagName==='SUMMARY' || t.tagName==='A') return;
   if(d.help){ e.preventDefault(); UI.page='help'; UI.helpOpen=d.help; UI.helpQ=''; closeModal(); if(!(CI&&CI.required)) closeCheckin(); render(); setTimeout(()=>$('#help-'+d.help)?.scrollIntoView({block:'center'}),50); return; }
-  if(isTeacher() && (d.rimport!==undefined||d.radd!==undefined||d.raddgo!==undefined||d.rcreate!==undefined||d.rprint!==undefined||d.redit||d.resave||d.rreset||d.roff||d.ron)){ rosterClick(d,t); return; }
+  if(isTeacher() && (d.rimport!==undefined||d.radd!==undefined||d.raddgo!==undefined||d.rcreate!==undefined||d.rprint!==undefined||d.rcaps!==undefined||d.rpwrandom||d.rpwset||d.redit||d.resave||d.rreset||d.roff||d.ron)){ rosterClick(d,t); return; }
   if(d.pwsave!==undefined){ const a=$('#pw1').value, b=$('#pw2').value; if(a.length<8){ toast('Use at least 8 characters'); return; } if(a!==b){ toast('The two passwords don’t match'); return; }
     t.disabled=true; sb.auth.updateUser({password:a}).then(({error})=>{ t.disabled=false; if(error){ toast(error.message); return; } $('#pw1').value=''; $('#pw2').value=''; toast('Password changed'); }); return; }
   if(d.speak!==undefined){ e.preventDefault(); e.stopPropagation(); speak(d.speak,t); return; }
@@ -2716,6 +2752,7 @@ document.addEventListener('change',e=>{
   if(d.fshow){ UI.scope=d.fshow; render(); return; }
   if(t.id==='fGroup'){ UI.groupBy=t.value; render(); return; }
   if(t.id==='wkStudent'){ UI.wkStudent=t.value; render(); return; }
+  if(isTeacher() && (d.rname||d.ruser||d.rgrade||d.rmajor)){ rosterChange(t); return; }
   if(t.id==='rosterFile'){ const f=t.files&&t.files[0]; t.value=''; if(f) readRosterFile(f).then(list=>{ if(!list.length){ toast('No students found in that file'); return; } rosterPreview(list); }).catch(e=>toast(e.message)); return; }
   if(d.rp!==undefined){ const r=RIMP[+d.rp]; if(r){ r[d.f]= d.f==='username'?cleanUser(t.value):t.value.trim(); drawPreview(); } return; }
   if(t.id==='restoreFile'){ const f=t.files&&t.files[0]; t.value=''; if(f && isTeacher()) restoreBackup(f); return; }
