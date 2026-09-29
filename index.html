@@ -740,6 +740,26 @@ span.evchip{display:inline-block;width:auto}
 .mpcells{gap:2px}
 .mpweeks{gap:7px}
 
+.dragh{cursor:grab;color:var(--ink-3);font-size:13px;letter-spacing:-3px;padding:0 6px 0 0;user-select:none;opacity:.45}
+tr.row:hover .dragh{opacity:1}
+tr.dragging{opacity:.4}
+tr.dropb td{box-shadow:inset 0 3px 0 var(--accent)}
+tr.dropa td{box-shadow:inset 0 -3px 0 var(--accent)}
+.reord{display:inline-flex;gap:2px;margin-left:auto}
+.reord .x{width:22px;height:22px;font-size:10px;padding:0}
+.reord .x:disabled{opacity:.25}
+.syncbatch>summary .trashbtn{margin-left:8px}
+.trashbtn{border:1px solid var(--line);background:var(--surface);color:var(--ink-3);border-radius:7px;width:30px;height:28px;display:inline-grid;place-items:center;cursor:pointer;padding:0}
+.trashbtn:hover{color:var(--danger);border-color:var(--danger)}
+.sbatch-a{padding:8px 0;border-bottom:1px solid var(--line)}
+.sbatch-a:last-child{border-bottom:0}
+.sbrow{display:flex;gap:8px;align-items:flex-start;margin-top:6px}
+.sbrow .misslist{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+table.roster select.rin{min-width:100px}
+table.roster .ractions{flex-wrap:nowrap;white-space:nowrap}
+table.roster td .rin.ruser{min-width:110px}
+table.roster .c-item{width:30%}
+
 </style>
 </head>
 <body>
@@ -796,8 +816,8 @@ const CFG = window.JARVIS_CONFIG || {};
 const SUPABASE_URL = CFG.url || 'PASTE_YOUR_PROJECT_URL';
 const SUPABASE_ANON_KEY = CFG.anonKey || 'PASTE_YOUR_ANON_KEY';
 const LOGIN_DOMAIN = 'jarvis.local';
-const APP_VERSION = '0.91';
-const APP_DATE = 'Sep 26, 2026';
+const APP_VERSION = '0.92';
+const APP_DATE = 'Sep 28, 2026';
 
 /* ---------- Dates ---------- */
 const localISO = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -900,7 +920,7 @@ const nid = ()=> rid('i');
 /* ---------- Shared database (Supabase) ---------- */
 let sb = null, ready = false, live = false, everLive = false, channel = null;
 const shadow = {}; TABLES.forEach(t=>shadow[t]=new Map());
-const chains = {};
+const chains = {}, pending = {};
 function niceError(e){ const m=String(e&&e.message||e||''); return m.includes('JARVIS:') ? m.split('JARVIS:')[1].trim() : (/fetch|network/i.test(m)?'No connection — check the Wi-Fi.':'That didn’t save.'); }
 async function refetchRow(t,id){
   try{ const {data}=await sb.from(t).select('id,data').eq('id',id).maybeSingle();
@@ -912,12 +932,19 @@ async function refetchRow(t,id){
 }
 function write(t,id,op,payload,k){
   const key=t+':'+id;
+  pending[key]=(pending[key]||0)+1;
   chains[key]=(chains[key]||Promise.resolve()).then(async()=>{
     const {error}=await sb.rpc('jarvis_write',{op,tbl:t,rid:id,payload:payload===undefined?null:payload,k:k||null});
-    if(error){ console.error(t,id,op,error); toast(niceError(error)); await refetchRow(t,id); }
-  }).catch(e=>{ console.error(e); toast(niceError(e)); });
+    if(error){ console.error(t,id,op,error); toast(niceError(error)); }
+    return !!error;
+  }).catch(e=>{ console.error(e); toast(niceError(e)); return true; }).then(async failed=>{
+    pending[key]--;
+    // once this row's saves are all done, sync it with the server (picks up anything we skipped while saving)
+    if(pending[key]<=0){ delete pending[key]; if(failed || remoteSkipped.has(key)){ remoteSkipped.delete(key); await refetchRow(t,id); } }
+  });
   return chains[key];
 }
+const remoteSkipped = new Set();
 function persist(){
   if(!sb || !ready || !S.viewer) return;
   for(const t of TABLES){
@@ -951,7 +978,7 @@ function normalize(t,o){
     if(o.link && !o.files.length) o.files=[{id:'f'+o.id,label:'Submission',versions:[{v:1,url:o.link,by:o.assignees[0]||'t',at:'',ts:0,note:''}]}]; delete o.link; }
   if(t==='assignments'){ if(!o.audience) o.audience={all:true}; }
   if(t==='notifs'){ arr('readBy'); }
-  if(t==='asks'){ arr('replies'); arr('plus'); if(o.open===undefined||o.open===null) o.open=true; if(o.to==null) o.to=['t']; }
+  if(t==='asks'){ arr('replies'); arr('plus'); if(o.open===undefined||o.open===null) o.open=true; if(o.to==null) o.to=teacherIds(); }
   if(t==='lessons'){ arr('signups'); if(!o.seats) o.seats=1; }
   if(t==='polls'){ arr('responses'); arr('options'); }
   if(t==='checkins'){ arr('active'); obj('blocks'); arr('custom'); if(o.line==null) o.line=''; }
@@ -974,6 +1001,8 @@ async function loadAll(){
 }
 function applyRemote(t,p){
   const arr = S[t];
+  const rid_ = (p.new && p.new.id) || (p.old && p.old.id);
+  if(rid_ && pending[t+':'+rid_]){ remoteSkipped.add(t+':'+rid_); return; }   // our own newer changes are still saving
   if(p.eventType === 'DELETE'){
     const id = p.old && p.old.id; const ix = arr.findIndex(o=>o.id===id);
     if(ix>=0) arr.splice(ix,1); shadow[t].delete(id);
@@ -1087,7 +1116,11 @@ const profile = id => S.settings.find(x=>x.id==='profile_'+id) || {};
 function ensureProfile(id){ let p=S.settings.find(x=>x.id==='profile_'+id); if(!p){ p={id:'profile_'+id}; S.settings.push(p); } return p; }
 const realName = id => PEOPLE[id]?.name || 'Someone';
 const pname = id => realName(id);
-const first = id => id==='t' ? 'Mr. P' : realName(id).split(' ')[0];
+const isTeacherId = id => PEOPLE[id]?.role==='teacher';
+const teacherIds = () => Object.values(PEOPLE).filter(p=>p.role==='teacher' && p.active).map(p=>p.id).sort((a,b)=>a==='t'?-1:b==='t'?1:a.localeCompare(b));
+const teacherLabel = () => teacherIds().map(id=>realName(id)).join(' / ') || 'your teacher';
+function notifyTeachers(kind,extra){ teacherIds().filter(x=>x!==S.viewer).forEach(x=>notify(x,kind,extra)); }
+const first = id => isTeacherId(id) ? realName(id) : realName(id).split(' ')[0];
 const nameTip = id => realName(id);
 const nameTag = (id,short) => esc(short?first(id):pname(id));
 const AV_COLORS = ['#00954C','#095641','#807F83','#1F8A8A','#3F7FD9','#2F62C4','#7A5BD6','#9C3F8E','#C2519E','#C0392B','#D9772B','#B8862B','#6B8E23','#2E8B57','#1B2230','#8C6A1F'];
@@ -1104,7 +1137,16 @@ const item = id => S.items.find(i=>i.id===id);
 const asn = id => S.assignments.find(a=>a.id===id);
 const askById = id => S.asks.find(a=>a.id===id);
 const lesson = id => S.lessons.find(l=>l.id===id);
-const subsOf = id => S.items.filter(i=>i.parentId===id);
+const createdTs = i => (i.history&&i.history[0]&&i.history[0].ts) || 0;
+const byOrder = (a,b) => { const x=(typeof a.order==='number'?a.order:Infinity), y=(typeof b.order==='number'?b.order:Infinity); return (x===y?0:x<y?-1:1) || (createdTs(a)-createdTs(b)) || String(a.id).localeCompare(String(b.id)); };
+const subsOf = id => S.items.filter(i=>i.parentId===id).sort(byOrder);
+function siblingsOf(i){ return (i.parentId ? S.items.filter(x=>x.parentId===i.parentId) : S.items.filter(x=>x.projectId===i.projectId && !x.parentId && x.source==='task')).sort(byOrder); }
+function moveInOrder(i,target,after){
+  const list=siblingsOf(i).filter(x=>x.id!==i.id); let k=list.findIndex(x=>x.id===target.id); if(k<0) return false;
+  list.splice(after?k+1:k,0,i);
+  list.forEach((x,n)=>{ if(x.order!==n*10 && canEdit(x)) x.order=n*10; });
+  return true;
+}
 const stat = id => STATUSES.find(s=>s.id===id) || STATUSES[0];
 const pri = id => PRI.find(p=>p.id===id) || PRI[1];
 const initials = n => n.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
@@ -1130,7 +1172,7 @@ const helpDot = id => `<button class="helpdot" data-help="${id}" aria-label="Hel
 
 /* ---------- Permissions ---------- */
 const membersOf = p => Object.keys(p.roles||{});
-const roleOf = (p,v=S.viewer) => (v==='t') ? 'admin' : (p.roles||{})[v];
+const roleOf = (p,v=S.viewer) => isTeacherId(v) ? 'admin' : (p.roles||{})[v];
 const canSeeProject = p => isTeacher() || !!(p.roles||{})[S.viewer] || !p.private;
 const canEditProject = p => isTeacher() || ['admin','editor'].includes((p.roles||{})[S.viewer]);
 const canAdminProject = p => isTeacher() || (p.roles||{})[S.viewer]==='admin' || p.owner===S.viewer;
@@ -1158,7 +1200,7 @@ const returnCount = i => (i.history||[]).filter(e=>e.kind==='status'&&e.from==='
 function needsChanges(i){ const h=(i.history||[]).filter(e=>e.kind==='status'); const last=h[h.length-1]; return !!last && last.from==='sub' && last.to==='work' && i.status==='work'; }
 
 /* ---------- Asks ---------- */
-const askIncludes = (a,v) => a.kind==='feedback' ? (a.to==='all' || (Array.isArray(a.to)&&a.to.includes(v))) : a.kind==='help' ? v==='t' : a.kind==='merge' ? (v==='t' || (Array.isArray(a.to)&&a.to.includes(v))) : true;
+const askIncludes = (a,v) => a.kind==='feedback' ? (a.to==='all' || (Array.isArray(a.to)&&a.to.includes(v))) : a.kind==='help' ? isTeacherId(v) : a.kind==='merge' ? (isTeacherId(v) || (Array.isArray(a.to)&&a.to.includes(v))) : true;
 const toName = to => to==='all' ? 'Everyone' : (Array.isArray(to)?to:[to]).map(first).join(', ');
 const openAsksFor = (target) => S.asks.filter(a=>a.kind==='feedback' && (target.itemId? a.itemId===target.itemId : (a.projectId===target.projectId && !a.itemId)));
 function canReplyAsk(a){ return isTeacher() || a.by===S.viewer || askIncludes(a,S.viewer); }
@@ -1237,7 +1279,7 @@ function doUnnest(P){ const T=proj(P.parentId); P.parentId=null; sysPost(P,`Take
 function doConvert(P,T){
   const all=S.items.filter(i=>i.projectId===P.id);
   const status = all.length && all.every(complete) ? 'done' : all.some(i=>i.status!=='not') ? 'work' : 'not';
-  const it={id:nid(),source:'task',title:P.name,description:P.description||'',assignees:Object.entries(P.roles||{}).filter(([k,r])=>r!=='viewer'&&k!=='t').map(([k])=>k),status,due:'',priority:'med',projectId:T.id,parentId:null,
+  const it={id:nid(),source:'task',title:P.name,description:P.description||'',assignees:Object.entries(P.roles||{}).filter(([k,r])=>r!=='viewer'&&!isTeacherId(k)).map(([k])=>k),status,due:'',priority:'med',projectId:T.id,parentId:null,
     files:P.files||[],thread:P.thread||[],history:[{kind:'converted',by:S.viewer,from:P.name,...nowStamp()}]};
   S.items.push(it);
   for(const i of all.filter(x=>!x.parentId)){
@@ -1264,7 +1306,7 @@ function moveItem(i,T){
   const from=proj(i.projectId);
   i.projectId=T.id; subsOf(i.id).forEach(s=>s.projectId=T.id);
   logEvent(i,{kind:'moved',from:from?from.name:'',to:T.name});
-  const added=i.assignees.filter(a=>a!=='t' && !T.roles[a]);
+  const added=i.assignees.filter(a=>!isTeacherId(a) && !T.roles[a]);
   if(canAdminProject(T)){ added.forEach(a=>T.roles[a]='editor'); return {added,missing:[]}; }
   return {added:[],missing:added};
 }
@@ -1313,7 +1355,7 @@ function buildGroups(list){
     let projs = S.projects.filter(p=> isTeacher() || (p.roles||{})[S.viewer] || list.some(i=>i.projectId===p.id) || (canSeeProject(p) && (UI.scope==='wholeclass'||inView(p.id))));
     if(UI.project) projs = projs.filter(p=>inView(p.id));
     projs = orderTree(projs);
-    for(const p of projs){ const its = list.filter(i=>i.projectId===p.id); const nested=!!(p.parentId && projs.some(x=>x.id===p.parentId)); if(its.length || !filtersActive()) g.push({key:p.id,name:p.name,color:p.color,items:its,kind:'project',project:p,nested}); }
+    for(const p of projs){ const its = list.filter(i=>i.projectId===p.id).sort(byOrder); const nested=!!(p.parentId && projs.some(x=>x.id===p.parentId)); if(its.length || !filtersActive()) g.push({key:p.id,name:p.name,color:p.color,items:its,kind:'project',project:p,nested}); }
   } else if(UI.groupBy==='status'){
     for(const s of STATUSES){ const its=list.filter(i=>i.status===s.id); if(its.length) g.push({key:'st-'+s.id,name:s.label,color:s.color,items:its}); }
   } else if(UI.groupBy==='due'){
@@ -1335,8 +1377,9 @@ function rowHTML(i,isSub,showProj,asStudent){
   const projName = i.source==='assignment' ? 'Class assignment' : (proj(i.projectId)?.name||'');
   const link = latestUrl((i.files||[])[0]);
   const posts = (i.thread||[]).length + S.asks.filter(a=>a.itemId===i.id).length;
-  let h = `<tr class="row ${isSub?'subrow':''}">
-    <td class="c-item"><div class="cell-item">
+  const canDrag = i.source==='task' && canEdit(i) && (isSub || UI.groupBy==='project') && !UI.q;
+  let h = `<tr class="row ${isSub?'subrow':''}" ${canDrag?`data-drag="${i.id}"`:''}>
+    <td class="c-item"><div class="cell-item">${canDrag?'<span class="dragh" title="Drag to reorder" aria-hidden="true">⋮⋮</span>':''}
       ${!isSub && subs.length ? `<button class="subcaret ${open?'open':''}" data-subs="${i.id}" aria-label="Toggle subitems">${ICON.right}</button>` : `<span class="spacer"></span>`}
       ${asStudent?av(i.assignees[0]):''}<button class="title" data-open="i:${i.id}">${esc(asStudent?pname(i.assignees[0]):i.title)}</button>
       ${i.source==='assignment'&&!asStudent?`<span class="lock" title="Set by Mr. P">${ICON.lock}</span>`:''}
@@ -1458,14 +1501,14 @@ function sec(key,title,content,defOpen,extra=''){
 }
 function ppHTML(key, opts, selected, o={}){
   const sel = selected instanceof Set ? selected : new Set(selected||[]);
-  const groups = [['Teacher',opts.filter(x=>x==='t')],['Seniors',opts.filter(x=>PEOPLE[x]?.grad===SENIOR_YEAR)],['Juniors',opts.filter(x=>PEOPLE[x]?.grad===JUNIOR_YEAR)],['Others',opts.filter(x=>x!=='t'&&PEOPLE[x]&&PEOPLE[x].grad!==SENIOR_YEAR&&PEOPLE[x].grad!==JUNIOR_YEAR)]].filter(g=>g[1].length);
+  const groups = [['Teachers',opts.filter(x=>isTeacherId(x))],['Seniors',opts.filter(x=>PEOPLE[x]?.grad===SENIOR_YEAR)],['Juniors',opts.filter(x=>PEOPLE[x]?.grad===JUNIOR_YEAR)],['Others',opts.filter(x=>!isTeacherId(x)&&PEOPLE[x]&&PEOPLE[x].grad!==SENIOR_YEAR&&PEOPLE[x].grad!==JUNIOR_YEAR)]].filter(g=>g[1].length);
   const sc = (o.shortcuts||[]).map(s=>`<button class="chip small" data-ppall="${key}" data-ids="${s.ids.join(',')}" ${o.disabled?'disabled':''}>${esc(s.label)}</button>`).join('');
   const chip = pid => { const on=sel.has(pid); const locked=(o.locked||[]).includes(pid);
-    return `<label class="ck ${on?'on':''} ${locked?'off':''}"><input type="checkbox" data-pp="${key}" value="${pid}" ${on?'checked':''} ${o.disabled||locked?'disabled':''}>${av(pid)}${esc(pid==='t'?'Mr. P':first(pid))}${on&&o.roles?`<select data-pprole="${key}" data-pid="${pid}" ${o.disabled||locked?'disabled':''} aria-label="Role">${['viewer','editor','admin'].map(r=>`<option value="${r}" ${o.roles[pid]===r?'selected':''}>${r[0].toUpperCase()+r.slice(1)}</option>`).join('')}</select>`:''}</label>`; };
+    return `<label class="ck ${on?'on':''} ${locked?'off':''}"><input type="checkbox" data-pp="${key}" value="${pid}" ${on?'checked':''} ${o.disabled||locked?'disabled':''}>${av(pid)}${esc(first(pid))}${on&&o.roles?`<select data-pprole="${key}" data-pid="${pid}" ${o.disabled||locked?'disabled':''} aria-label="Role">${['viewer','editor','admin'].map(r=>`<option value="${r}" ${o.roles[pid]===r?'selected':''}>${r[0].toUpperCase()+r.slice(1)}</option>`).join('')}</select>`:''}</label>`; };
   return `<div class="pp">${sc?`<div class="ppsc">${sc}</div>`:''}${groups.map(([l,ids])=>`<div class="pplabel">${l}</div><div class="checks">${ids.map(chip).join('')}</div>`).join('')}</div>`;
 }
 const gradShortcuts = () => [{label:'All seniors',ids:SENIORS.map(s=>s.id)},{label:'All juniors',ids:JUNIORS.map(s=>s.id)},{label:'Everyone',ids:STUDENTS.map(s=>s.id)},...MAJORS.map(m=>({label:m,ids:STUDENTS.filter(s=>s.major===m).map(s=>s.id)}))];
-const allPeople = () => ['t',...SENIORS.map(s=>s.id),...JUNIORS.map(s=>s.id)];
+const allPeople = () => [...teacherIds(),...SENIORS.map(s=>s.id),...JUNIORS.map(s=>s.id),...STUDENTS.filter(s=>s.grad!==SENIOR_YEAR&&s.grad!==JUNIOR_YEAR).map(s=>s.id)];
 function normUrl(u){ u=(u||'').trim(); if(!u) return ''; return /^[a-z]+:\/\//i.test(u)?u:'https://'+u; }
 function filesHTML(ownerKey,files,canFiles,emptyMsg){
   files = files||[];
@@ -1484,7 +1527,7 @@ function fileOwner(ownerKey){ const [k,id]=ownerKey.split(':'); return k==='p'?p
 /* ---------- Asks ---------- */
 function askTitle(a){
   if(a.kind==='feedback') return `${esc(first(a.by))} asked ${esc(toName(a.to))} for feedback`;
-  if(a.kind==='help') return `${esc(first(a.by))} → Mr. P: ${esc(HELP_TYPES[a.helpType]||'Help')}`;
+  if(a.kind==='help') return `${esc(first(a.by))} → ${esc(teacherLabel())}: ${esc(HELP_TYPES[a.helpType]||'Help')}`;
   if(a.kind==='merge'){ const P=proj(a.projectId), T=proj(a.targetId); return `${esc(first(a.by))} wants to ${a.mode==='nest'?'put':'turn'} “${esc(P?P.name:(a.projectName||'a project'))}” ${a.mode==='nest'?'inside':'into an item in'} “${esc(T?T.name:(a.targetName||'a project'))}”${a.result?' · '+a.result:''}`; }
   return `Lesson request: ${esc(a.title)}`;
 }
@@ -1529,7 +1572,7 @@ function updatesHTML(thread){
   const groups=[]; for(const t of sorted){ const k=relDay(t.ts); let g=groups.find(x=>x.k===k); if(!g){ g={k,posts:[]}; groups.push(g); } g.posts.push(t); }
   const few = thread.length<=6;
   return groups.map(g=>`<details class="dgroup" data-sec="upd:${g.k}" ${(UI.sec['upd:'+g.k] ?? (few||g.k==='Today'||g.k==='Yesterday'))?'open':''}><summary>${esc(g.k)} <span class="hint">${g.posts.length}</span></summary>
-    <div class="thread">${g.posts.map(t=>`<div class="post">${av(t.by)}<div class="bubble"><div class="who">${nameTag(t.by)}<span class="when">${esc(t.at)}</span>${t.by==='t'?speakBtn(t.text):''}</div>${esc(t.text)}</div></div>`).join('')}</div></details>`).join('');
+    <div class="thread">${g.posts.map(t=>`<div class="post">${av(t.by)}<div class="bubble"><div class="who">${nameTag(t.by)}<span class="when">${esc(t.at)}</span>${isTeacherId(t.by)?speakBtn(t.text):''}</div>${esc(t.text)}</div></div>`).join('')}</div></details>`).join('');
 }
 function historyHTML(i){
   let h=(i.history||[]).map(e=>({...e}));
@@ -1610,7 +1653,7 @@ function itemBody(i){
       ${submitCount(i)>1?`<span class="hint">Submission round ${submitCount(i)} — returned ${returnCount(i)}× so far.</span>`:''}</div>`;
   if(a && a.weekly) h+=`<div class="note">This report is built from ${isTeacher()?esc(first(i.assignees[0]))+'’s':'your'} daily check-ins and weekly prompts. <button class="btn tiny" data-openweek="${i.assignees[0]}|${a.weekStart}">Open weekly report</button></div>`;
   if(parent) h+=`<div class="hint">Subitem of <button class="linkbtn" data-open="i:${parent.id}">${esc(parent.title)}</button></div>`;
-  const people = p ? ppHTML('assign:'+i.id, [...new Set(['t',...membersOf(p)])].filter(x=>x==='t'||PEOPLE[x]), i.assignees, {disabled:!ed, shortcuts: ed?[{label:'Whole team',ids:membersOf(p)}]:[]}) : `${avatars(i.assignees)} <span class="hint">${esc(i.assignees.map(pname).join(', '))}</span>`;
+  const people = p ? ppHTML('assign:'+i.id, [...new Set([...teacherIds(),...membersOf(p)])].filter(x=>PEOPLE[x]), i.assignees, {disabled:!ed, shortcuts: ed?[{label:'Whole team',ids:membersOf(p)}]:[]}) : `${avatars(i.assignees)} <span class="hint">${esc(i.assignees.map(pname).join(', '))}</span>`;
   const fields = `<div class="fields">
       <span class="lbl">Status</span><select data-f="status" ${cs?'':'disabled'}>${STATUSES.map(s=>`<option value="${s.id}" ${i.status===s.id?'selected':''} ${canSetStatus(i,s.id)||i.status===s.id?'':'disabled'}>${s.label}${canSetStatus(i,s.id)||!cs?'':' (Mr. P)'}</option>`).join('')}</select>
       <label>Due</label><input type="date" data-f="due" value="${i.due||''}" ${ed?'':'disabled'}>
@@ -1625,7 +1668,7 @@ function itemBody(i){
   h += sec('people', p?'Assigned to':'Student', people, true, p?`<span class="hint">${i.assignees.length}</span>`:'');
   const desc = a && a.description && i.source==='assignment' ? `<div class="desc">${esc(a.description)} ${speakBtn(a.description)}</div>` : '';
   h += sec('desc','Description', desc + (ed && i.source==='task' ? `<textarea class="descbox" data-f="description" placeholder="Add details, notes, a plan…">${esc(i.description||'')}</textarea>` : (i.description?`<div class="desc">${esc(i.description)} ${speakBtn(i.description)}</div>`:(desc?'':'<div class="hint">No description.</div>'))), true);
-  if(i.source==='task' && !i.parentId) h += sec('subs','Subitems', `<div class="subs">${subs.map(s=>`<div class="sub">${statusPill(s)}<span><button class="title" data-open="i:${s.id}">${esc(s.title)}</button></span>${avatars(s.assignees)}</div>`).join('')}${ed?`<input data-addsub="${i.id}" data-k="addsub:${i.id}" placeholder="+ Add subitem (press Enter)">`:''}</div>`, true, `<span class="hint">${subs.filter(complete).length}/${subs.length}</span>`);
+  if(i.source==='task' && !i.parentId) h += sec('subs','Subitems', `<div class="subs">${subs.map((s,k)=>`<div class="sub">${statusPill(s)}<span><button class="title" data-open="i:${s.id}">${esc(s.title)}</button></span>${avatars(s.assignees)}${ed&&subs.length>1?`<span class="reord"><button class="x" data-submove="${s.id}|-1" ${k===0?'disabled':''} aria-label="Move up" title="Move up">▲</button><button class="x" data-submove="${s.id}|1" ${k===subs.length-1?'disabled':''} aria-label="Move down" title="Move down">▼</button></span>`:''}</div>`).join('')}${ed?`<input data-addsub="${i.id}" data-k="addsub:${i.id}" placeholder="+ Add subitem (press Enter)">`:''}</div>`, true, `<span class="hint">${subs.filter(complete).length}/${subs.length}</span>`);
   if(!(a&&a.weekly)) h += sec('files', a?'Your submission & files':'Files', filesHTML('i:'+i.id, i.files, cs, a?'Add a link to your work, then set the status to Submitted.':'No files yet.'), true, `<span class="hint">${(i.files||[]).length}</span>`);
   const asks = openAsksFor({itemId:i.id}).sort((x,y)=>tsOf(y)-tsOf(x));
   const askBtn = cs && !isTeacher() ? (UI.askForm==='i:'+i.id ? askFormHTML('i:'+i.id, i.files||[], isPrivateItem(i)) : `<button class="btn" data-askform="i:${i.id}">Ask for feedback</button> ${helpDot('ask')}`) : '';
@@ -1698,7 +1741,7 @@ function pollHTML(q){
   return `<div class="poll ${q.open?'':'closed'}"><div class="pq">${esc(q.question)}</div><div class="hint">${vis}${q.open?'':' · closed'} · ${resp.length} answer${resp.length===1?'':'s'}</div>${answer}${results}
     ${isTeacher()?`<div class="askacts"><button class="linkbtn" data-pollopen="${q.id}">${q.open?'Close poll':'Reopen'}</button><button class="linkbtn" data-polldel="${q.id}">Delete</button></div>`:''}</div>`;
 }
-const pollsFor = v => S.polls.filter(q=> v==='t' || studentsFor(q.audience).some(s=>s.id===v));
+const pollsFor = v => S.polls.filter(q=> isTeacherId(v) || studentsFor(q.audience).some(s=>s.id===v));
 function renderHomeStudent(){
   if(SIMPLE()) return renderHomeSimple();
   const v=S.viewer, t=todayISO(), ws=weekStartOf(t), ci=checkin(v,t);
@@ -1748,8 +1791,8 @@ function renderHomeTeacher(){
 function ensureCheckin(pid,date){ let c=checkin(pid,date); if(!c){ c={id:ciId(pid,date),by:pid,date,active:[],line:'',...nowStamp(),blocks:{},custom:[]}; S.checkins.push(c); } c.blocks=c.blocks||{}; c.custom=c.custom||[]; c.active=c.active||[]; return c; }
 function todayOptions(v){
   const opts=[];
-  S.projects.filter(p=> v==='t' || (p.roles||{})[v]).forEach(p=>opts.push(['p:'+p.id,p.name]));
-  S.items.filter(i=>!i.parentId && !complete(i) && (v==='t' ? i.source==='task' : (i.assignees.includes(v)))).forEach(i=>opts.push(['i:'+i.id,(i.source==='assignment'?'Assignment: ':'')+i.title]));
+  S.projects.filter(p=> isTeacherId(v) || (p.roles||{})[v]).forEach(p=>opts.push(['p:'+p.id,p.name]));
+  S.items.filter(i=>!i.parentId && !complete(i) && !(i.assignmentId && asn(i.assignmentId)?.weekly) && (isTeacherId(v) ? i.source==='task' : (i.assignees.includes(v)))).forEach(i=>opts.push(['i:'+i.id,(i.source==='assignment'?'Assignment: ':'')+i.title]));
   return opts;
 }
 function renderToday(){
@@ -1821,7 +1864,7 @@ function renderWeek(){
   const nav = `<div class="weeknav"><button class="btn tiny" data-wk="-7">‹ Prev</button><b>Week of ${esc(fmt(ws))}</b><button class="btn tiny" data-wk="7" ${ws>=weekStartOf(t)?'disabled':''}>Next ›</button></div>`;
   let h = `<div class="hello"><h2>${isTeacher()?'Weekly reports':'My week'}</h2>${helpDot('weekly')}</div>`;
   if(isTeacher()){
-    h += `<div class="filters"><select id="wkStudent">${STUDENTS.map(s=>`<option value="${s.id}" ${s.id===pid?'selected':''}>${esc(s.name)} — ${gradLabel(s.grad)}</option>`).join('')}</select>${nav}</div>`;
+    h += `<div class="filters"><button class="btn tiny" data-wkstu="-1" title="Previous student (← key)">‹ Student</button><select id="wkStudent">${STUDENTS.map(s=>`<option value="${s.id}" ${s.id===pid?'selected':''}>${esc(s.name)} — ${gradLabel(s.grad)}</option>`).join('')}</select><button class="btn tiny" data-wkstu="1" title="Next student (→ key)">Student ›</button>${nav}</div>`;
     const all=[0,1,2,3,4,5,6].map(k=>addDays(ws,k)), cdays=weekDays(null,ws), sdays=weekDays(pid,ws), w0=weekDoc(pid,ws), custom=!!(w0&&w0.days&&w0.days.length);
     const box=(attr,d,on)=>`<label class="ck ${on?'on':''}"><input type="checkbox" ${attr}="${d}" ${on?'checked':''}>${esc(dow(d))} <span class="hint">${esc(fmt(d).replace(/^\w+ /,''))}</span></label>`;
     h += `<div class="dayscard"><div class="drow"><span class="dlab">Whole class</span><div class="checks">${all.map(d=>box('data-cdays',d,cdays.includes(d))).join('')}</div></div>
@@ -1898,8 +1941,23 @@ function renderSync(){
       <div class="foot">${m.length?`<span><b style="color:var(--danger)">Missing — enter as missing:</b></span><div class="misslist">${m.map(i=>`<button class="mchip" data-open="i:${i.id}">${av(i.assignees[0])}${esc(nm(i))}${i.status==='sub'?' <i>(submitted, not reviewed)</i>':''}</button>`).join('')}</div>`:''}
         ${!pastDue(a)?`<span>Not due yet.</span>`:(!m.length?'<span>No missing work.</span>':'')}</div></section>`;
   }
-  if(S.syncs.length) h += `<div class="batches"><h3>Previous syncs</h3>${[...S.syncs].sort((a,b)=>tsOf(b)-tsOf(a)).map(b=>`<div class="batch"><span>${esc(b.at)}</span><span class="hint">${b.count} done${b.missing?`, ${b.missing} missing`:''} entered</span></div>`).join('')}</div>`;
+  if(S.syncs.length) h += `<h3 class="sech">Previous syncs <span class="hint">Open one to see exactly what was entered. The trash can clears the record only — nobody’s work or status changes.</span></h3>${[...S.syncs].sort((a,b)=>tsOf(b)-tsOf(a)).map((b,k)=>syncBatchHTML(b,k===0)).join('')}`;
   return h;
+}
+function syncBatchHTML(b,openFirst){
+  const done=S.items.filter(i=>i.syncId===b.id), miss=S.items.filter(i=>i.missingId===b.id);
+  const aids=[...new Set([...done,...miss].map(i=>i.assignmentId))].map(asn).filter(Boolean).sort((x,y)=>(x.due||'').localeCompare(y.due||''));
+  const days=Math.floor((Date.now()-(b.ts||0))/86400000);
+  const nm=i=>PEOPLE[i.assignees[0]]?.name||'?';
+  const who=(list)=>list.sort((x,y)=>nm(x).localeCompare(nm(y))).map(i=>{ const u=latestUrl((i.files||[])[0]); return `<button class="mchip" data-open="i:${i.id}">${av(i.assignees[0])}${esc(nm(i))}</button>${u?`<a class="hint" href="${esc(u)}" target="_blank" rel="noopener">work</a>`:''}`; }).join(' ');
+  const body = aids.length ? aids.map(a=>{ const d=done.filter(i=>i.assignmentId===a.id), m=miss.filter(i=>i.assignmentId===a.id);
+      return `<div class="sbatch-a"><b>${esc(a.title)}</b> <span class="hint">due ${esc(fmt(a.due))}</span>
+        ${d.length?`<div class="sbrow"><span class="tag ok">Done ${d.length}</span><div class="misslist">${who(d)}</div></div>`:''}
+        ${m.length?`<div class="sbrow"><span class="tag chg">Missing ${m.length}</span><div class="misslist">${who(m)}</div></div>`:''}</div>`; }).join('')
+    : '<div class="hint">The details for this sync weren’t saved (it was made before sync history existed), or its assignments were deleted.</div>';
+  return `<details class="psec syncbatch" data-sec="sync:${b.id}" ${(UI.sec['sync:'+b.id] ?? openFirst)?'open':''}><summary><span class="st">${esc(b.at)}</span><span class="hint">${b.count} done${b.missing?`, ${b.missing} missing`:''} · ${days<1?'today':days===1?'yesterday':days+' days ago'}</span>
+    <button class="trashbtn" data-synctrash="${b.id}" title="Delete this sync record" aria-label="Delete this sync record"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6"/></svg></button></summary>
+    <div class="psec-body">${body}</div></details>`;
 }
 function markSynced(aidFilter){
   const r = syncReady().filter(i=>!aidFilter||i.assignmentId===aidFilter), m = syncMissing().filter(i=>!aidFilter||i.assignmentId===aidFilter);
@@ -2047,7 +2105,7 @@ function openProfile(pid){
   PR={pid,color:pr.color||PEOPLE[pid].color,shape:pr.shape||'circle',mode:pr.mode||'initials',text:pr.text||'',img:null,clearImg:false};
   const self = pid===S.viewer;
   openModal(`<div class="mhead"><h2>${self?'Your profile':esc(realName(pid))+'’s profile'}</h2><button class="x" data-closemodal>×</button></div>
-    <div class="profprev"><span id="prPrev"></span><div><div class="hint">Real name</div><b>${esc(realName(pid))}</b>${pid==='t'?'':`<div class="hint">${gradLabel(PEOPLE[pid].grad)} · ${esc(PEOPLE[pid].major)}</div>`}</div></div>
+    <div class="profprev"><span id="prPrev"></span><div><div class="hint">Real name</div><b>${esc(realName(pid))}</b>${isTeacherId(pid)?'':`<div class="hint">${gradLabel(PEOPLE[pid].grad)} · ${esc(PEOPLE[pid].major)}</div>`}</div></div>
     <h3 class="sech small">Color</h3><div class="swatches">${AV_COLORS.map(c=>`<button class="sw ${c===PR.color?'on':''}" style="background:${c}" data-prcolor="${c}" aria-label="Color ${c}"></button>`).join('')}</div>
     <h3 class="sech small">Shape</h3><div class="checks">${AV_SHAPES.map(([k,l])=>`<button class="chip small ${k===PR.shape?'on':''}" data-prshape="${k}">${l}</button>`).join('')}</div>
     <h3 class="sech small">Inside the icon</h3>
@@ -2075,7 +2133,7 @@ function saveProfile(){
   doc.color=PR.color; doc.shape=PR.shape; doc.mode=PR.mode;
   if(PR.mode==='text'){ const t=($('#prText')?.value||'').trim(); if(!t){ toast('Type a letter or emoji, or pick Initials'); return; } doc.text=[...t].slice(0,2).join(''); }
   if(PR.clearImg){ delete doc.img; delete doc.imgPending; }
-  if(PR.img){ if(isTeacher()){ doc.img=PR.img; delete doc.imgPending; } else { doc.imgPending=PR.img; notify('t','avatar',{text:realName(PR.pid)+' uploaded a new picture'}); } }
+  if(PR.img){ if(isTeacher()){ doc.img=PR.img; delete doc.imgPending; } else { doc.imgPending=PR.img; notifyTeachers('avatar',{text:realName(PR.pid)+' uploaded a new picture'}); } }
   if(PR.mode==='img' && !doc.img && !doc.imgPending){ doc.mode='initials'; }
   closeModal(); render(); toast(PR.img&&!isTeacher()?'Saved — your picture shows after Mr. P approves it':'Profile saved');
 }
@@ -2280,16 +2338,25 @@ const cleanUser = u => String(u||'').toLowerCase().replace(/[^a-z0-9]/g,'').slic
 function uniqueUser(base,taken){ let u=cleanUser(base)||'student', n=2, out=u; while(taken.has(out)) out=u+(n++); taken.add(out); return out; }
 function renderRoster(){
   const all=Object.values(PEOPLE).filter(p=>p.role==='student').sort((a,b)=>a.name.localeCompare(b.name));
+  const teachers=Object.values(PEOPLE).filter(p=>p.role==='teacher').sort((a,b)=>a.id==='t'?-1:b.id==='t'?1:a.name.localeCompare(b.name));
+  const roleSel=p=>`<select class="rin" data-rrole="${p.id}" aria-label="Role" ${p.id===S.viewer||!p.active?'disabled':''}><option value="student" ${p.role==='student'?'selected':''}>Student</option><option value="teacher" ${p.role==='teacher'?'selected':''}>Teacher</option></select>`;
+  const trow=p=>`<tr class="${p.active?'':'offrow'}"><td class="c-item"><div class="cell-item">${av(p.id)}<input class="rin rname" data-rname="${p.id}" value="${esc(p.name)}" aria-label="Name" ${p.active?'':'disabled'}></div></td>
+    <td><input class="rin ruser" data-ruser="${p.id}" value="${esc(p.username)}" aria-label="Username" ${p.active?'':'disabled'}></td><td>${roleSel(p)}</td>
+    <td class="ractions">${p.id===S.viewer?'<span class="hint">You · change your password under Edit my profile</span>':p.active?`<button class="btn tiny" data-rreset="${p.id}">Password</button><button class="linkbtn" data-roff="${p.id}">Turn off</button>`:`<button class="btn tiny" data-ron="${p.id}">Turn back on</button>`}</td></tr>`;
   const on=all.filter(p=>p.active), off=all.filter(p=>!p.active);
   const row=p=>`<tr class="${p.active?'':'offrow'}"><td class="c-item"><div class="cell-item">${av(p.id)}<input class="rin rname" data-rname="${p.id}" value="${esc(p.name)}" aria-label="Name" ${p.active?'':'disabled'}></div></td>
     <td><input class="rin ruser" data-ruser="${p.id}" value="${esc(p.username)}" aria-label="Username" ${p.active?'':'disabled'}></td>
     <td><select class="rin" data-rgrade="${p.id}" aria-label="Grade" ${p.active?'':'disabled'}>${['Senior','Junior'].map(g=>`<option ${gradLabel(p.grad)===g?'selected':''}>${g}</option>`).join('')}${['Senior','Junior'].includes(gradLabel(p.grad))?'':`<option selected>${esc(gradLabel(p.grad))}</option>`}</select></td>
     <td><select class="rin" data-rmajor="${p.id}" aria-label="Major" ${p.active?'':'disabled'}><option value="">—</option>${MAJORS.map(m=>`<option ${p.major===m?'selected':''}>${m}</option>`).join('')}</select></td>
+    <td>${roleSel(p)}</td>
     <td class="ractions">${p.active?`<button class="btn tiny" data-rreset="${p.id}">Password</button><button class="linkbtn" data-roff="${p.id}">Turn off</button>`:`<button class="btn tiny" data-ron="${p.id}">Turn back on</button>`}</td></tr>`;
-  return `<div class="hello"><h2>Roster</h2><span class="grow"></span><button class="btn" data-rcaps>Capitalize names</button><button class="btn primary" data-rimport>Import spreadsheet</button><button class="btn" data-radd>Add a student</button></div>
+  return `<div class="hello"><h2>Roster</h2><span class="grow"></span><button class="btn" data-rcaps>Capitalize names</button><button class="btn primary" data-rimport>Import spreadsheet</button><button class="btn" data-radd>Add a student</button><button class="btn" data-raddt>Add a teacher</button></div>
     <p class="hint" style="max-width:780px">Click any name, username, grade, or major to change it. It saves when you click away. Usernames are always lowercase, and sign-in ignores capitals, so <code>JSmith</code> works too. <b>Password</b> lets you make a new random one or type one in. Students can also set their own under <b>Edit my profile</b>. <b>Turn off</b> blocks sign-in but keeps their work.</p>
     <input type="file" id="rosterFile" accept=".xlsx,.csv" hidden>
-    ${on.length?`<div class="tablewrap" style="--g:var(--accent)"><table class="roster"><thead><tr><th class="c-item">Student</th><th>Username</th><th>Grade</th><th>Major</th><th></th></tr></thead><tbody>${on.map(row).join('')}</tbody></table></div>`:'<div class="empty">No students yet. Import your spreadsheet or add students one at a time.</div>'}
+    <h3 class="sech">Teachers <span class="hint">Full access to everything, same as you.</span></h3>
+    <div class="tablewrap" style="--g:var(--accent)"><table class="roster"><thead><tr><th class="c-item">Teacher</th><th>Username</th><th>Role</th><th></th></tr></thead><tbody>${teachers.map(trow).join('')}</tbody></table></div>
+    <h3 class="sech">Students <span class="hint">${on.length}</span></h3>
+    ${on.length?`<div class="tablewrap" style="--g:var(--accent)"><table class="roster"><thead><tr><th class="c-item">Student</th><th>Username</th><th>Grade</th><th>Major</th><th>Role</th><th></th></tr></thead><tbody>${on.map(row).join('')}</tbody></table></div>`:'<div class="empty">No students yet. Import your spreadsheet or add students one at a time.</div>'}
     ${off.length?`<details class="psec" data-sec="rosteroff" style="margin-top:14px"><summary><span class="st">Turned off</span><span class="hint">${off.length}</span></summary><div class="tablewrap" style="border:0"><table class="roster"><tbody>${off.map(row).join('')}</tbody></table></div></details>`:''}`;
 }
 /* --- spreadsheet reading --- */
@@ -2414,6 +2481,12 @@ function addStudentModal(){
       <label>Username</label><input id="raUser" placeholder="Filled in from the name"></div>
     <div class="mfoot"><button class="btn primary" data-raddgo>Create account</button></div>`);
 }
+function addTeacherModal(){
+  openModal(`<div class="mhead"><h2>Add a teacher</h2><button class="x" data-closemodal>×</button></div>
+    <p class="hint" style="margin:0">Teachers get full access: every student, the roster, passwords, backups, and approvals.</p>
+    <div class="fields"><label>Name</label><input id="rtName" placeholder="e.g. Mr. H"><label>Username</label><input id="rtUser" placeholder="e.g. mrh"></div>
+    <div class="mfoot"><button class="btn primary" data-raddtgo>Create teacher account</button></div>`);
+}
 function editStudentModal(pid){
   const p=PEOPLE[pid];
   openModal(`<div class="mhead"><h2>Edit ${esc(p.name)}</h2><button class="x" data-closemodal>×</button></div>
@@ -2430,6 +2503,9 @@ async function rosterChange(t){
   if(d.rname){ const v=t.value.trim(); if(!v){ t.value=PEOPLE[d.rname].name; return true; } if(v!==PEOPLE[d.rname].name && await savePerson(d.rname,{name:v})) toast('Name saved'); return true; }
   if(d.rgrade){ if(await savePerson(d.rgrade,{grad:gradFromLabel(t.value)})) toast('Grade saved'); return true; }
   if(d.rmajor){ if(await savePerson(d.rmajor,{major:t.value||null})) toast('Major saved'); return true; }
+  if(d.rrole){ const p=PEOPLE[d.rrole]; const role=t.value;
+    if(!confirm(role==='teacher'?`Make ${p.name} a teacher? They’ll have full access, same as you.`:`Change ${p.name} to a student? They’ll lose teacher access.`)){ t.value=p.role; return true; }
+    try{ await adminCall({action:'setRole',pid:d.rrole,role}); await loadPeople(); render(); toast(`${p.name} is now a ${role}`); }catch(e){ t.value=p.role; toast(e.message); } return true; }
   if(d.ruser){ const p=PEOPLE[d.ruser], u=cleanUser(t.value); t.value=u; if(!u||u===p.username){ t.value=p.username; return true; }
     try{ await adminCall({action:'rename',pid:d.ruser,username:u}); await loadPeople(); render(); toast(`Username is now ${u} — tell ${p.name.split(' ')[0]}`); }catch(e){ t.value=p.username; toast(e.message); } return true; }
   return false;
@@ -2453,6 +2529,10 @@ async function rosterClick(d,t){
   if(d.raddgo!==undefined){ const f=$('#raFirst').value.trim(), l=$('#raLast').value.trim(); if(!f||!l){ toast('Add a first and last name'); return true; }
     const taken=new Set(Object.values(PEOPLE).map(p=>p.username)); const u=cleanUser($('#raUser').value)||uniqueUser(suggestUser(f,l),taken);
     RIMP=[{name:f+' '+l,grade:$('#raGrade').value,major:$('#raMajor').value,username:u}]; await createAccounts(); return true; }
+  if(d.raddt!==undefined){ addTeacherModal(); return true; }
+  if(d.raddtgo!==undefined){ const name=$('#rtName').value.trim(), u=cleanUser($('#rtUser').value); if(!name||u.length<2){ toast('Add a name and a username'); return true; }
+    if(Object.values(PEOPLE).some(p=>p.username===u)){ toast('That username is taken'); return true; }
+    try{ const d2=await adminCall({action:'create',students:[{name,username:u,role:'teacher'}]}); await loadPeople(); render(); showPasswords(d2.results||[],'New teacher account'); }catch(e){ toast(e.message); } return true; }
   if(d.rcreate!==undefined){ await createAccounts(); return true; }
   if(d.rprint!==undefined){ printCards(); return true; }
   if(d.redit){ editStudentModal(d.redit); return true; }
@@ -2640,7 +2720,7 @@ function saveEvent(id){
   if(id){ Object.assign(eventById(id),f); closeModal(); render(); toast('Event saved'); return; }
   const e={id:rid('e'),...f,by:S.viewer,status:isTeacher()?'approved':'pending',...nowStamp()};
   S.events.push(e);
-  if(!isTeacher()) notify('t','eventreq',{text:`${title} · ${fmt(date)}`});
+  if(!isTeacher()) notifyTeachers('eventreq',{text:`${title} · ${fmt(date)}`});
   closeModal(); UI.calDate=date; render(); toast(isTeacher()?'Added to the calendar':'Sent to Mr. P for approval');
 }
 function calClick(d,t){
@@ -2663,7 +2743,7 @@ function calClick(d,t){
   if(d.evdel){ const e=eventById(d.evdel); if(!e||!confirm(`Delete “${e.title}”?`)) return true;
     S.projects.forEach(p=>{ if(p.eventId===e.id && canEditProject(p)) p.eventId=null; }); S.items.forEach(i=>{ if(i.eventId===e.id && canEdit(i)) i.eventId=null; });
     S.events=S.events.filter(x=>x.id!==e.id); closeModal(); render(); toast('Event deleted'); return true; }
-  if(d.evok){ const e=eventById(d.evok); if(!e) return true; e.status='approved'; delete e.note; if(e.by!=='t') notify(e.by,'eventok',{text:`${e.title} · ${fmt(e.date)}`}); closeModal(); render(); toast('Approved — it’s on everyone’s calendar'); return true; }
+  if(d.evok){ const e=eventById(d.evok); if(!e) return true; e.status='approved'; delete e.note; if(!isTeacherId(e.by)) notify(e.by,'eventok',{text:`${e.title} · ${fmt(e.date)}`}); closeModal(); render(); toast('Approved — it’s on everyone’s calendar'); return true; }
   if(d.evno){ const e=eventById(d.evno); if(!e) return true; const note=($(`[data-k="evno:${e.id}"]`)?.value||'').trim(); e.status='declined'; if(note) e.note=note; notify(e.by,'eventno',{text:note||e.title}); closeModal(); render(); toast('Declined'); return true; }
   if(d.calpending!==undefined){ pendingEventsModal(); return true; }
   return false;
@@ -2821,7 +2901,7 @@ function replyAsk(id){
   const a=askById(id); const inp=$(`[data-k="reply:${id}"]`); const tx=(inp?.value||'').trim(); if(!a||!tx) return;
   (a.replies=a.replies||[]).push({id:rid('r'),by:S.viewer,text:tx,...nowStamp()});
   const extra={askId:a.id,itemId:a.itemId||null,projectId:a.projectId||null,text:tx};
-  if(S.viewer!==a.by) notify(a.by,'reply',extra); else if(a.kind==='help') notify('t','reply',extra);
+  if(S.viewer!==a.by) notify(a.by,'reply',extra); else if(a.kind==='help') notifyTeachers('reply',extra);
   inp.value=''; render();
 }
 function saveAssignment(editId){
@@ -2847,7 +2927,7 @@ document.addEventListener('click',e=>{
   const d = t.dataset;
   if(t.tagName==='SUMMARY' || t.tagName==='A') return;
   if(d.help){ e.preventDefault(); UI.page='help'; UI.helpOpen=d.help; UI.helpQ=''; closeModal(); if(!(CI&&CI.required)) closeCheckin(); render(); setTimeout(()=>$('#help-'+d.help)?.scrollIntoView({block:'center'}),50); return; }
-  if(isTeacher() && (d.rimport!==undefined||d.radd!==undefined||d.raddgo!==undefined||d.rcreate!==undefined||d.rprint!==undefined||d.rcaps!==undefined||d.rpwrandom||d.rpwset||d.redit||d.resave||d.rreset||d.roff||d.ron)){ rosterClick(d,t); return; }
+  if(isTeacher() && (d.rimport!==undefined||d.radd!==undefined||d.raddgo!==undefined||d.rcreate!==undefined||d.rprint!==undefined||d.rcaps!==undefined||d.raddt!==undefined||d.raddtgo!==undefined||d.rpwrandom||d.rpwset||d.redit||d.resave||d.rreset||d.roff||d.ron)){ rosterClick(d,t); return; }
   if(d.pwsave!==undefined){ const a=$('#pw1').value, b=$('#pw2').value; if(a.length<8){ toast('Use at least 8 characters'); return; } if(a!==b){ toast('The two passwords don’t match'); return; }
     t.disabled=true; sb.auth.updateUser({password:a}).then(({error})=>{ t.disabled=false; if(error){ toast(error.message); return; } $('#pw1').value=''; $('#pw2').value=''; toast('Password changed'); }); return; }
   if(calClick(d,t)) return;
@@ -2859,7 +2939,7 @@ document.addEventListener('click',e=>{
   if(d.mpsend){ const c=S.settings.find(x=>x.id===d.mpsend); if(!c) return; const url=normUrl($('#mfUrl').value)||$('#mfFile').value; const ref=$('#mfRef').value.trim();
     if(!url){ toast('Pick your final file or paste a link'); return; } if(ref.length<15){ $('#mfRef').focus(); toast('Write a short reflection first'); return; }
     Object.assign(c,{status:'submitted',finalUrl:url,reflection:ref,submittedAt:Date.now()}); delete c.note;
-    notify('t','credit',{text:`${levelLabel(c.level)}: ${targetTitle(c.target)}`}); closeModal(); render(); toast('Sent to Mr. P'); return; }
+    notifyTeachers('credit',{text:`${levelLabel(c.level)}: ${targetTitle(c.target)}`}); closeModal(); render(); toast('Sent to Mr. P'); return; }
   if(d.mpok){ const c=S.settings.find(x=>x.id===d.mpok); if(!c) return; const lv=$(`[data-mpcreditlevel="${c.id}"]`)?.value||c.level;
     Object.assign(c,{status:'credited',level:lv,mp:currentMp().id,creditedAt:Date.now()}); notify(c.by,'creditok',{text:`${levelLabel(lv)}: ${targetTitle(c.target)}`}); render(); toast('Counted'); return; }
   if(d.mpback){ const c=S.settings.find(x=>x.id===d.mpback); const inp=$(`[data-k="mpback:${d.mpback}"]`); const note=(inp?.value||'').trim(); if(!c) return;
@@ -2928,6 +3008,8 @@ document.addEventListener('click',e=>{
   if(d.homegrade!==undefined){ UI.homeGrade=d.homegrade; render(); return; }
   if(d.gotoreview!==undefined){ resetFilters(); UI.page='board'; UI.project=''; UI.scope='review'; render(); return; }
   if(d.resetdays){ const w=weekDoc(d.resetdays,UI.wkStart); if(w){ delete w.days; } syncWeeklyDue(UI.wkStart); render(); toast('Back to the class days'); return; }
+  if(d.submove){ const [id,dir]=d.submove.split('|'); const i=item(id); if(!i) return; const sib=siblingsOf(i); const k=sib.findIndex(x=>x.id===id), j=k+(+dir); if(j<0||j>=sib.length) return; moveInOrder(i,sib[j],+dir>0); render(); return; }
+  if(d.wkstu){ stepStudent(+d.wkstu); return; }
   if(d.wk){ UI.wkStart=addDays(UI.wkStart,+d.wk); render(); return; }
   if(d.lastday){ const w=ensureWeek(S.viewer,weekStartOf(d.lastday)); w.lastDay=d.lastday; UI.sec['stage:friday']=true; render(); toast('Friday reflection is open'); return; }
   if(d.absent){ const c=ensureCheckin(S.viewer,d.absent); c.absent=!c.absent; render(); toast(c.absent?`${dow(d.absent)} marked absent`:'Absent removed'); return; }
@@ -2937,7 +3019,7 @@ document.addEventListener('click',e=>{
     w.stages[stg.id]=Date.now(); UI.sec['stage:'+stg.id]=false;
     if(stg.id==='friday'){ const wi=weeklyItem(S.viewer,d.ws); if(wi && wi.status!=='sub' && wi.status!=='done') changeStatus(wi,'sub'); toast('Weekly report submitted'); } else toast(stg.label+' saved');
     render(); return; }
-  if(d.q3ask){ const w=weekDoc(S.viewer,d.q3ask); const note=(w&&w.answers.q3||'').trim(); if(!note) return; const a={id:rid('k'),kind:'help',helpType:'help',by:S.viewer,to:['t'],projectId:null,note,open:true,replies:[],...nowStamp()}; S.asks.push(a); notify('t','help',{askId:a.id,text:note}); render(); toast('Sent to Mr. P'); return; }
+  if(d.q3ask){ const w=weekDoc(S.viewer,d.q3ask); const note=(w&&w.answers.q3||'').trim(); if(!note) return; const a={id:rid('k'),kind:'help',helpType:'help',by:S.viewer,to:teacherIds(),projectId:null,note,open:true,replies:[],...nowStamp()}; S.asks.push(a); notifyTeachers('help',{askId:a.id,text:note}); render(); toast('Sent to Mr. P'); return; }
   if(d.editcheckin!==undefined){ openCheckin(false,1); return; }
   if(d.cicancel!==undefined){ closeCheckin(); return; }
   if(d.ciact){ CI.active.has(d.ciact)?CI.active.delete(d.ciact):CI.active.add(d.ciact); const l=$('#ciLine').value; drawCheckin(); $('#ciLine').value=l; return; }
@@ -2951,7 +3033,7 @@ document.addEventListener('click',e=>{
     render(); return; }
   if(d.ciplan!==undefined){ const q=['ciq1','ciq2','ciq3'].map(x=>$('#'+x).value.trim()); if(!q[0]||!q[1]||!q[2]){ toast('Answer all three questions'); return; }
     const w=ensureWeek(S.viewer,weekStartOf(todayISO())); w.answers.q1=q[0]; w.answers.q2=q[1]; w.answers.q3=q[2]; w.focus=[...CI.focus]; w.stages.monday=Date.now();
-    if($('#ciq3ask').checked){ const a={id:rid('k'),kind:'help',helpType:'help',by:S.viewer,to:['t'],projectId:null,note:q[2],open:true,replies:[],...nowStamp()}; S.asks.push(a); notify('t','help',{askId:a.id,text:q[2]}); }
+    if($('#ciq3ask').checked){ const a={id:rid('k'),kind:'help',helpType:'help',by:S.viewer,to:teacherIds(),projectId:null,note:q[2],open:true,replies:[],...nowStamp()}; S.asks.push(a); notifyTeachers('help',{askId:a.id,text:q[2]}); }
     closeCheckin(); render(); toast('Game plan saved'); return; }
   if(d.schedadd!==undefined){ const s=$('[data-k="schedadd"]'); if(!s.value) return; const c=ensureCheckin(S.viewer,todayISO()); if(!c.active.includes(s.value)) c.active.push(s.value); s.value=''; render(); return; }
   if(d.schedcustom!==undefined){ const s=$('[data-k="schedcustom"]'); const v=s.value.trim(); if(!v) return; const c=ensureCheckin(S.viewer,todayISO()); c.custom.push({id:rid('c'),title:v}); s.value=''; render(); return; }
@@ -2965,7 +3047,7 @@ document.addEventListener('click',e=>{
   if(d.savelesson!==undefined){ const title=$('#lTitle').value.trim(), date=$('#lDate').value, seats=Math.max(1,+$('#lSeats').value||1); if(!title||!date){ toast('Add a title and date'); return; }
     const f={title,description:$('#lDesc').value.trim(),date,start:$('#lStart').value||'09:00',end:$('#lEnd').value||'09:30',seats};
     if(d.savelesson){ Object.assign(lesson(d.savelesson),f); }
-    else { const l={id:rid('L'),...f,signups:[],by:'t'}; S.lessons.push(l); const a=d.fromask&&askById(d.fromask);
+    else { const l={id:rid('L'),...f,signups:[],by:S.viewer}; S.lessons.push(l); const a=d.fromask&&askById(d.fromask);
       if(a){ a.open=false; a.lessonId=l.id; (a.plus||[]).forEach(p=>notify(p,'lesson',{text:l.title})); } else notify('all','lesson',{text:l.title}); }
     closeModal(); render(); toast('Lesson saved'); return; }
   if(d.newpoll!==undefined){ openModal(pollForm()); return; }
@@ -2982,9 +3064,9 @@ document.addEventListener('click',e=>{
   if(d.askkind){ openModal(askModal(d.askkind)); return; }
   if(d.fbgo!==undefined){ const k=$('#fbTarget').value; closeModal(); openPanel(k); UI.askForm=k; UI.sec[k.startsWith('i:')?'asks':'pasks']=true; renderPanel(); return; }
   if(d.sendhelp!==undefined){ const note=$('#hNote').value.trim(); if(!note){ $('#hNote').focus(); toast('Add some details'); return; }
-    const a={id:rid('k'),kind:'help',helpType:$('#hType').value,by:S.viewer,to:['t'],projectId:$('#hProj').value||null,note,open:true,replies:[],...nowStamp()}; S.asks.push(a); notify('t','help',{askId:a.id,text:note}); closeModal(); render(); toast('Sent to Mr. P'); return; }
+    const a={id:rid('k'),kind:'help',helpType:$('#hType').value,by:S.viewer,to:teacherIds(),projectId:$('#hProj').value||null,note,open:true,replies:[],...nowStamp()}; S.asks.push(a); notifyTeachers('help',{askId:a.id,text:note}); closeModal(); render(); toast('Sent to Mr. P'); return; }
   if(d.sendlesson!==undefined){ const title=$('#lrTitle').value.trim(); if(!title){ $('#lrTitle').focus(); toast('Name the lesson'); return; }
-    const a={id:rid('k'),kind:'lesson',by:S.viewer,title,note:$('#lrNote').value.trim(),open:true,plus:[S.viewer],replies:[],...nowStamp()}; S.asks.push(a); notify('t','lessonreq',{askId:a.id,text:title}); closeModal(); UI.page='lessons'; render(); toast('Lesson requested'); return; }
+    const a={id:rid('k'),kind:'lesson',by:S.viewer,title,note:$('#lrNote').value.trim(),open:true,plus:[S.viewer],replies:[],...nowStamp()}; S.asks.push(a); notifyTeachers('lessonreq',{askId:a.id,text:title}); closeModal(); UI.page='lessons'; render(); toast('Lesson requested'); return; }
   if(d.askform){ UI.askForm=d.askform; renderPanel(); return; }
   if(d.cancelask!==undefined){ UI.askForm=false; renderPanel(); return; }
   if(d.sendask){ sendAsk(d.sendask); return; }
@@ -3005,7 +3087,7 @@ document.addEventListener('click',e=>{
     render(); const B=$('#pbody'); B.scrollTop=B.scrollHeight; return; }
   if(d.review){ const i=item(d.id); const inp=$('#revNote'); const note=(inp?.value||'').trim();
     if(d.review==='work' && !note){ inp.focus(); inp.classList.add('need'); toast('Add a note so they know what to fix'); return; }
-    changeStatus(i,d.review,note||undefined); if(note) (i.thread=i.thread||[]).push({id:rid('u'),by:'t',text:note,...nowStamp()});
+    changeStatus(i,d.review,note||undefined); if(note) (i.thread=i.thread||[]).push({id:rid('u'),by:S.viewer,text:note,...nowStamp()});
     inp.value=''; toast(d.review==='done'?'Marked done':'Returned for revisions'); render(); return; }
   if(d.ppall){ const ids=d.ids.split(',').filter(Boolean); const [k,id]=d.ppall.split(':');
     if(k==='assign'){ const i=item(id); ids.forEach(x=>{ if(!i.assignees.includes(x)){ i.assignees.push(x); notify(x,'assigned',{itemId:i.id}); } }); logEvent(i,{kind:'assignees'}); render(); }
@@ -3017,6 +3099,9 @@ document.addEventListener('click',e=>{
   if(d.newproject!==undefined){ newProject(); return; }
   if(d.syncall!==undefined){ markSynced(); return; }
   if(d.syncone){ markSynced(d.syncone); return; }
+  if(d.synctrash){ e.preventDefault(); e.stopPropagation(); const b=S.syncs.find(x=>x.id===d.synctrash); if(!b) return;
+    if(!confirm(`Delete the record of the ${b.at} sync? Students’ work and statuses won’t change — this just clears the list.`)) return;
+    S.syncs=S.syncs.filter(x=>x.id!==b.id); render(); toast('Sync record deleted'); return; }
   if(t.id==='newpill'){ t.hidden=true; const B=$('#pbody'); B.scrollTop=B.scrollHeight; return; }
   if(t.id==='btnBackup'){ if(isTeacher()) downloadBackup(); return; }
   if(t.id==='btnRestore'){ if(isTeacher()) $('#restoreFile').click(); return; }
@@ -3025,7 +3110,9 @@ document.addEventListener('click',e=>{
 });
 $('#scrim').addEventListener('click',closePanel);
 document.addEventListener('toggle', e=>{ const d=e.target; if(d && d.dataset && d.dataset.sec) UI.sec[d.dataset.sec]=d.open; }, true);
+function stepStudent(n){ if(!STUDENTS.length) return; const cur=UI.wkStudent||STUDENTS[0].id; let k=STUDENTS.findIndex(s=>s.id===cur); k=(k+n+STUDENTS.length)%STUDENTS.length; UI.wkStudent=STUDENTS[k].id; render(); }
 document.addEventListener('keydown',e=>{
+  if((e.key==='ArrowLeft'||e.key==='ArrowRight') && UI.page==='week' && isTeacher() && !typing() && !(e.target.closest && e.target.closest('select')) && $('#modal').hidden && !UI.panel && !e.altKey && !e.metaKey && !e.ctrlKey){ e.preventDefault(); stepStudent(e.key==='ArrowRight'?1:-1); return; }
   if(e.key==='Escape'){ closeMenu(); if(UI.filterOpen){ UI.filterOpen=false; renderHead(); return; } if(!$('#modal').hidden) closeModal(); else if(UI.panel) closePanel(); else if(CI && !CI.required) closeCheckin(); }
   if(e.key==='Enter' && !e.shiftKey){
     const t=e.target;
@@ -3051,7 +3138,7 @@ document.addEventListener('change',e=>{
   if(d.fshow){ UI.scope=d.fshow; render(); return; }
   if(t.id==='fGroup'){ UI.groupBy=t.value; render(); return; }
   if(t.id==='wkStudent'){ UI.wkStudent=t.value; render(); return; }
-  if(isTeacher() && (d.rname||d.ruser||d.rgrade||d.rmajor)){ rosterChange(t); return; }
+  if(isTeacher() && (d.rname||d.ruser||d.rgrade||d.rmajor||d.rrole)){ rosterChange(t); return; }
   if(t.id==='rosterFile'){ const f=t.files&&t.files[0]; t.value=''; if(f) readRosterFile(f).then(list=>{ if(!list.length){ toast('No students found in that file'); return; } rosterPreview(list); }).catch(e=>toast(e.message)); return; }
   if(d.rp!==undefined){ const r=RIMP[+d.rp]; if(r){ r[d.f]= d.f==='username'?cleanUser(t.value):t.value.trim(); drawPreview(); } return; }
   if(t.id==='restoreFile'){ const f=t.files&&t.files[0]; t.value=''; if(f && isTeacher()) restoreBackup(f); return; }
@@ -3101,10 +3188,24 @@ document.addEventListener('input',e=>{
 
 /* Drag and drop (kanban) + panel resize */
 let dragId=null;
-document.addEventListener('dragstart',e=>{ const c=e.target.closest&&e.target.closest('[data-card]'); if(!c) return; dragId=c.dataset.card; c.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; });
-document.addEventListener('dragend',e=>{ const c=e.target.closest&&e.target.closest('[data-card]'); if(c) c.classList.remove('dragging'); $$('.col.drop').forEach(x=>x.classList.remove('drop')); });
-document.addEventListener('dragover',e=>{ const col=e.target.closest&&e.target.closest('[data-col]'); if(!col||!dragId) return; e.preventDefault(); $$('.col.drop').forEach(x=>x!==col&&x.classList.remove('drop')); col.classList.add('drop'); });
-document.addEventListener('drop',e=>{ const col=e.target.closest&&e.target.closest('[data-col]'); if(!col||!dragId) return; e.preventDefault(); const i=item(dragId); if(i&&canStatus(i)) changeStatus(i,col.dataset.col); dragId=null; render(); });
+let rowDrag=null;
+document.addEventListener('mousedown',e=>{ const h=e.target.closest&&e.target.closest('.dragh'); if(!h) return; const tr=h.closest('tr[data-drag]'); if(tr) tr.draggable=true; });
+document.addEventListener('dragstart',e=>{
+  const c=e.target.closest&&e.target.closest('[data-card]');
+  if(c){ dragId=c.dataset.card; c.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; return; }
+  const tr=e.target.closest&&e.target.closest('tr[data-drag]'); if(!tr) return;
+  rowDrag=tr.dataset.drag; tr.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; try{ e.dataTransfer.setData('text/plain',rowDrag); }catch(x){}
+});
+document.addEventListener('dragend',e=>{ $$('.dragging').forEach(x=>x.classList.remove('dragging')); $$('.col.drop').forEach(x=>x.classList.remove('drop')); $$('.dropb,.dropa').forEach(x=>x.classList.remove('dropb','dropa')); $$('tr[draggable="true"]').forEach(x=>x.draggable=false); rowDrag=null; });
+document.addEventListener('dragover',e=>{
+  if(rowDrag){ const tr=e.target.closest&&e.target.closest('tr[data-drag]'); $$('.dropb,.dropa').forEach(x=>x.classList.remove('dropb','dropa')); if(!tr||tr.dataset.drag===rowDrag) return;
+    const a=item(rowDrag), b=item(tr.dataset.drag); if(!a||!b||a.parentId!==b.parentId||(!a.parentId&&a.projectId!==b.projectId)) return;
+    e.preventDefault(); const r=tr.getBoundingClientRect(); tr.classList.add(e.clientY>r.top+r.height/2?'dropa':'dropb'); return; }
+  const col=e.target.closest&&e.target.closest('[data-col]'); if(!col||!dragId) return; e.preventDefault(); $$('.col.drop').forEach(x=>x!==col&&x.classList.remove('drop')); col.classList.add('drop'); });
+document.addEventListener('drop',e=>{
+  if(rowDrag){ const tr=e.target.closest&&e.target.closest('tr[data-drag]'); const a=item(rowDrag); rowDrag=null; if(!tr||!a) return; const b=item(tr.dataset.drag); if(!b||b.id===a.id) return;
+    e.preventDefault(); const after=tr.classList.contains('dropa'); if(moveInOrder(a,b,after)) render(); return; }
+ const col=e.target.closest&&e.target.closest('[data-col]'); if(!col||!dragId) return; e.preventDefault(); const i=item(dragId); if(i&&canStatus(i)) changeStatus(i,col.dataset.col); dragId=null; render(); });
 (function(){ let startX=0,startW=0,drag=false; const R=$('#resizer');
   R.addEventListener('pointerdown',e=>{ drag=true; startX=e.clientX; startW=$('#panel').offsetWidth; R.setPointerCapture(e.pointerId); UI.wide=false; });
   R.addEventListener('pointermove',e=>{ if(!drag) return; const w=Math.max(380,Math.min(window.innerWidth-40,startW+(startX-e.clientX))); S.prefs.panelW=w; $('#panel').style.width=w+'px'; });
