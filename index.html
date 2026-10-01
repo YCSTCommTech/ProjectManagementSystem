@@ -760,6 +760,37 @@ table.roster .ractions{flex-wrap:nowrap;white-space:nowrap}
 table.roster td .rin.ruser{min-width:110px}
 table.roster .c-item{width:30%}
 
+/* ===== Project bank ===== */
+.quickcap{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 10px;min-width:260px}
+.banktabs{margin:6px 0 10px}
+.banktabs button{display:inline-flex;align-items:center;gap:6px}
+.bankfilters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.bankfilters input,.bankfilters select{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:7px 10px}
+.bankfilters input{min-width:220px}
+.bgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
+.bcard{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden;display:flex;flex-direction:column}
+.bcard.request{border-top:4px solid #E9A23B}
+.bimg{aspect-ratio:16/10;background:var(--surface-2);overflow:hidden}
+.bimg img{width:100%;height:100%;object-fit:cover;display:block}
+.bimg.noimg{display:grid;place-items:center;background:linear-gradient(135deg,var(--accent-soft),var(--surface-2))}
+.bimg.noimg span{font-size:28px;font-weight:800;color:var(--accent);opacity:.6}
+.bbody{padding:10px 12px 12px;display:flex;flex-direction:column;gap:6px;flex:1}
+.btags{display:flex;gap:5px;flex-wrap:wrap;align-items:center}
+.btitle{border:0;background:none;padding:0;text-align:left;font-size:16px;font-weight:800;color:var(--ink);cursor:pointer;line-height:1.25}
+.btitle:hover{text-decoration:underline;text-underline-offset:3px}
+.bhook{margin:0;font-size:13.5px;color:var(--ink-2);line-height:1.35}
+.bhook.big{font-size:16px;color:var(--ink)}
+.bmeta{font-size:12px;color:var(--ink-3)}
+.bacts{display:flex;gap:8px;align-items:center;margin-top:auto;padding-top:4px}
+.bankedit{display:grid;grid-template-columns:1fr 220px;gap:14px}
+.bkprev{border:1px dashed var(--line);border-radius:10px;min-height:140px;display:grid;place-items:center;overflow:hidden;align-self:start}
+.bkprev img{width:100%;display:block}
+.bdimg{border-radius:12px;overflow:hidden;max-height:300px}
+.bdimg img{width:100%;display:block;object-fit:cover;max-height:300px}
+.bsteps{margin:0;padding-left:20px}
+.fullsel{width:100%;border:1px solid var(--line);background:var(--surface-2);border-radius:8px;padding:8px}
+@media (max-width:700px){ .bankedit{grid-template-columns:1fr} .quickcap{min-width:0;flex:1} }
+
 </style>
 </head>
 <body>
@@ -816,8 +847,8 @@ const CFG = window.JARVIS_CONFIG || {};
 const SUPABASE_URL = CFG.url || 'PASTE_YOUR_PROJECT_URL';
 const SUPABASE_ANON_KEY = CFG.anonKey || 'PASTE_YOUR_ANON_KEY';
 const LOGIN_DOMAIN = 'jarvis.local';
-const APP_VERSION = '0.92';
-const APP_DATE = 'Sep 28, 2026';
+const APP_VERSION = '0.93';
+const APP_DATE = 'Oct 1, 2026';
 
 /* ---------- Dates ---------- */
 const localISO = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -865,8 +896,8 @@ function setPeople(rows){
   SENIORS = STUDENTS.filter(s=>s.grad===SENIOR_YEAR); JUNIORS = STUDENTS.filter(s=>s.grad===JUNIOR_YEAR);
 }
 const LOCAL_KEY = 'jarvis-prefs';
-const TABLES = ['projects','assignments','items','notifs','syncs','asks','lessons','polls','checkins','weeks','settings','events'];
-const APPEND = new Set(['thread','history','readBy','replies','plus','responses']);
+const TABLES = ['projects','assignments','items','notifs','syncs','asks','lessons','polls','checkins','weeks','settings','events','bank'];
+const APPEND = new Set(['thread','history','readBy','replies','plus','responses','starts']);
 const rid = p => p + Math.random().toString(36).slice(2,9) + Date.now().toString(36).slice(-4);
 const HELP_TYPES = {help:'Help with something',equipment:'Equipment',approval:'Approval',other:'Something else'};
 const WEEKLY_Q = {
@@ -920,7 +951,7 @@ const nid = ()=> rid('i');
 /* ---------- Shared database (Supabase) ---------- */
 let sb = null, ready = false, live = false, everLive = false, channel = null;
 const shadow = {}; TABLES.forEach(t=>shadow[t]=new Map());
-const chains = {}, pending = {};
+const chains = {}, pending = {}, inflightPut = {};
 function niceError(e){ const m=String(e&&e.message||e||''); return m.includes('JARVIS:') ? m.split('JARVIS:')[1].trim() : (/fetch|network/i.test(m)?'No connection — check the Wi-Fi.':'That didn’t save.'); }
 async function refetchRow(t,id){
   try{ const {data}=await sb.from(t).select('id,data').eq('id',id).maybeSingle();
@@ -930,10 +961,10 @@ async function refetchRow(t,id){
     scheduleRender();
   }catch(e){}
 }
-function write(t,id,op,payload,k){
+function write(t,id,op,payload,k,after){
   const key=t+':'+id;
   pending[key]=(pending[key]||0)+1;
-  chains[key]=(chains[key]||Promise.resolve()).then(async()=>{
+  chains[key]=(chains[key]||Promise.resolve()).then(()=>after).then(async()=>{
     const {error}=await sb.rpc('jarvis_write',{op,tbl:t,rid:id,payload:payload===undefined?null:payload,k:k||null});
     if(error){ console.error(t,id,op,error); toast(niceError(error)); }
     return !!error;
@@ -947,13 +978,14 @@ function write(t,id,op,payload,k){
 const remoteSkipped = new Set();
 function persist(){
   if(!sb || !ready || !S.viewer) return;
+  const dep=(t,o)=> t==='items' ? (inflightPut['projects:'+o.projectId] || inflightPut['items:'+o.parentId]) : undefined;
   for(const t of TABLES){
     const sh = shadow[t], seen = new Set();
     for(const o of S[t]){
       seen.add(o.id);
       const cur = JSON.stringify(o), old = sh.get(o.id);
       if(old === cur) continue;
-      if(old === undefined){ write(t,o.id,'put',o); sh.set(o.id,cur); continue; }
+      if(old === undefined){ const k2=t+':'+o.id, pr=write(t,o.id,'put',o,undefined,dep(t,o)); inflightPut[k2]=pr; pr.then(()=>{ if(inflightPut[k2]===pr) delete inflightPut[k2]; }); sh.set(o.id,cur); continue; }
       const prev = JSON.parse(old), patch = {};
       for(const k of new Set([...Object.keys(prev),...Object.keys(o)])){
         const a = prev[k], b = o[k];
@@ -983,6 +1015,7 @@ function normalize(t,o){
   if(t==='polls'){ arr('responses'); arr('options'); }
   if(t==='checkins'){ arr('active'); obj('blocks'); arr('custom'); if(o.line==null) o.line=''; }
   if(t==='weeks'){ obj('answers'); obj('stages'); }
+  if(t==='bank'){ arr('starts'); arr('hands'); arr('steps'); if(!o.status) o.status='raw'; if(!o.type) o.type='idea'; if(!o.title) o.title='Untitled'; }
   if(t==='events'){ if(!o.status) o.status='pending'; if(!o.kind) o.kind='event'; if(!o.title) o.title='Untitled event'; if(!o.date) o.date=todayISO(); }
   return o;
 }
@@ -1026,7 +1059,7 @@ function subscribe(){
 }
 function renderLive(){ const el=$('#live'); if(!el) return; el.className='live '+(live?'on':''); el.lastChild.textContent = live?' Live':' Reconnecting…'; }
 let renderTimer=null, pendingRender=false;
-const typing = ()=>{ const a=document.activeElement; return !!a && a.matches && a.matches('textarea, input[type=text], input:not([type]), input[type=url], input[type=date], input[type=time], input[type=number], input[type=password]') && !a.matches('#fSearch,#helpSearch'); };
+const typing = ()=>{ const a=document.activeElement; return !!a && a.matches && a.matches('textarea, input[type=text], input:not([type]), input[type=url], input[type=date], input[type=time], input[type=number], input[type=password]') && !a.matches('#fSearch,#helpSearch,#bankSearch'); };
 function scheduleRender(){ clearTimeout(renderTimer); renderTimer=setTimeout(()=>{ if(typing()){ pendingRender=true; return; } pendingRender=false; if(S.viewer) render(); },90); }
 document.addEventListener('focusout',()=>setTimeout(()=>{ if(pendingRender && !typing()){ pendingRender=false; if(S.viewer) render(); } },60));
 
@@ -1988,6 +2021,7 @@ const HELP = [
   {id:'combine',title:'Combining projects',tags:'merge combine nest inside move project item sub-project',body:'<p>Started something that turned out to be part of a bigger project? Open your project’s <b>Details</b>, then <b>Combine with another project</b>.</p><p><b>Put it inside</b> keeps it as its own group inside the bigger project, with everything intact, and can be undone. <b>Turn it into an item</b> makes it one item with subitems, and is permanent. If you’re not an admin of the bigger project, its admins approve it first.</p><p>To move just one item, open it and use <b>Move to</b>.</p>'},
   {id:'mp',title:'Marking period: major, minor, micro',tags:'marking period major minor micro projects count credit shelf role',body:'<p>Each marking period you aim for at least <b>one major, five minor, and three micro</b> projects. Open <b>Marking period</b> and pick Major, Minor, or Micro next to your work. You can tag a whole project, or just the item or subitem you did. The same project can be a major for one person and a minor for another.</p><p>Write your role (“Director”, “Graphics”). When it’s finished, tap <b>It’s finished — submit for credit</b>, add your final file and a short reflection, and Mr. P counts it. Counted work fills your shelf at the top.</p>'},
   {id:'simple',title:'Simplified view, voice typing, and read-aloud',tags:'simple simplified overwhelmed less voice dictate talk microphone read aloud listen speaker',body:'<p>Feeling like there’s too much on the screen? Tap <b>Simplified view</b> under your name. You’ll see just Home, your Board, and My week, with bigger text. Everything else is under <b>More</b>. Tap it again to go back.</p><p>Tap the <b>microphone</b> in a text box to talk instead of type. Tap it again to stop. Tap the <b>speaker</b> next to instructions or questions to hear them read out loud.</p>'},
+  {id:'bank',title:'The Project bank',tags:'project bank ideas requests start suggest raw ready experiment inspiration',body:'<p><b>Ideas</b> are projects anyone can try, as many times as they want. Tap <b>Start this</b> to put it on your board, as a new project or inside one of yours. It gets tagged on your Marking period page with a suggested level you can change.</p><p><b>Requests</b> are one-time jobs someone actually needs. Tap <b>Request it</b> to raise your hand. Mr. P picks who gets it, and it shows up on their board.</p><p>Have an idea? Tap <b>Suggest an idea</b>. Mr. P reviews it before it goes in the bank.</p>'},
   {id:'bell',title:'Notifications',tags:'bell notifications unread',body:'<p>The bell shows returns, feedback requests, replies, and new lessons. Click one to jump to it.</p>'}
 ];
 function renderHelp(){
@@ -2582,10 +2616,11 @@ function dayData(d){
   if(F.sched) out.sched=S.items.filter(i=>i.when && i.when.date===d && (T?calPeopleOk(i.assignees):(i.assignees.includes(me_) || canSeeItem(i)))).sort((a,b)=>(a.when.start||'').localeCompare(b.when.start||''));
   return out;
 }
-function busyScore(x){ return x.events.length*3 + x.pending.length*2 + x.lessons.length*2 + x.assign.length*2 + x.tasks.length + x.sched.length*1.5; }
+const BUSY_FULL = 12;
+function busyScore(x){ return x.events.length*2 + x.pending.length*1 + x.assign.filter(o=>!(o.a&&o.a.weekly)).length*2 + x.lessons.length*2 + x.tasks.length + x.sched.length*1.5; }
 function busyHTML(score,max){
   if(!score) return '<div class="busy"><span style="width:0"></span></div><span class="busylab">Clear</span>';
-  const pct=Math.max(8,Math.round(score/Math.max(max,6)*100)); const lab=pct>=75?'Packed':pct>=40?'Busy':'Light';
+  const pct=Math.max(8,Math.min(100,Math.round(score/BUSY_FULL*100))); const lab=score>9?'Packed':score>4?'Busy':'Light';
   return `<div class="busy b-${lab.toLowerCase()}"><span style="width:${Math.min(100,pct)}%"></span></div><span class="busylab">${lab}</span>`;
 }
 function evChip(e,short){ return `<button class="evchip k-${e.kind||'event'} ${e.status!=='approved'?'pending':''}" data-event="${e.id}" title="${esc(e.title)}">${e.start&&!short?`<b>${esc(fmtTime(e.start))}</b> `:''}${esc(e.title)}${e.status==='pending'?' <i>(waiting)</i>':e.status==='declined'?' <i>(declined)</i>':''}</button>`; }
@@ -2658,12 +2693,12 @@ function renderCal(){
   const nextMonth=(()=>{ const dt=parseISO(first); dt.setMonth(dt.getMonth()+1); return localISO(dt); })();
   const weeks=[]; for(let w=mStart; w<nextMonth; w=addDays(w,7)) weeks.push(w);
   const cells=weeks.flatMap(w=>[0,1,2,3,4,5,6].map(k=>addDays(w,k)));
-  const scores=cells.map(d=>busyScore(dayData(d))); const max=Math.max(...scores,1);
+  const scores=cells.map(d=>busyScore(dayData(d))); const max=BUSY_FULL;
   let h=calHead(parseISO(first).toLocaleDateString('en-US',{month:'long',year:'numeric'}))+calFilterBar();
   h+=`<div class="calmonth"><div class="mhd">Mon</div><div class="mhd">Tue</div><div class="mhd">Wed</div><div class="mhd">Thu</div><div class="mhd">Fri</div><div class="mhd we">Sat</div><div class="mhd we">Sun</div>`;
   cells.forEach((d,k)=>{ const x=dayData(d), sc=scores[k], wd=parseISO(d).getDay(), inMonth=d.slice(0,7)===first.slice(0,7);
     const counts=[x.assign.length?`${x.assign.length} due`:'', x.tasks.length?`${x.tasks.length} deadline${x.tasks.length===1?'':'s'}`:'', x.lessons.length?`${x.lessons.length} lesson${x.lessons.length===1?'':'s'}`:'', x.sched.length?`${x.sched.length} scheduled`:''].filter(Boolean);
-    h+=`<div class="mcell ${inMonth?'':'out'} ${d===t?'today':''} ${wd===0||wd===6?'we':''}" style="--heat:${(sc/max).toFixed(2)}" data-calgo="${d}">
+    h+=`<div class="mcell ${inMonth?'':'out'} ${d===t?'today':''} ${wd===0||wd===6?'we':''}" style="--heat:${Math.min(1,sc/max).toFixed(2)}" data-calgo="${d}">
       <span class="mnum">${parseISO(d).getDate()}</span>${[...x.events,...x.pending].slice(0,3).map(e=>evChip(e,true)).join('')}${counts.length?`<span class="mcount">${counts.join(' · ')}</span>`:''}</div>`; });
   return h+'</div>';
 }
@@ -2754,10 +2789,219 @@ function eventOptions(selected){
   return `<option value="">— None —</option>${list.map(e=>`<option value="${e.id}" ${e.id===selected?'selected':''}>${esc(e.title)} · ${esc(fmt(e.date))}</option>`).join('')}`;
 }
 
+/* ---------- Project bank: repeatable Ideas + one-time Requests ---------- */
+const BANK_LEVELS=[['micro','Micro'],['minor','Minor'],['major','Major']];
+const BANK_SCOPES=[['day','A day'],['week','A week'],['quarter','A marking period']];
+const BANK_DIFF=[['1','Easy'],['2','Medium'],['3','Hard']];
+const bankById = id => S.bank.find(b=>b.id===id);
+const bankLabel = (list,v) => (list.find(x=>x[0]===String(v))||['',''])[1];
+const SEED_IDEAS = [
+  ['One-Scan Collage','Build an entire design on the scanner glass in one pass, with no Photoshop compositing.','Graphic Design','minor'],
+  ['Scanner Glitch Portraits','Move during the scan and turn the distortion into the portrait.','Photo','micro'],
+  ['Class Texture Bank','Scan 20 textures (receipts, tape, leaves, plastic) for a shared class library.','Graphic Design','micro'],
+  ['Scan & Respond','Print a classmate’s scan, alter it by hand, rescan, and pass it on for three rounds.','Graphic Design','minor'],
+  ['Crowded Fields Composite','Shoot one spot for an hour, then stack every person into one impossible frame (Pelle Cass style).','Photo','minor'],
+  ['Second-Curtain Flash','Freeze a moving subject and keep its motion trail in one exposure.','Photo','micro'],
+  ['Frequency Separation Retouch','Retouch skin without the plastic look.','Photo','micro'],
+  ['Dodge & Burn Sculpting','Reshape light on a face using only dodge and burn.','Photo','micro'],
+  ['Trailer Genre Swap','Recut a movie trailer so it becomes a totally different genre.','Video','minor'],
+  ['Organic Mask Reveals','Animate text or shapes revealing with rough, hand-made edges in After Effects.','Animation','micro'],
+  ['Screen Print Run','Design, burn, and print a one- or two-color poster or shirt.','Graphic Design','minor'],
+  ['Steal That Lighting','Pick a photo or film still you love and match its lighting exactly.','Photo','micro'],
+  ['Premiere Move Study','Learn a speed ramp, match cut, or text track and use it in a 15-second piece.','Video','micro'],
+  ['Animate a Social Post','Turn a still social post into a five-second animated version.','Animation','micro'],
+  ['New-Technique Movie Poster','Design a movie poster using a technique you’ve never tried.','Graphic Design','minor'],
+  ['3–5 Second Loop','Animate a perfect loop: a blink, hair in the wind, or a walk cycle.','Animation','micro'],
+  ['Character Turnaround','Design an original character with front and side views.','Animation','micro'],
+  ['Shot Recreation Study','Recreate one anime shot to learn how its lighting and color work.','Animation','micro'],
+  ['Sports Autofocus Challenge','Get tack-sharp action shots at a game using AF tracking.','Photo','minor'],
+  ['Hand-Coded One-Pager','Build a one-page website from scratch in HTML and CSS, no templates (good NOCTI prep).','Web','minor']
+];
+function seedBankIfEmpty(){
+  if(!isTeacher() || S.bank.length || S.settings.some(x=>x.id==='bank_seeded')) return false;
+  SEED_IDEAS.forEach(([title,hook,major,level],k)=>S.bank.push({id:'bk'+String(k+1).padStart(2,'0')+rid('').slice(0,4),type:'idea',status:'raw',title,hook,description:'',major,level,scope:level==='micro'?'day':'week',difficulty:'2',image:'',steps:[],by:S.viewer,starts:[],hands:[],...nowStamp()}));
+  S.settings.push({id:'bank_seeded',ts:Date.now()});
+  return true;
+}
+function bankVisible(tab){
+  const q=(UI.bankQ||'').toLowerCase();
+  return S.bank.filter(b=>{
+    if(tab==='ideas' && !(b.type==='idea' && b.status==='ready')) return false;
+    if(tab==='requests' && !(b.type==='request' && b.status==='ready')) return false;
+    if(tab==='raw' && b.status!=='raw') return false;
+    if(tab==='archive' && !['retired','taken'].includes(b.status)) return false;
+    if(tab==='mine' && !(b.by===S.viewer && b.status==='raw')) return false;
+    if(UI.bankMajor && b.major!==UI.bankMajor) return false;
+    if(UI.bankLevel && b.level!==UI.bankLevel) return false;
+    if(q && !((b.title||'')+' '+(b.hook||'')+' '+(b.description||'')).toLowerCase().includes(q)) return false;
+    return true;
+  }).sort((a,b)=>tsOf(b)-tsOf(a));
+}
+function bankCard(b){
+  const T=isTeacher(), tried=(b.starts||[]).length, hands=b.hands||[], raised=hands.includes(S.viewer);
+  const img = b.image ? `<div class="bimg"><img src="${esc(b.image)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.classList.add('noimg');this.remove()"></div>` : `<div class="bimg noimg"><span>${esc((b.major||'Idea').split(' ').map(w=>w[0]).join(''))}</span></div>`;
+  let acts='';
+  if(b.status==='ready' && b.type==='idea') acts=`<button class="btn tiny primary" data-bankstart="${b.id}">Start this</button>`;
+  if(b.status==='ready' && b.type==='request') acts = T ? `<button class="btn tiny primary" data-bankactivate="${b.id}">Activate${hands.length?` (${hands.length})`:''}</button>` : `<button class="btn tiny ${raised?'':'primary'}" data-bankhand="${b.id}">${raised?'You asked · undo':'Request it'}</button>`;
+  if(T && b.status==='raw') acts=`<button class="btn tiny primary" data-bankedit="${b.id}">Edit & make ready</button>`;
+  if(T && b.status==='retired') acts=`<button class="btn tiny" data-bankrestore="${b.id}">Bring back</button>`;
+  return `<article class="bcard ${b.type}">${img}<div class="bbody">
+    <div class="btags">${b.type==='request'?'<span class="tag wait">Request</span>':''}${b.major?`<span class="tag">${esc(b.major)}</span>`:''}${b.level?`<span class="lvtag lv-${b.level}">${esc(bankLabel(BANK_LEVELS,b.level))}</span>`:''}${b.status==='raw'?'<span class="tag chg">Raw</span>':''}${b.status==='taken'?'<span class="tag ok">Taken</span>':''}${b.status==='retired'?'<span class="tag">Retired</span>':''}</div>
+    <button class="btitle" data-bankopen="${b.id}">${esc(b.title)}</button>
+    ${b.hook?`<p class="bhook">${esc(b.hook)}</p>`:''}
+    <div class="bmeta">${b.scope?esc(bankLabel(BANK_SCOPES,b.scope)):''}${b.difficulty?` · ${esc(bankLabel(BANK_DIFF,b.difficulty))}`:''}${b.type==='idea'&&b.status==='ready'?` · tried by ${tried}`:''}${b.type==='request'&&b.status==='ready'&&(T||hands.length)?` · ${hands.length} interested`:''}${b.suggested?` · suggested by ${esc(first(b.by))}`:''}</div>
+    <div class="bacts">${acts}${T?`<button class="linkbtn" data-bankedit="${b.id}">Edit</button>`:''}</div></div></article>`;
+}
+function renderBank(){
+  const T=isTeacher();
+  if(seedBankIfEmpty()) persist();
+  const tabs = T ? [['ideas','Ideas'],['requests','Requests'],['raw','Raw'],['archive','Taken & retired']] : [['ideas','Ideas'],['requests','Requests'],['mine','My suggestions']];
+  UI.bankTab = tabs.some(x=>x[0]===UI.bankTab) ? UI.bankTab : 'ideas';
+  const counts = {raw:S.bank.filter(b=>b.status==='raw').length, requests:S.bank.filter(b=>b.type==='request'&&b.status==='ready').length, mine:S.bank.filter(b=>b.by===S.viewer&&b.status==='raw').length};
+  const list=bankVisible(UI.bankTab);
+  let h=`<div class="hello"><h2>Project bank</h2>${helpDot('bank')}<span class="grow"></span>
+    ${T?`<input id="bankQuick" class="quickcap" placeholder="Quick idea… (Enter to save as raw)" data-voice><button class="btn primary" data-banknew="idea">+ Idea</button><button class="btn" data-banknew="request">+ Request</button>`:`<button class="btn primary" data-banksuggest>Suggest an idea</button>`}</div>
+    <div class="banktabs seg">${tabs.map(([k,l])=>`<button class="${UI.bankTab===k?'on':''}" data-banktab="${k}">${l}${counts[k]?` <span class="navcount">${counts[k]}</span>`:''}</button>`).join('')}</div>
+    <div class="bankfilters"><input type="search" id="bankSearch" placeholder="Search the bank" value="${esc(UI.bankQ||'')}">
+      <select id="bankMajor"><option value="">All majors</option>${MAJORS.map(m=>`<option ${UI.bankMajor===m?'selected':''}>${m}</option>`).join('')}</select>
+      <select id="bankLevel"><option value="">Any level</option>${BANK_LEVELS.map(([k,l])=>`<option value="${k}" ${UI.bankLevel===k?'selected':''}>${l}</option>`).join('')}</select></div>`;
+  const empty = {ideas: T?'No ready ideas yet. Open the Raw tab and make some ready.':'No ideas posted yet. Check back soon, or suggest one!',
+    requests: T?'No open requests. Add one with + Request.':'No open requests right now.', raw:'Nothing raw. Use the quick idea box to capture one.', archive:'Nothing taken or retired yet.', mine:'You haven’t suggested anything yet.'}[UI.bankTab];
+  h += list.length ? `<div class="bgrid">${list.map(bankCard).join('')}</div>` : `<div class="empty">${empty}</div>`;
+  if(UI.bankTab==='requests' && !T) h+=`<p class="hint" style="margin-top:10px">Requests are one-time jobs. Tap <b>Request it</b> to raise your hand. Mr. P picks who gets it, and it shows up on their board.</p>`;
+  return h;
+}
+function bankEditModal(b,type){
+  const edit=!!b; b=b||{type,title:'',hook:'',description:'',major:'',level:'micro',scope:'day',difficulty:'2',image:'',steps:[],status:'ready',source:''};
+  openModal(`<div class="mhead wide"><h2>${edit?'Edit':'New'} ${b.type==='request'?'request':'idea'}</h2><button class="x" data-closemodal>×</button></div>
+    ${b.suggested?`<div class="note">Suggested by ${esc(pname(b.by))}.</div>`:''}
+    <div class="bankedit"><div class="fields">
+      <label>Type</label><select id="bkType"><option value="idea" ${b.type==='idea'?'selected':''}>Idea (repeatable, anyone can start it)</option><option value="request" ${b.type==='request'?'selected':''}>Request (one-time, you assign it)</option></select>
+      <label>Title</label><input id="bkTitle" value="${esc(b.title)}">
+      <label>Hook</label><input id="bkHook" value="${esc(b.hook||'')}" placeholder="One line, written to the student">
+      <label>Details</label><textarea id="bkDesc" rows="3" placeholder="What to make, constraints, tips">${esc(b.description||'')}</textarea>
+      <label>Starter steps</label><textarea id="bkSteps" rows="3" placeholder="One per line — these become items when someone starts it">${esc((b.steps||[]).join('\n'))}</textarea>
+      <label>Major</label><select id="bkMajor"><option value="">Any</option>${MAJORS.map(m=>`<option ${b.major===m?'selected':''}>${m}</option>`).join('')}</select>
+      <label>Level</label><select id="bkLevel">${BANK_LEVELS.map(([k,l])=>`<option value="${k}" ${b.level===k?'selected':''}>${l}</option>`).join('')}</select>
+      <label>Time</label><select id="bkScope">${BANK_SCOPES.map(([k,l])=>`<option value="${k}" ${b.scope===k?'selected':''}>${l}</option>`).join('')}</select>
+      <label>Difficulty</label><select id="bkDiff">${BANK_DIFF.map(([k,l])=>`<option value="${k}" ${String(b.difficulty)===k?'selected':''}>${l}</option>`).join('')}</select>
+      <label>Requested by</label><input id="bkSource" value="${esc(b.source||'')}" placeholder="For requests: e.g. Athletics, front office (optional)">
+      <label>Image link</label><input id="bkImg" value="${esc(b.image||'')}" placeholder="Paste an image address (right-click an image → Copy image address)">
+      <label>Status</label><select id="bkStatus">${[['raw','Raw (only teachers see it)'],['ready','Ready (students see it)'],['retired','Retired (hidden)']].concat(b.status==='taken'?[['taken','Taken']]:[]).map(([k,l])=>`<option value="${k}" ${b.status===k?'selected':''}>${l}</option>`).join('')}</select>
+    </div><div class="bkprev" id="bkPrev">${b.image?`<img src="${esc(b.image)}" alt="" referrerpolicy="no-referrer">`:'<span class="hint">Image preview</span>'}</div></div>
+    <div class="mfoot">${edit?`<button class="linkbtn" data-bankdel="${b.id}">Delete</button>`:''}<button class="btn primary" data-banksave="${edit?b.id:''}">Save</button></div>`);
+}
+function bankSuggestModal(){
+  openModal(`<div class="mhead"><h2>Suggest an idea</h2><button class="x" data-closemodal>×</button></div>
+    <p class="hint" style="margin:0">Mr. P reviews suggestions before they go in the bank.</p>
+    <div class="fields"><label>Kind</label><select id="sgType"><option value="idea">A project idea anyone could try</option><option value="request">A real job someone needs done</option></select>
+      <label>Title</label><input id="sgTitle" placeholder="e.g. Stop-motion cereal commercial">
+      <label>Details</label><textarea id="sgDesc" rows="3" placeholder="What is it? Why is it cool? Who needs it?"></textarea>
+      <label>Major</label><select id="sgMajor"><option value="">Not sure</option>${MAJORS.map(m=>`<option>${m}</option>`).join('')}</select>
+      <label>Image link</label><input id="sgImg" placeholder="Optional"></div>
+    <div class="mfoot"><button class="btn primary" data-banksendsg>Send to Mr. P</button></div>`);
+}
+function bankDetail(b){
+  const starts=(b.starts||[]).slice().reverse();
+  openModal(`<div class="mhead wide"><h2>${esc(b.title)}</h2><button class="x" data-closemodal>×</button></div>
+    ${b.image?`<div class="bdimg"><img src="${esc(b.image)}" alt="" referrerpolicy="no-referrer" onerror="this.parentNode.remove()"></div>`:''}
+    <div class="btags">${b.major?`<span class="tag">${esc(b.major)}</span>`:''}${b.level?`<span class="lvtag lv-${b.level}">${esc(bankLabel(BANK_LEVELS,b.level))}</span>`:''}<span class="hint">${esc(bankLabel(BANK_SCOPES,b.scope))} · ${esc(bankLabel(BANK_DIFF,b.difficulty))}${b.source?` · requested by ${esc(b.source)}`:''}</span></div>
+    ${b.hook?`<p class="bhook big">${esc(b.hook)} ${speakBtn(b.hook+'. '+(b.description||''))}</p>`:''}
+    ${b.description?`<div class="desc">${esc(b.description)}</div>`:''}
+    ${(b.steps||[]).length?`<h3 class="sech small">Starter steps</h3><ol class="bsteps">${b.steps.map(s=>`<li>${esc(s)}</li>`).join('')}</ol>`:''}
+    ${b.type==='idea'?`<h3 class="sech small">Tried by ${starts.length}</h3>${starts.length?starts.map(s=>{ const target=s.itemId?item(s.itemId):proj(s.projectId); return `<div class="mrow">${av(s.by)}<b>${esc(pname(s.by))}</b><span class="hint">${esc(s.at||'')}</span>${target?`<button class="linkbtn" data-open="${s.itemId?'i:'+s.itemId:'p:'+s.projectId}">See their work</button>`:''}</div>`; }).join(''):'<p class="hint">Be the first.</p>'}`:''}
+    ${b.status==='taken'?`<div class="note">Taken by ${esc((b.takenBy||[]).map(pname).join(', '))}${b.takenAt?` on ${esc(new Date(b.takenAt).toLocaleDateString('en-US',{month:'short',day:'numeric'}))}`:''}. ${b.takenProject&&proj(b.takenProject)?`<button class="linkbtn" data-open="p:${b.takenProject}">Open project</button>`:''}</div>`:''}
+    <div class="mfoot">${b.status==='ready'&&b.type==='idea'?`<button class="btn primary" data-bankstart="${b.id}">Start this</button>`:''}${b.status==='ready'&&b.type==='request'&&!isTeacher()?`<button class="btn primary" data-bankhand="${b.id}">${(b.hands||[]).includes(S.viewer)?'Undo request':'Request it'}</button>`:''}${b.status==='ready'&&b.type==='request'&&isTeacher()?`<button class="btn primary" data-bankactivate="${b.id}">Activate</button>`:''}${isTeacher()?`<button class="btn" data-bankedit="${b.id}">Edit</button>`:''}</div>`);
+}
+function bankStartModal(b){
+  const mine=S.projects.filter(p=>canEditProject(p) && (p.roles||{})[S.viewer]);
+  openModal(`<div class="mhead"><h2>Start “${esc(b.title)}”</h2><button class="x" data-closemodal>×</button></div>
+    <label class="fopt"><input type="radio" name="bkwhere" id="bkNew" checked> Start a new project</label>
+    <label class="fopt"><input type="radio" name="bkwhere" id="bkIn" ${mine.length?'':'disabled'}> Add it to one of my projects</label>
+    ${mine.length?`<select id="bkProj" class="fullsel">${mine.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select>`:'<p class="hint">You’re not an editor on any projects yet.</p>'}
+    <p class="hint">It’ll be tagged as a <b>${esc(bankLabel(BANK_LEVELS,b.level)||'micro')}</b> on your Marking period page. You can change that.</p>
+    <div class="mfoot"><button class="btn primary" data-bankstartgo="${b.id}">Start</button></div>`);
+}
+function startBankIdea(b){
+  const inside=$('#bkIn')?.checked && $('#bkProj')?.value, v=S.viewer, stamp=nowStamp();
+  const desc=[b.hook,b.description].filter(Boolean).join('\n\n');
+  let key, projectId=null, itemId=null;
+  const mkItem=(title,projId,parent,extra={})=>{ const it={id:nid(),source:'task',title,description:extra.description||'',assignees:[v],status:'not',due:'',priority:'med',projectId:projId,parentId:parent,files:[],thread:[],history:[{kind:'created',by:v,...nowStamp()}],...extra}; S.items.push(it); return it; };
+  if(inside){
+    const p=proj(inside); if(!p){ toast('Pick a project'); return; }
+    const it=mkItem(b.title,p.id,null,{description:desc,bankId:b.id});
+    (b.steps||[]).forEach((s,k)=>mkItem(s,p.id,it.id,{order:k*10}));
+    key='i:'+it.id; projectId=p.id; itemId=it.id;
+  } else {
+    const p={id:rid('p'),name:b.title,description:desc,owner:v,roles:{[v]:'admin'},private:true,major:b.major||me().major||'',color:GCOLORS[S.projects.length%GCOLORS.length],thread:[],files:[],bankId:b.id};
+    S.projects.push(p);
+    (b.steps||[]).forEach((s,k)=>mkItem(s,p.id,null,{order:k*10}));
+    key='p:'+p.id; projectId=p.id;
+  }
+  if(b.level && !claimFor(v,key) && !conflictFor(v,key)) S.settings.push({id:claimId(v,key),by:v,target:key,level:b.level,role:'',status:'planned',...nowStamp()});
+  b.starts=[...(b.starts||[]),{by:v,projectId,itemId,...stamp}];
+  closeModal(); UI.page='board'; UI.project=''; render();
+  if(itemId) openPanel('i:'+itemId); else openPanel('p:'+projectId);
+  toast('Started! It’s on your board.');
+}
+function bankActivateModal(b){
+  openModal(`<div class="mhead"><h2>Activate “${esc(b.title)}”</h2><button class="x" data-closemodal>×</button></div>
+    <p class="hint" style="margin:0">Pick who gets it. ${ (b.hands||[]).length ? 'Students who asked are already checked.' : 'Nobody has asked yet.'} The first person checked becomes the project admin.</p>
+    ${ppHTML('bankact',STUDENTS.map(s=>s.id),b.hands||[],{shortcuts:[]})}
+    <div class="mfoot"><button class="btn primary" data-bankactgo="${b.id}">Create the project</button></div>`);
+}
+function activateRequest(b){
+  const picked=$$('input[data-pp="bankact"]:checked').map(x=>x.value); if(!picked.length){ toast('Check at least one student'); return; }
+  const ordered=[...(b.hands||[]).filter(x=>picked.includes(x)),...picked.filter(x=>!(b.hands||[]).includes(x))];
+  const roles={}; ordered.forEach((s,k)=>roles[s]=k===0?'admin':'editor'); roles[S.viewer]='editor';
+  const p={id:rid('p'),name:b.title,description:[b.hook,b.description,b.source?`Requested by: ${b.source}`:''].filter(Boolean).join('\n\n'),owner:ordered[0],roles,private:true,major:b.major||'',color:GCOLORS[S.projects.length%GCOLORS.length],thread:[],files:[],bankId:b.id};
+  S.projects.push(p);
+  (b.steps||[]).forEach((s,k)=>S.items.push({id:nid(),source:'task',title:s,description:'',assignees:[...ordered],status:'not',due:'',priority:'med',projectId:p.id,parentId:null,order:k*10,files:[],thread:[],history:[{kind:'created',by:S.viewer,...nowStamp()}]}));
+  Object.assign(b,{status:'taken',takenBy:ordered,takenProject:p.id,takenAt:Date.now()});
+  ordered.forEach(s=>notify(s,'bankactivated',{projectId:p.id,text:b.title}));
+  (b.hands||[]).filter(x=>!ordered.includes(x)).forEach(s=>notify(s,'banktaken',{text:b.title}));
+  closeModal(); render(); toast(`Activated for ${ordered.map(first).join(', ')}`);
+}
+function saveBank(id){
+  const title=$('#bkTitle').value.trim(); if(!title){ toast('Add a title'); return; }
+  const f={type:$('#bkType').value,title,hook:$('#bkHook').value.trim(),description:$('#bkDesc').value.trim(),steps:$('#bkSteps').value.split('\n').map(x=>x.trim()).filter(Boolean),
+    major:$('#bkMajor').value,level:$('#bkLevel').value,scope:$('#bkScope').value,difficulty:$('#bkDiff').value,source:$('#bkSource').value.trim(),image:normUrl($('#bkImg').value),status:$('#bkStatus').value};
+  if(id){ const b=bankById(id); const wasRaw=b.status==='raw'; Object.assign(b,f); if(wasRaw && b.status==='ready' && b.suggested && b.by!==S.viewer) notify(b.by,'bankready',{text:b.title}); }
+  else S.bank.push({id:rid('bk'),...f,by:S.viewer,starts:[],hands:[],...nowStamp()});
+  closeModal(); UI.bankTab = f.status==='raw'?'raw':f.status==='ready'?(f.type==='idea'?'ideas':'requests'):'archive'; render(); toast('Saved');
+}
+function bankClick(d,t){
+  if(d.banktab){ UI.bankTab=d.banktab; render(); return true; }
+  if(d.banknew){ bankEditModal(null,d.banknew); return true; }
+  if(d.bankedit){ bankEditModal(bankById(d.bankedit)); return true; }
+  if(d.banksave!==undefined){ saveBank(d.banksave); return true; }
+  if(d.bankdel){ const b=bankById(d.bankdel); if(!b||!confirm(`Delete “${b.title}” from the bank?`)) return true; S.bank=S.bank.filter(x=>x.id!==b.id); closeModal(); render(); return true; }
+  if(d.bankrestore){ const b=bankById(d.bankrestore); if(b){ b.status='ready'; render(); toast('Back in the bank'); } return true; }
+  if(d.bankopen){ const b=bankById(d.bankopen); if(b) bankDetail(b); return true; }
+  if(d.bankstart){ const b=bankById(d.bankstart); if(b) bankStartModal(b); return true; }
+  if(d.bankstartgo){ const b=bankById(d.bankstartgo); if(b) startBankIdea(b); return true; }
+  if(d.bankhand){ const b=bankById(d.bankhand); if(!b) return true; const has=(b.hands||[]).includes(S.viewer);
+    b.hands = has ? b.hands.filter(x=>x!==S.viewer) : [...(b.hands||[]),S.viewer];
+    if(!has) notifyTeachers('bankhand',{text:b.title});
+    closeModal(); render(); toast(has?'Request withdrawn':'Request sent — Mr. P picks who gets it'); return true; }
+  if(d.bankactivate){ const b=bankById(d.bankactivate); if(b) bankActivateModal(b); return true; }
+  if(d.bankactgo){ const b=bankById(d.bankactgo); if(b) activateRequest(b); return true; }
+  if(d.banksuggest!==undefined){ bankSuggestModal(); return true; }
+  if(d.banksendsg!==undefined){ const title=$('#sgTitle').value.trim(); if(!title){ toast('Give it a title'); return true; }
+    S.bank.push({id:rid('bk'),type:$('#sgType').value,status:'raw',title,hook:'',description:$('#sgDesc').value.trim(),major:$('#sgMajor').value,level:'micro',scope:'day',difficulty:'2',image:normUrl($('#sgImg').value),steps:[],by:S.viewer,suggested:true,starts:[],hands:[],...nowStamp()});
+    notifyTeachers('banksuggest',{text:title}); closeModal(); UI.bankTab='mine'; render(); toast('Sent to Mr. P'); return true; }
+  return false;
+}
+function quickCapture(){
+  const inp=$('#bankQuick'); const v=(inp?.value||'').trim(); if(!v) return;
+  S.bank.push({id:rid('bk'),type:'idea',status:'raw',title:v,hook:'',description:'',major:'',level:'micro',scope:'day',difficulty:'2',image:'',steps:[],by:S.viewer,starts:[],hands:[],...nowStamp()});
+  inp.value=''; render(); toast('Saved to Raw'); setTimeout(()=>$('#bankQuick')?.focus(),40);
+}
+
 /* ---------- Render ---------- */
 const PAGES = () => isTeacher()
-  ? [['home','Class today'],['board','Board'],['cal','Calendar'],['week','Weekly reports'],['lessons','Lessons & polls'],['asks','Asks'],['sync','Schoology sync'],['roster','Roster'],['help','Help']]
-  : [['home','Home'],['board','Board'],['cal','Calendar'],['week','My week'],['lessons','Lessons & polls'],['asks','Asks'],['help','Help']];
+  ? [['home','Class today'],['board','Board'],['cal','Calendar'],['bank','Project bank'],['week','Weekly reports'],['lessons','Lessons & polls'],['asks','Asks'],['sync','Schoology sync'],['roster','Roster'],['help','Help']]
+  : [['home','Home'],['board','Board'],['cal','Calendar'],['week','My week'],['bank','Project bank'],['lessons','Lessons & polls'],['asks','Asks'],['help','Help']];
 function pageHTML(){
   if(SIMPLE() && !UI.more && !['home','board','week'].includes(UI.page)) UI.page='home';
   switch(UI.page){
@@ -2767,6 +3011,7 @@ function pageHTML(){
     case 'week': return renderWeek();
     case 'mp': return renderMp();
     case 'cal': return renderCal();
+    case 'bank': return renderBank();
     case 'roster': return isTeacher()?renderRoster():'';
     case 'lessons': return renderLessons();
     case 'asks': return renderAsks();
@@ -2813,7 +3058,7 @@ function renderSide(){
   $('#verTag').textContent=`JARVIS v${APP_VERSION} · ${APP_DATE}`;
 }
 function renderHead(){
-  const titles = {home:isTeacher()?'Class today':'Home',board:UI.project==='assign'?'Class assignments':UI.project?(proj(UI.project)?.name||'Board'):(isTeacher()?'Class board':'My board'),today:isTeacher()?'My day':'Today',week:isTeacher()?'Weekly reports':'My week',mp:'Marking period',cal:'Calendar',roster:'Roster',lessons:'Lessons & polls',asks:'Asks',sync:'Schoology sync',help:'Help'};
+  const titles = {home:isTeacher()?'Class today':'Home',board:UI.project==='assign'?'Class assignments':UI.project?(proj(UI.project)?.name||'Board'):(isTeacher()?'Class board':'My board'),today:isTeacher()?'My day':'Today',week:isTeacher()?'Weekly reports':'My week',mp:'Marking period',cal:'Calendar',bank:'Project bank',roster:'Roster',lessons:'Lessons & polls',asks:'Asks',sync:'Schoology sync',help:'Help'};
   $('#pageTitle').textContent = titles[UI.page]||'';
   const onBoard = UI.page==='board';
   $('#boardActions').innerHTML = onBoard && SIMPLE() ? `<button class="btn" data-newproject>+ New project</button>` : onBoard ? `<div class="seg" role="tablist" aria-label="View"><button data-view="table" class="${UI.view==='table'?'on':''}">Table</button><button data-view="kanban" class="${UI.view==='kanban'?'on':''}">Kanban</button></div>
@@ -2834,7 +3079,7 @@ function openMenu(target,kind,id){
   if(kind==='pri') m.innerHTML = PRI.map(s=>`<button class="pill" style="background:${s.color}" data-set="priority" data-id="${id}" data-val="${s.id}">${s.label}</button>`).join('');
   if(kind==='notifs'){
     const ns = notifsFor(S.viewer);
-    const verb = n => ({return:'returned for revisions',done:'marked done',feedback:n.to==='all'?'asked everyone for feedback on':'asked you for feedback on',reply:'replied on',help:'sent you an ask',lesson:'scheduled a lesson:',lessonreq:'requested a lesson:',poll:'posted a poll:',added:'added you to',assigned:'assigned you',post:'posted on',eventreq:'suggested an event:',eventok:'approved your event:',eventno:'declined your event:',credit:'submitted work for credit:',creditok:'counted your',creditback:'sent back your',avatar:'sent a picture to approve',avatarok:'approved your picture',avatarno:'declined your picture',merge:'asked to combine projects',merged:'combined projects:',mergeno:'declined combining'})[n.kind]||'updated';
+    const verb = n => ({return:'returned for revisions',done:'marked done',feedback:n.to==='all'?'asked everyone for feedback on':'asked you for feedback on',reply:'replied on',help:'sent you an ask',lesson:'scheduled a lesson:',lessonreq:'requested a lesson:',poll:'posted a poll:',added:'added you to',assigned:'assigned you',post:'posted on',banksuggest:'suggested a bank idea:',bankhand:'asked for the request:',bankactivated:'gave you the project:',banktaken:'gave this request to someone else:',bankready:'added your idea to the bank:',eventreq:'suggested an event:',eventok:'approved your event:',eventno:'declined your event:',credit:'submitted work for credit:',creditok:'counted your',creditback:'sent back your',avatar:'sent a picture to approve',avatarok:'approved your picture',avatarno:'declined your picture',merge:'asked to combine projects',merged:'combined projects:',mergeno:'declined combining'})[n.kind]||'updated';
     const tgt = n => { const i=n.itemId&&item(n.itemId); if(i) return i.title; const p=n.projectId&&proj(n.projectId); if(p) return p.name; const a=n.askId&&askById(n.askId); if(a&&a.kind==='feedback'){ const ai=a.itemId&&item(a.itemId); return ai?ai.title:(proj(a.projectId)?.name||''); } return ''; };
     m.innerHTML = `<div class="nhead"><span>Notifications</span>${ns.length?'<button class="linkbtn" data-readall>Mark all read</button>':''}</div>` + (ns.length ? ns.map(n=>{ const u=!n.readBy.includes(S.viewer);
       return `<button class="nitem ${u?'unread':''}" data-notif="${n.id}">${av(n.by)}<span><span class="nt"><strong>${esc(first(n.by))}</strong> ${verb(n)} ${tgt(n)?`<strong>${esc(tgt(n))}</strong>`:''}${n.text?`<br><em>“${esc(n.text)}”</em>`:''}</span><span class="nw">${esc(n.at)}</span></span></button>`; }).join('') : '<span class="hint" style="padding:8px">You’re all caught up.</span>');
@@ -2931,6 +3176,7 @@ document.addEventListener('click',e=>{
   if(d.pwsave!==undefined){ const a=$('#pw1').value, b=$('#pw2').value; if(a.length<8){ toast('Use at least 8 characters'); return; } if(a!==b){ toast('The two passwords don’t match'); return; }
     t.disabled=true; sb.auth.updateUser({password:a}).then(({error})=>{ t.disabled=false; if(error){ toast(error.message); return; } $('#pw1').value=''; $('#pw2').value=''; toast('Password changed'); }); return; }
   if(calClick(d,t)) return;
+  if(bankClick(d,t)) return;
   if(d.speak!==undefined){ e.preventDefault(); e.stopPropagation(); speak(d.speak,t); return; }
   if(t.id==='btnSimple'){ if(isTeacher()) return; const p=ensureProfile(S.viewer); p.simple=!p.simple; UI.more=false; if(p.simple){ UI.view='table'; resetFilters(); } render(); toast(p.simple?'Simplified view on. Tap it again anytime to switch back.':'Standard view'); return; }
   if(d.more!==undefined){ UI.more=!UI.more; render(); return; }
@@ -2986,6 +3232,7 @@ document.addEventListener('click',e=>{
   if(d.notif){ const n=S.notifs.find(x=>x.id===d.notif); if(!n) return; if(!n.readBy.includes(S.viewer)) n.readBy.push(S.viewer); closeMenu();
     if(n.itemId && item(n.itemId)) openPanel('i:'+n.itemId); else if(n.projectId && proj(n.projectId)) openPanel('p:'+n.projectId);
     else if(['lesson','lessonreq','poll'].includes(n.kind)) UI.page='lessons';
+    else if(['banksuggest','bankhand','banktaken','bankready'].includes(n.kind)){ UI.page='bank'; UI.bankTab = n.kind==='banksuggest'?'raw':n.kind==='bankhand'?'requests':'ideas'; }
     else if(['eventreq','eventok','eventno'].includes(n.kind)){ UI.page='cal'; UI.calView='week'; resetCalFilters(); }
     else if(['credit','creditok','creditback'].includes(n.kind)){ UI.page='cal'; UI.calView='mp'; resetCalFilters(); } else if(n.askId) UI.page='asks';
     render(); return; }
@@ -3123,6 +3370,7 @@ document.addEventListener('keydown',e=>{
       S.items.push({id:nid(),source:'task',title:v,description:'',assignees:[...par.assignees],status:'not',due:'',priority:'med',projectId:par.projectId,parentId:par.id,files:[],thread:[],history:[{kind:'created',by:S.viewer,...nowStamp()}]});
       t.value=''; UI.openSubs.add(par.id); render(); const n=$(`[data-addsub="${par.id}"]`); if(n) n.focus(); }
     else if(t.dataset.k && t.dataset.k.startsWith('reply:')){ e.preventDefault(); replyAsk(t.dataset.k.slice(6)); }
+    else if(t.id==='bankQuick'){ e.preventDefault(); quickCapture(); }
     else if(t.id==='ciLine'){ e.preventDefault(); $('[data-cisave]')?.click(); }
     else if(t.dataset.open && t.classList.contains('card')) openPanel(t.dataset.open);
     else if(t.id==='postText' && (e.metaKey||e.ctrlKey)){ e.preventDefault(); $('[data-post]')?.click(); }
@@ -3142,6 +3390,8 @@ document.addEventListener('change',e=>{
   if(t.id==='rosterFile'){ const f=t.files&&t.files[0]; t.value=''; if(f) readRosterFile(f).then(list=>{ if(!list.length){ toast('No students found in that file'); return; } rosterPreview(list); }).catch(e=>toast(e.message)); return; }
   if(d.rp!==undefined){ const r=RIMP[+d.rp]; if(r){ r[d.f]= d.f==='username'?cleanUser(t.value):t.value.trim(); drawPreview(); } return; }
   if(t.id==='restoreFile'){ const f=t.files&&t.files[0]; t.value=''; if(f && isTeacher()) restoreBackup(f); return; }
+  if(t.id==='bankMajor'){ UI.bankMajor=t.value; render(); return; }
+  if(t.id==='bankLevel'){ UI.bankLevel=t.value; render(); return; }
   if(t.id==='calGrade'){ UI.calGrade=t.value; render(); return; }
   if(t.id==='calMajor'){ UI.calMajor=t.value; render(); return; }
   if(t.id==='calStudent'){ UI.calStudent=t.value; render(); return; }
@@ -3180,6 +3430,8 @@ let wqTimer=null;
 document.addEventListener('input',e=>{
   const t=e.target;
   if(t.id==='fSearch'){ UI.q=t.value; const B=$('#board'); B.innerHTML=pageHTML(); return; }
+  if(t.id==='bankSearch'){ UI.bankQ=t.value; const g=$('.bgrid'), all=document.createElement('div'); all.innerHTML=renderBank(); const ng=all.querySelector('.bgrid')||all.querySelector('.empty'); const cur=$('.bgrid')||$('#board .empty'); if(cur&&ng) cur.replaceWith(ng); return; }
+  if(t.id==='bkImg'){ const u=normUrl(t.value); $('#bkPrev').innerHTML=u?`<img src="${esc(u)}" alt="" referrerpolicy="no-referrer" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'hint',textContent:'That link didn’t load as an image'}))">`:'<span class="hint">Image preview</span>'; return; }
   if(t.id==='helpSearch'){ UI.helpQ=t.value; $('.helplist').outerHTML = (()=>{ const tmp=document.createElement('div'); tmp.innerHTML=renderHelp(); return tmp.querySelector('.helplist').outerHTML; })(); return; }
   if(t.dataset.wq){ const w=ensureWeek(S.viewer,t.dataset.ws); w.answers[t.dataset.wq]=t.value; clearTimeout(wqTimer); wqTimer=setTimeout(()=>persist(),800); return; }
   if(t.id==='revNote') t.classList.remove('need');
