@@ -3,6 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="JARVIS">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#095641">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
 <title>JARVIS · Comm Tech</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -905,6 +913,68 @@ tr.row:hover .rowsel,.rowsel:checked,#board.selecting .rowsel{opacity:1}
 .pastcard .pmaj{display:flex;flex-wrap:wrap;gap:4px}
 .tag.warn{color:var(--s-work);border-color:var(--s-work)}
 .pastcard .prow{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:2px}
+
+/* v1.4: My list add box */
+.tdadd{display:flex;gap:8px;align-items:flex-start}.tdadd .micwrap,.tdadd>textarea{flex:1}
+.tdbottom{flex:none;border:1px solid var(--line);background:var(--surface);color:var(--ink-2);border-radius:10px;padding:9px 12px;font:inherit;font-weight:600;cursor:pointer;white-space:nowrap}
+.tdbottom.on{background:var(--accent);border-color:var(--accent);color:#fff}
+/* v1.4: Spartan TV */
+.tvtabs{margin:2px 0 12px;flex-wrap:wrap}.tvtabs .navcount:empty{display:none}
+.tvweekbar,.tvbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px}.tvweekbar .grow,.mfoot .grow{flex:1}
+.tvbar p{flex:1;min-width:240px;margin:0}
+.tvweek{display:grid;grid-template-columns:repeat(5,minmax(200px,1fr));gap:10px;overflow-x:auto;padding-bottom:6px}
+.tvday{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.tvday.today{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
+.tvday.off{opacity:.6}
+.tvday header{display:flex;align-items:center;gap:6px}.tvday header .tvoff{margin-left:auto;font-size:12px}
+.tvdate{font-size:14px}
+.abtag{display:inline-grid;place-items:center;min-width:24px;height:22px;padding:0 6px;border-radius:6px;font-weight:800;font-size:12px;border:0;background:var(--accent-soft);color:var(--accent-ink)}
+.abtag.B{background:var(--surface-2);color:var(--ink-2);outline:1px solid var(--line)}
+button.abtag{cursor:pointer}
+.tvrows{display:flex;flex-direction:column;gap:2px}
+.tvrow{display:flex;align-items:center;gap:6px;border:0;background:transparent;text-align:left;padding:6px;border-radius:8px;font:inherit;font-size:13px;color:var(--ink);cursor:pointer;min-height:32px}
+.tvrow:hover{background:var(--hover)}.tvrow.ann{background:var(--surface-2)}
+.tvname{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tvst{width:9px;height:9px;border-radius:50%;flex:none;background:var(--s-not)}.tvst.work{background:var(--s-work)}.tvst.done{background:var(--s-done)}
+.tvneed{font-size:10px;font-weight:800;letter-spacing:.04em;padding:2px 5px;border-radius:5px;background:var(--surface-2);color:var(--ink-2);flex:none}
+.tvneed.graphic{background:#e8f0fd;color:#2b5fb4}.tvneed.video{background:#f3ebfd;color:#6a3fc0}.tvneed.write{background:#fff4d6;color:#8a6400}
+.tvopen{font-size:11px;font-weight:700;color:var(--accent);flex:none}
+.tvday footer{display:flex;gap:6px;flex-wrap:wrap;margin-top:auto}.tvday footer select{flex:1;min-width:0;font:inherit;font-size:13px;padding:5px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink)}
+.tvneeds{display:flex;flex-direction:column;gap:4px;max-width:760px}
+.tvneedrow{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:10px;background:var(--surface);border:1px solid var(--line)}
+.tvneedrow.unclaimed{border-left:4px solid var(--accent)}.tvneedrow .tvname{text-align:left}
+.tvannrow{display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;max-width:760px;text-align:left;border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:10px 12px;margin-bottom:6px;font:inherit;color:var(--ink);cursor:pointer}
+.tvannrow.annslot{cursor:default;background:var(--accent-soft);border-style:dashed}
+.tvsay{font-size:13px;color:var(--ink-2)}
+.tvfixed{background:var(--surface-2);border-radius:10px;padding:10px 12px;font-size:14px}.tvfixed .lbl{display:block;margin-bottom:4px}
+.tvsegf textarea,.tvsegf input,.tvsegf select{width:100%}
+.tvdays{display:flex;flex-wrap:wrap;gap:10px;align-items:center}.tvdays label{display:flex;gap:4px;align-items:center}
+.tvdates{display:flex;gap:8px;align-items:center}
+.tvprev table{text-align:left}.tvprev{text-align:left;max-height:55vh;overflow:auto;background:#fff;color:#000;border-radius:8px;padding:12px;border:1px solid var(--line)}
+@media (max-width:1100px){ .tvweek{grid-template-columns:repeat(5,minmax(230px,82vw));scroll-snap-type:x mandatory} .tvday{scroll-snap-align:start} }
+/* v1.4: iPhone */
+@supports (padding:max(0px)){ body{padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right)} }
+@media (max-width:700px){
+  input,select,textarea{font-size:16px!important}
+  .modal{place-items:end center;padding:0}
+  .modalbox{width:100%;max-height:92vh;border-radius:16px 16px 0 0;padding-bottom:calc(18px + env(safe-area-inset-bottom))}
+  #panel.open{width:100%!important;max-width:100%!important}
+  .tdrow{padding-top:6px;padding-bottom:6px}
+  .tdcheck{width:22px;height:22px}
+  .tdcaret{width:28px;height:28px}
+  .tdarrows button{width:36px;height:36px}
+  .tdrow .tdmore{min-width:36px;min-height:36px}
+  .tdl{padding:10px 14px}
+  .tdkeys{display:none}
+  .tdbottom{padding:11px 12px}
+  .side{padding:calc(8px + env(safe-area-inset-top)) 12px 8px;gap:6px}
+  .viewer small,.viewer .linkbtn,#verTag{display:none!important}
+  .side-foot{flex-wrap:nowrap!important;overflow-x:auto;gap:12px;font-size:13px}
+  .side-foot>*{white-space:nowrap;flex:none}
+  .nav button{padding:6px 10px}
+  .head{padding:10px 12px 4px}
+  .board{padding-bottom:calc(50px + env(safe-area-inset-bottom))}
+}
 </style>
 </head>
 <body>
@@ -961,8 +1031,8 @@ const CFG = window.JARVIS_CONFIG || {};
 const SUPABASE_URL = CFG.url || 'PASTE_YOUR_PROJECT_URL';
 const SUPABASE_ANON_KEY = CFG.anonKey || 'PASTE_YOUR_ANON_KEY';
 const LOGIN_DOMAIN = 'jarvis.local';
-const APP_VERSION = '1.3';
-const APP_DATE = 'Oct 7, 2026';
+const APP_VERSION = '1.4';
+const APP_DATE = 'Oct 8, 2026';
 
 /* ---------- Dates ---------- */
 const localISO = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -1010,7 +1080,7 @@ function setPeople(rows){
   SENIORS = STUDENTS.filter(s=>s.grad===SENIOR_YEAR); JUNIORS = STUDENTS.filter(s=>s.grad===JUNIOR_YEAR);
 }
 const LOCAL_KEY = 'jarvis-prefs';
-const TABLES = ['projects','assignments','items','notifs','syncs','asks','lessons','polls','checkins','weeks','settings','events','bank','reminders','todos','reflections'];
+const TABLES = ['projects','assignments','items','notifs','syncs','asks','lessons','polls','checkins','weeks','settings','events','bank','reminders','todos','reflections','broadcast'];
 const APPEND = new Set(['thread','history','readBy','replies','plus','responses','starts']);
 const rid = p => p + Math.random().toString(36).slice(2,9) + Date.now().toString(36).slice(-4);
 const HELP_TYPES = {help:'Help with something',equipment:'Equipment',approval:'Approval',other:'Something else'};
@@ -1131,6 +1201,7 @@ function normalize(t,o){
   if(t==='weeks'){ obj('answers'); obj('stages'); }
   if(t==='todos'){ if(o.kind==='todo'){ o.done=!!o.done; if(o.title==null) o.title=''; } }
   if(t==='reminders'){ o.when=+o.when||0; o.done=!!o.done; }
+  if(t==='broadcast'){ if(o.kind==='block'||o.kind==='ann') arr('who'); if(o.kind==='day') arr('skipAnn'); }
   if(t==='bank'){ arr('starts'); arr('hands'); arr('steps'); if(!o.status) o.status='raw'; if(!o.type) o.type='idea'; if(!o.title) o.title='Untitled'; }
   if(t==='events'){ if(!o.status) o.status='pending'; if(!o.kind) o.kind='event'; if(!o.title) o.title='Untitled event'; if(!o.date) o.date=todayISO(); }
   return o;
@@ -1219,6 +1290,7 @@ async function startSession(){
   if(!mine.active){ showGate('This account is turned off. Talk to Mr. P.'); return; }
   S.viewer=mine.id; ready=true; hideGate(); subscribe();
   resetFilters(); Object.assign(UI,{page:'home',project:'',wkStudent:'',wkStart:null,more:false});
+  try{ const standalone=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone; if(isTeacher() && standalone && window.innerWidth<760){ UI.page='mylist'; setTimeout(()=>$('#tdQuick')?.focus(),400); } }catch(e){}
   if(ensureWeeklyReport()) persist();
   render(); maybeCheckin();
 }
@@ -1248,7 +1320,7 @@ async function restoreBackup(file){
   const when=data.exportedAt?new Date(data.exportedAt).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'an unknown date';
   if(!confirm(`Replace EVERYTHING on the board with the backup from ${when}? All changes since then will be erased. (Student accounts aren’t affected.)`)) return;
   if(prompt('Type RESTORE to confirm')!=='RESTORE'){ toast('Restore canceled'); return; }
-  const tables={}; TABLES.filter(t=>!['reminders','todos'].includes(t) && !(t==='reflections' && !data.tables.reflections)).forEach(t=>tables[t]=(data.tables[t]||[]).filter(o=>o&&o.id).map(o=>normalize(t,o)));
+  const tables={}; TABLES.filter(t=>!['reminders','todos'].includes(t) && !(['reflections','broadcast'].includes(t) && !data.tables[t])).forEach(t=>tables[t]=(data.tables[t]||[]).filter(o=>o&&o.id).map(o=>normalize(t,o)));
   const {data:n,error}=await sb.rpc('jarvis_restore',{backup:tables});
   if(error){ toast('Restore failed: '+niceError(error)); return; }
   await loadAll(); closePanel(); render(); toast(`Backup restored (${n} records)`);
@@ -1812,6 +1884,8 @@ function itemBody(i){
       <div class="rowbtns"><button class="btn done" data-review="done" data-id="${i.id}">Mark done</button><button class="btn" data-review="work" data-id="${i.id}">Return for revisions</button></div>
       ${submitCount(i)>1?`<span class="hint">Submission round ${submitCount(i)} — returned ${returnCount(i)}× so far.</span>`:''}</div>`;
   if(a && a.weekly) h+=`<div class="note">This report is built from ${isTeacher()?esc(first(i.assignees[0]))+'’s':'your'} daily check-ins and weekly prompts. <button class="btn tiny" data-openweek="${i.assignees[0]}|${a.weekStart}">Open weekly report</button></div>`;
+  const tvb=S.broadcast.filter(b=>b.kind==='block'&&b.link==='i:'+i.id).sort((a,b)=>a.date.localeCompare(b.date));
+  if(tvb.length) h+=`<div class="note">📺 On Spartan TV: ${tvb.map(b=>`<button class="linkbtn" data-tvblock="${b.id}">${esc(WD[parseISO(b.date).getDay()])} ${esc(fmt(b.date))} · ${esc(tvInfo(b).name)}</button>`).join(', ')}</div>`;
   if(parent){ const anc=ancestorsOf(i); h+=`<div class="crumbs">${p?`<button class="linkbtn" data-open="p:${p.id}">${esc(p.name)}</button> › `:''}${anc.map(x=>`<button class="linkbtn" data-open="i:${x.id}">${esc(x.title)}</button>`).join(' › ')} › <b>${esc(i.title)}</b></div>`; }
   const people = p ? ppHTML('assign:'+i.id, [...new Set([...teacherIds(),...membersOf(p)])].filter(x=>PEOPLE[x]), i.assignees, {disabled:!ed, shortcuts: ed?[{label:'Whole team',ids:membersOf(p)}]:[]}) : `${avatars(i.assignees)} <span class="hint">${esc(i.assignees.map(pname).join(', '))}</span>`;
   const fields = `<div class="fields">
@@ -3373,6 +3447,320 @@ async function reminderTick(){
 setInterval(reminderTick, 30000);
 document.addEventListener('visibilitychange',()=>{ if(!document.hidden) reminderTick(); });
 
+/* ---------- Spartan TV (v1.4): weekly rundowns, announcements, segment library, A/B days ---------- */
+const AB_ANCHOR='2026-10-08'; // Thursday Oct 8, 2026 is an A day
+const TV_OFF=new Set(['2026-09-04','2026-09-07','2026-10-12','2026-11-13','2026-11-25','2026-11-26','2026-11-27','2026-11-30',
+  '2026-12-23','2026-12-24','2026-12-25','2026-12-28','2026-12-29','2026-12-30','2026-12-31','2027-01-01','2027-01-11','2027-01-12','2027-01-18',
+  '2027-02-12','2027-02-15','2027-03-05','2027-03-25','2027-03-26','2027-03-29','2027-04-30',
+  '2027-05-24','2027-05-25','2027-05-26','2027-05-27','2027-05-28','2027-05-31']);
+const TV_SHOTS=['2-SHOT','Graphic','Window','1-SHOT'];
+const TV_NEEDS={none:'Nothing to make',graphic:'Graphic',video:'Video'};
+const TV_ST=[['not','Not started'],['work','Working on it'],['done','Ready']];
+const WD=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const tvRows = k => S.broadcast.filter(x=>x.kind===k);
+const tvById = id => S.broadcast.find(x=>x.id===id);
+function tvCfg(){ return S.broadcast.find(x=>x.id==='tv_cfg') || {annPos:40,refUrl:'',weekDocs:{},abSet:{},off:[],on:[]}; }
+function tvCfgW(){ let c=S.broadcast.find(x=>x.id==='tv_cfg'); if(!c){ c={id:'tv_cfg',kind:'cfg',annPos:40,refUrl:'',weekDocs:{},abSet:{},off:[],on:[]}; S.broadcast.push(c); } return c; }
+function tvSchoolDay(d){ const c=tvCfg(), wd=parseISO(d).getDay(); if(wd===0||wd===6) return false; if((c.on||[]).includes(d)) return true; if((c.off||[]).includes(d)) return false; return !TV_OFF.has(d); }
+const abOther = x => x==='A'?'B':'A';
+function abFor(d){
+  if(!tvSchoolDay(d)) return '';
+  const set=tvCfg().abSet||{}, fix=x=>set[x]||(x===AB_ANCHOR?'A':null);
+  let cnt=0, cur=d;
+  for(let k=0;k<400;k++){ const f=fix(cur); if(f && tvSchoolDay(cur)) return cnt%2?abOther(f):f; if(tvSchoolDay(cur)) cnt++; cur=addDays(cur,-1); if(cur<AB_ANCHOR && !Object.keys(set).some(x=>x<=cur)) break; }
+  cnt=0; cur=d;
+  for(let k=0;k<400;k++){ const f=fix(cur); if(f && tvSchoolDay(cur)) return cnt%2?abOther(f):f; if(tvSchoolDay(cur)) cnt++; cur=addDays(cur,1); }
+  return '';
+}
+function tvDateLong(d){ const x=parseISO(d), n=x.getDate(), suf=(n%100>=11&&n%100<=13)?'th':({1:'st',2:'nd',3:'rd'}[n%10]||'th'); return `${x.toLocaleDateString('en-US',{weekday:'long'})} ${x.toLocaleDateString('en-US',{month:'long'})} ${n}${suf}`; }
+const tvSegs = () => tvRows('seg').sort((a,b)=>(a.pos||0)-(b.pos||0));
+function tvSeed(){
+  if(!isTeacher() || tvRows('seg').length) return false;
+  const mk=(o)=>S.broadcast.push({id:rid('sg'),kind:'seg',shot:'2-SHOT',cue:'',say:'',prompt:'',needs:'none',freq:'daily',days:[],videoOnly:false,active:true,...o});
+  mk({name:'Open / TIH',videoOnly:true,cue:'Open or TIH',pos:10});
+  mk({name:'Intro',cue:'CG: {DATE} {AB} day\nCG: Anchor Names',say:'Good morning and welcome to Spartan TV. I’m (Name).\n\nAnd I’m (Name). These are the announcements for {DATE} {AB} day.',pos:20});
+  mk({name:'Pledge',say:'Please stand for the Pledge of Allegiance.',pos:30});
+  mk({name:'Flag animation/Pledge',videoOnly:true,cue:'DISSOLVE FLAG ANIMATION/PLEDGE',pos:31});
+  mk({name:'Lunch',shot:'Graphic',cue:'LUNCH: {TEXT}',say:'Today’s lunch special is',prompt:'Today’s lunch menu items (check the menu)',pos:50});
+  mk({name:'Weather',shot:'Window',cue:'Weather graphic',say:'Here’s a look at today’s weather.',prompt:'Today’s high and low, rain chance, anything notable',needs:'graphic',freq:'manual',pos:55});
+  mk({name:'Promo / package',videoOnly:true,cue:'{TEXT}',prompt:'Name of the promo or package',needs:'video',freq:'manual',pos:60});
+  mk({name:'Sports',shot:'Window',prompt:'Tonight’s games and recent results (check the sports schedule)',pos:70});
+  mk({name:'Close',cue:'CG: Anchor Names',say:'That’s it for Spartan TV. I’m (Name).\n\nAnd I’m (Name). Now to the office for any last-minute announcements.',pos:90});
+  tvCfgW(); return true;
+}
+const tvDay = d => tvById('tvd_'+d);
+function tvBuildDay(d){
+  if(!isTeacher() || tvDay(d) || !tvSchoolDay(d)) return false;
+  S.broadcast.push({id:'tvd_'+d,kind:'day',date:d,skipAnn:[]});
+  const wd=parseISO(d).getDay();
+  tvSegs().filter(s=>s.active!==false && (s.freq==='daily' || (s.freq==='days' && (s.days||[]).includes(wd)))).forEach(s=>tvAddBlock(d,s));
+  return true;
+}
+function tvAddBlock(d,s,custom){
+  const b={id:rid('tb'),kind:'block',date:d,segId:s?s.id:null,name:s?s.name:custom,pos:s?s.pos:80,shot:s?s.shot:'2-SHOT',cue:s?s.cue:'',say:s?s.say:'',prompt:s?s.prompt:'',needs:s?s.needs:'none',videoOnly:s?!!s.videoOnly:false,custom:!s,text:'',who:[],status:'not',file:'',link:''};
+  S.broadcast.push(b); return b;
+}
+/* A block shows its library segment's current wording unless it was changed for that day */
+function tvInfo(b){ const s=!b.custom && b.segId && tvById(b.segId); return s ? {...b,name:s.name,shot:s.shot,cue:s.cue,say:s.say,prompt:s.prompt,needs:s.needs,videoOnly:!!s.videoOnly,pos:b.pos??s.pos} : b; }
+function tvAnnsFor(d){
+  const wd=parseISO(d).getDay(), day=tvDay(d), skip=new Set((day&&day.skipAnn)||[]);
+  return tvRows('ann').filter(a=>a.start && a.end && a.start<=d && d<=a.end && (!(a.days||[]).length || a.days.includes(wd)) && !skip.has(a.id)).sort((a,b)=>(a.order||0)-(b.order||0)||(a.start||'').localeCompare(b.start||''));
+}
+function tvRundown(d){
+  const out=S.broadcast.filter(b=>b.kind==='block'&&b.date===d).map(b=>({t:'b',b,i:tvInfo(b),pos:tvInfo(b).pos||0}));
+  const ap=tvCfg().annPos??40;
+  tvAnnsFor(d).forEach((a,k)=>out.push({t:'a',a,pos:ap+k/100}));
+  return out.sort((x,y)=>x.pos-y.pos);
+}
+function tvLinkInfo(b){ if(!b.link) return null; const i=item(b.link.replace(/^i:/,'')); return i?{i,label:i.title,st:stat(i.status)}:null; }
+function tvStatus(b){ const L=tvLinkInfo(b); if(L) return L.i.status==='done'||L.i.status==='sub'?'done':L.i.status==='not'?'not':'work'; return b.status||'not'; }
+const tvClaimable = i => i.needs!=='none' || !!i.prompt || i.videoOnly&&i.needs!=='none';
+function tvNeedTag(i){ return i.needs&&i.needs!=='none'?`<span class="tvneed ${i.needs}">${i.needs==='graphic'?'GFX':'VIDEO'}</span>`:(i.prompt?'<span class="tvneed write">WRITE</span>':''); }
+function tvWhoHTML(o,claimable){ const w=o.who||[]; if(w.length) return avatars(w,3); return claimable?'<span class="tvopen">Open</span>':''; }
+function tvStDot(st){ return `<span class="tvst ${st}" title="${esc((TV_ST.find(x=>x[0]===st)||TV_ST[0])[1])}"></span>`; }
+
+/* ---------- Script starter (two-column A/V table for Google Docs) ---------- */
+function tvFill(str,d,text){ return String(str||'').replace(/\{DATE\}/g,tvDateLong(d)).replace(/\{AB\}/g,abFor(d)||'').replace(/\{DAY\}/g,parseISO(d).toLocaleDateString('en-US',{weekday:'long'})).replace(/\{TEXT\}/g,text||''); }
+function tvScriptRows(d){
+  const rows=[]; let anchor=0;
+  const reads=(paras,shot,cue)=>paras.forEach((p,k)=>{ anchor++; rows.push({video:k===0?cue:'',label:`(ANCHOR ${anchor%2?1:2}) (${shot})`,audio:p}); });
+  for(const e of tvRundown(d)){
+    if(e.t==='a'){ const a=e.a; const paras=String(a.say||'').split(/\n\s*\n/).map(x=>x.trim()).filter(Boolean); reads(paras.length?paras:['[Announcement wording missing]'],(a.shot||'Graphic').toUpperCase()==='2-SHOT'?'2-SHOT':(a.shot||'Graphic'),a.cue||(a.title?a.title+' Graphic':'')); continue; }
+    const i=e.i, text=(e.b.text||'').trim(), L=tvLinkInfo(e.b);
+    const cue=tvFill(i.cue,d,text.replace(/\n+/g,' · '))+(e.b.file?`\n(${e.b.file.split('/').pop()})`:'')+(L&&!i.cue?L.label:'');
+    if(i.videoOnly){ rows.push({video:cue||i.name,label:'',audio:`(${(text||i.name).toUpperCase()})`,vo:true}); continue; }
+    let paras=String(tvFill(i.say,d,text)).split(/\n\s*\n/).map(x=>x.trim()).filter(Boolean);
+    const fill = text || (i.prompt?`[Writer: ${i.prompt}]`:'');
+    if(fill){ if(paras.length && !/[.!?:”"]$/.test(paras[paras.length-1])) paras[paras.length-1]+=' '+fill; else paras.push(fill); }
+    if(!paras.length) paras=['[Writer: '+i.name+']'];
+    reads(paras,i.shot||'2-SHOT',cue);
+  }
+  return rows;
+}
+function tvScriptHTML(d){
+  const cell='border:1px solid #d9d9d9;padding:6pt 8pt;vertical-align:top;text-align:left;font-family:Arial,sans-serif;font-size:12pt;';
+  const br=s=>esc(s).replace(/\n/g,'<br>').replace(/(\[Writer:[^\]]*\])/g,'<span style="background:#fff2b3">$1</span>');
+  const rows=tvScriptRows(d);
+  return `<p style="font-family:Arial,sans-serif;font-size:14pt;font-weight:bold">Spartan TV · ${esc(tvDateLong(d))} · ${abFor(d)} day</p>
+<table style="border-collapse:collapse;width:100%;border:1px solid #d9d9d9"><colgroup><col style="width:34%"><col style="width:66%"></colgroup>
+<tr><td style="${cell}font-weight:bold">VIDEO</td><td style="${cell}font-weight:bold">(AUDIO)</td></tr>
+${rows.map(r=>`<tr><td style="${cell}">${br(r.video)}</td><td style="${cell}">${r.label?`<b>${esc(r.label)}</b><br>`:''}${r.vo?`<b>${esc(r.audio)}</b>`:br(r.audio)}</td></tr>`).join('\n')}
+</table>`;
+}
+function tvScriptText(d){ return `Spartan TV · ${tvDateLong(d)} · ${abFor(d)} day\n\n`+tvScriptRows(d).map(r=>`${r.video?'['+r.video.replace(/\n/g,' / ')+']\n':''}${r.label?r.label+'\n':''}${r.audio}`).join('\n\n'); }
+async function tvCopy(d){
+  const html=tvScriptHTML(d), text=tvScriptText(d);
+  try{ if(navigator.clipboard && window.ClipboardItem){ await navigator.clipboard.write([new ClipboardItem({'text/html':new Blob([html],{type:'text/html'}),'text/plain':new Blob([text],{type:'text/plain'})})]); toast('Copied. Paste it into today’s tab in the script doc.'); return true; } }catch(e){}
+  try{ const div=document.createElement('div'); div.contentEditable='true'; div.style.cssText='position:fixed;left:-9999px;top:0'; div.innerHTML=html; document.body.appendChild(div);
+    const r=document.createRange(); r.selectNodeContents(div); const s=getSelection(); s.removeAllRanges(); s.addRange(r); const ok=document.execCommand('copy'); s.removeAllRanges(); div.remove();
+    if(ok){ toast('Copied. Paste it into today’s tab in the script doc.'); return true; } }catch(e){}
+  toast('Couldn’t copy automatically. Select the preview and copy it.'); return false;
+}
+function tvScriptModal(d){
+  const ws=weekStartOf(d), doc=(tvCfg().weekDocs||{})[ws];
+  openModal(`<div class="mhead wide"><h2>Script starter · ${esc(tvDateLong(d))}</h2><button class="x" data-closemodal>×</button></div>
+    <p class="hint">Copy this, then paste it into the day’s tab in the script doc. Yellow parts are for the writer to fill in.</p>
+    <div class="tvprev">${tvScriptHTML(d)}</div>
+    <div class="mfoot">${doc?`<a class="btn" href="${esc(doc)}" target="_blank" rel="noopener">Open script doc</a>`:''}<button class="btn primary" data-tvcopy="${d}">Copy for Google Docs</button></div>`);
+}
+
+/* ---------- Page ---------- */
+function renderTV(){
+  const T=isTeacher();
+  if(!UI.tvWeek) UI.tvWeek=weekStartOf(todayISO());
+  if(parseISO(todayISO()).getDay()===6 || parseISO(todayISO()).getDay()===0){ if(!UI.tvWeekSet){ UI.tvWeek=weekStartOf(addDays(todayISO(),2)); } }
+  UI.tvWeekSet=true;
+  const tab=UI.tvTab||'rundown', ws=UI.tvWeek, days=[0,1,2,3,4].map(k=>addDays(ws,k));
+  let changed=false;
+  if(T){ changed=tvSeed()||changed; if(days[4]>=todayISO()) days.forEach(d=>{ if(d>=todayISO()) changed=tvBuildDay(d)||changed; }); }
+  if(changed) setTimeout(()=>persist(),0);
+  const c=tvCfg(), doc=(c.weekDocs||{})[ws];
+  const tabs=[['rundown','Rundown'],['needs','What needs doing'],...(T?[['ann','Announcements'],['segs','Segments']]:[])];
+  let h=`<div class="hello"><h2>Spartan TV</h2></div>
+  <div class="tvtabs seg" role="tablist">${tabs.map(([k,l])=>`<button data-tvtab="${k}" class="${tab===k?'on':''}">${l}${k==='needs'?` <span class="navcount">${tvNeeds().filter(n=>!(n.o.who||[]).length).length||''}</span>`:''}</button>`).join('')}</div>`;
+  if(tab==='rundown'){
+    h+=`<div class="tvweekbar"><button class="btn tiny" data-tvweek="-7" aria-label="Previous week">‹</button><b>Week of ${esc(fmt(ws))}</b><button class="btn tiny" data-tvweek="7" aria-label="Next week">›</button>${ws!==weekStartOf(todayISO())?'<button class="linkbtn" data-tvweek="0">This week</button>':''}
+      <span class="grow"></span>
+      ${doc?`<a class="btn tiny" href="${esc(doc)}" target="_blank" rel="noopener">📄 Script doc</a>`:''}${T?`<button class="linkbtn" data-tvdoc="${ws}">${doc?'Change':'+ Add'} script doc link</button>`:''}
+      ${c.refUrl?`<a class="btn tiny" href="${esc(c.refUrl)}" target="_blank" rel="noopener">Reference</a>`:''}${T?`<button class="linkbtn" data-tvref>${c.refUrl?'Change':'+ Add'} reference link</button>`:''}</div>
+    <div class="tvweek">${days.map(tvDayCard).join('')}</div>`;
+  }
+  if(tab==='needs') h+=tvNeedsHTML();
+  if(tab==='ann' && T) h+=tvAnnHTML();
+  if(tab==='segs' && T) h+=tvSegsHTML();
+  return h;
+}
+function tvDayCard(d){
+  const T=isTeacher(), school=tvSchoolDay(d), ab=abFor(d), day=tvDay(d), x=parseISO(d), today=d===todayISO();
+  let h=`<section class="tvday ${today?'today':''} ${school?'':'off'}"><header><span class="tvdate"><b>${WD[x.getDay()]}</b> ${esc(fmt(d))}</span>
+    ${school?(T?`<button class="abtag ${ab}" data-tvflip="${d}" title="Click to switch A/B. Days after it follow.">${ab}</button>`:`<span class="abtag ${ab}">${ab}</span>`):'<span class="tag">No school</span>'}
+    ${T?`<button class="linkbtn tvoff" data-tvoff="${d}">${school?'No school?':'School day'}</button>`:''}</header>`;
+  if(!school) return h+'</section>';
+  if(!day){ return h+(T?`<button class="btn tiny" data-tvbuild="${d}">Set up this day</button>`:'<p class="hint">Not set up yet.</p>')+'</section>'; }
+  h+='<div class="tvrows">'+tvRundown(d).map(e=>{
+    if(e.t==='a') return `<button class="tvrow ann" data-tvann="${e.a.id}" data-tvdate="${d}"><span class="tvst ${e.a.needsGfx?(e.a.status||'not'):'done'}"></span><span class="tvname">📣 ${esc(e.a.title||'Announcement')}</span>${e.a.needsGfx?'<span class="tvneed graphic">GFX</span>':''}${e.a.needsGfx?tvWhoHTML(e.a,true):''}</button>`;
+    const i=e.i, cl=tvClaimable(i);
+    return `<button class="tvrow" data-tvblock="${e.b.id}">${tvStDot(cl||e.b.link?tvStatus(e.b):'done')}<span class="tvname">${esc(i.name)}${e.b.text&&i.videoOnly?` · <span class="hint">${esc(e.b.text)}</span>`:''}</span>${e.b.link?`<span class="hint">${ICON.link||'🔗'}</span>`:''}${tvNeedTag(i)}${tvWhoHTML(e.b,cl)}</button>`;
+  }).join('')+'</div>';
+  h+=`<footer>${T?`<select data-tvadd="${d}" aria-label="Add a segment"><option value="">+ Add segment…</option>${tvSegs().filter(s=>s.active!==false).map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('')}<option value="custom">One-time custom segment…</option></select>`:''}
+    <button class="btn tiny primary" data-tvscript="${d}">Script starter</button></footer>`;
+  return h+'</section>';
+}
+function tvNeeds(){
+  const from=todayISO(), to=addDays(from,14), out=[];
+  S.broadcast.filter(b=>b.kind==='block'&&b.date>=from&&b.date<=to).forEach(b=>{ const i=tvInfo(b); if(tvClaimable(i)) out.push({k:'b',o:b,i,date:b.date}); });
+  tvRows('ann').filter(a=>a.needsGfx && a.end>=from && a.start<=to && (a.status||'not')!=='done').forEach(a=>out.push({k:'a',o:a,date:a.start<from?from:a.start}));
+  return out.sort((a,b)=>a.date.localeCompare(b.date)||((a.o.who||[]).length-(b.o.who||[]).length));
+}
+function tvNeedsHTML(){
+  const list=tvNeeds(); if(!list.length) return '<div class="empty">Nothing coming up in the next two weeks needs a person yet.</div>';
+  let h='<p class="hint">Everything for the next two weeks that someone has to write or make. Pick one with “I’ll do it.”</p><div class="tvneeds">', last='';
+  for(const n of list){
+    if(n.date!==last){ last=n.date; h+=`<h3 class="sech small">${esc(WD[parseISO(n.date).getDay()])} ${esc(fmt(n.date))} <span class="abtag ${abFor(n.date)}">${abFor(n.date)}</span></h3>`; }
+    const mine=(n.o.who||[]).includes(S.viewer), name=n.k==='a'?`📣 ${n.o.title||'Announcement'} graphic`+(n.o.end?` <span class="hint">runs until ${esc(fmt(n.o.end))}</span>`:''):esc(n.i.name)+(n.o.text&&n.i.videoOnly?` · ${esc(n.o.text)}`:'');
+    const st=n.k==='a'?(n.o.status||'not'):tvStatus(n.o);
+    h+=`<div class="tvneedrow ${(n.o.who||[]).length?'':'unclaimed'}">${tvStDot(st)}<button class="linkbtn tvname" ${n.k==='a'?`data-tvann="${n.o.id}"`:`data-tvblock="${n.o.id}"`}>${name}</button>${n.k==='a'?'<span class="tvneed graphic">GFX</span>':tvNeedTag(n.i)}${tvWhoHTML(n.o,true)}
+      ${isTeacher()?'':`<button class="btn tiny ${mine?'':'primary'}" data-tvclaim="${n.o.id}">${mine?'Drop it':'I’ll do it'}</button>`}</div>`;
+  }
+  return h+'</div>';
+}
+function tvAnnHTML(){
+  const t=todayISO(), A=tvRows('ann');
+  const grp=[['Airing now',A.filter(a=>a.start<=t&&t<=a.end)],['Coming up',A.filter(a=>a.start>t)],['Finished',A.filter(a=>a.end<t).sort((a,b)=>b.end.localeCompare(a.end)).slice(0,30)]];
+  return `<div class="tvbar"><p class="hint">Approved announcements. Each one drops into the rundown on the days it runs, in the announcements spot.</p><button class="btn primary" data-tvannnew>+ New announcement</button></div>`+
+    grp.map(([l,list])=>`<h3 class="sech small">${l} <span class="hint">${list.length}</span></h3>${list.length?list.sort((a,b)=>(a.start||'').localeCompare(b.start||'')).map(a=>`<button class="tvannrow" data-tvannedit="${a.id}"><b>${esc(a.title||'Untitled')}</b><span class="hint">${esc(fmt(a.start))} – ${esc(fmt(a.end))}${(a.days||[]).length?' · '+a.days.map(x=>WD[x]).join(', '):''}${a.from?' · from '+esc(a.from):''}</span><span class="tvsay">${esc(String(a.say||'').slice(0,160))}${String(a.say||'').length>160?'…':''}</span></button>`).join(''):'<p class="hint">None.</p>'}`).join('');
+}
+function tvSegsHTML(){
+  const ap=tvCfg().annPos??40, F={daily:'Every day',days:'Set days',manual:'Only when added'};
+  const rows=[...tvSegs().map(s=>({pos:s.pos||0,h:`<button class="tvannrow" data-tvsegedit="${s.id}"><b>${esc(s.name)}</b><span class="hint">${F[s.freq]||''}${s.freq==='days'?': '+(s.days||[]).map(x=>WD[x]).join(', '):''} · ${s.videoOnly?'Video only':esc(s.shot||'')}${s.needs&&s.needs!=='none'?' · needs '+TV_NEEDS[s.needs].toLowerCase():''}${s.active===false?' · turned off':''}</span></button>`})),{pos:ap,h:`<div class="tvannrow annslot"><b>📣 Announcements go here</b><span class="hint">Position ${ap}</span></div>`}].sort((a,b)=>a.pos-b.pos);
+  return `<div class="tvbar"><p class="hint">Your reusable blocks, in show order. “Every day” and “Set days” segments are added automatically when a week is set up. Changing a segment updates every day that uses it.</p><button class="btn primary" data-tvsegnew>+ New segment</button></div>${rows.map(r=>r.h).join('')}
+    <p class="hint">Words in curly braces fill in automatically: {DATE} → ${esc(tvDateLong(todayISO()))}, {AB} → A or B, {TEXT} → what the writer typed.</p>`;
+}
+
+/* ---------- Editors ---------- */
+let TVE=null;
+function tvBlockModal(id){
+  const b=tvById(id); if(!b) return; const i=tvInfo(b), T=isTeacher(), L=tvLinkInfo(b); TVE=id;
+  const mine=(b.who||[]).includes(S.viewer);
+  const itemOpts=S.items.filter(x=>x.source==='task' && !inDoneProj(x) && !x.parentId).map(x=>[`i:${x.id}`,`${x.title} · ${proj(x.projectId)?.name||''}`]);
+  openModal(`<div class="mhead"><h2>${esc(i.name)} · ${esc(WD[parseISO(b.date).getDay()])} ${esc(fmt(b.date))}</h2><button class="x" data-closemodal>×</button></div>
+    ${i.say?`<div class="tvfixed"><span class="lbl">Always says</span><div>${esc(tvFill(i.say,b.date,'')).replace(/\n/g,'<br>')}</div></div>`:''}
+    ${i.prompt||b.text?`<label class="lbl">${esc(i.prompt||'Writer’s part')}</label><textarea id="tvText" rows="4" data-voice placeholder="${esc(i.prompt||'')}">${esc(b.text||'')}</textarea>`:''}
+    ${tvClaimable(i)||b.link?`<div class="fields"><span class="lbl">Who</span><span>${T?ppHTML('tvwho',STUDENTS.map(s=>s.id),b.who||[],{shortcuts:[]}):`${avatars(b.who||[],5)} <button class="btn tiny ${mine?'':'primary'}" data-tvclaim="${b.id}">${mine?'Drop it':'I’ll do it'}</button>`}</span>
+      ${L?`<span class="lbl">Linked to</span><span><button class="linkbtn" data-open="i:${L.i.id}">${esc(L.label)}</button> · ${esc(L.st.label)} <span class="hint">(status comes from the project)</span></span>`:`<span class="lbl">Status</span><select id="tvStatus">${TV_ST.map(([k,l])=>`<option value="${k}" ${(b.status||'not')===k?'selected':''}>${l}</option>`).join('')}</select>`}
+      ${i.needs!=='none'?`<span class="lbl">Final file</span><input id="tvFile" value="${esc(b.file||'')}" placeholder="Link or file name in Spartan TV Graphics/${esc(b.date)}">`:''}</div>`:''}
+    ${T?`<details class="psec"><summary><span class="st">Teacher options</span></summary><div class="fields">
+      <span class="lbl">Link to project item</span><select id="tvLink"><option value="">— None —</option>${itemOpts.map(([k,l])=>`<option value="${k}" ${b.link===k?'selected':''}>${esc(l)}</option>`).join('')}</select>
+      <span class="lbl">Order</span><span><button class="btn tiny" data-tvmove="${b.id}|-1">▲ Earlier</button> <button class="btn tiny" data-tvmove="${b.id}|1">▼ Later</button></span>
+      <span class="lbl">This day only</span><span><button class="btn tiny" data-tvcustom="${b.id}">Change wording for this day</button> <button class="btn tiny danger" data-tvdelblock="${b.id}">Remove from this day</button></span></div>
+      ${b.custom?tvSegFields(b,'b'):''}</details>`:''}
+    <div class="mfoot"><button class="btn primary" data-tvsaveblock="${b.id}">Save</button></div>`);
+}
+function tvSegFields(s,pre){
+  const F=[['daily','Every day'],['days','Set days'],['manual','Only when I add it']];
+  return `<div class="fields tvsegf">
+    <label>Name</label><input id="${pre}Name" value="${esc(s.name||'')}">
+    <label>Shot</label><select id="${pre}Shot"><option value="video" ${s.videoOnly?'selected':''}>Video only (no anchor read)</option>${TV_SHOTS.map(x=>`<option ${!s.videoOnly&&s.shot===x?'selected':''}>${x}</option>`).join('')}</select>
+    <label>Video column</label><textarea id="${pre}Cue" rows="2" placeholder="e.g. CG: Anchor Names  or  Weather graphic">${esc(s.cue||'')}</textarea>
+    <label>Always says</label><textarea id="${pre}Say" rows="4" placeholder="Fixed words. Leave a blank line between paragraphs to switch anchors.">${esc(s.say||'')}</textarea>
+    <label>Writer prompt</label><input id="${pre}Prompt" value="${esc(s.prompt||'')}" placeholder="Leave empty if nothing changes day to day">
+    <label>Needs made</label><select id="${pre}Needs">${Object.entries(TV_NEEDS).map(([k,l])=>`<option value="${k}" ${s.needs===k?'selected':''}>${l}</option>`).join('')}</select>
+    ${pre==='s'?`<label>How often</label><span>${F.map(([k,l])=>`<label class="fopt"><input type="radio" name="sFreq" value="${k}" ${s.freq===k?'checked':''}> ${l}</label>`).join('')}<span class="tvdays">${[1,2,3,4,5].map(x=>`<label><input type="checkbox" data-sday="${x}" ${(s.days||[]).includes(x)?'checked':''}> ${WD[x]}</label>`).join('')}</span></span>
+    <label>Position</label><input id="sPos" type="number" value="${s.pos||50}"><span></span><span class="hint">Lower numbers come first. Announcements sit at ${tvCfg().annPos??40}.</span>
+    <label>Turned on</label><label class="fopt"><input type="checkbox" id="sActive" ${s.active!==false?'checked':''}> Use this segment</label>`:''}</div>`;
+}
+function tvReadSeg(pre,o){
+  const v=id=>($('#'+pre+id)||{}).value;
+  o.name=(v('Name')||'').trim()||'Untitled segment'; const sh=v('Shot'); o.videoOnly=sh==='video'; if(sh!=='video') o.shot=sh;
+  o.cue=v('Cue')||''; o.say=v('Say')||''; o.prompt=(v('Prompt')||'').trim(); o.needs=v('Needs')||'none';
+}
+function tvSegModal(id){
+  const s=id?tvById(id):{name:'',shot:'2-SHOT',cue:'',say:'',prompt:'',needs:'none',freq:'manual',days:[],pos:60,videoOnly:false,active:true};
+  TVE=id||null;
+  openModal(`<div class="mhead wide"><h2>${id?'Edit segment':'New segment'}</h2><button class="x" data-closemodal>×</button></div>${tvSegFields(s,'s')}
+    <div class="mfoot">${id?`<button class="btn danger" data-tvsegdel="${id}">Delete</button>`:''}<span class="grow"></span><button class="btn primary" data-tvsegsave>Save segment</button></div>`);
+}
+function tvAnnModal(id){
+  const a=id?tvById(id):{title:'',from:'',email:'',say:'',start:todayISO(),end:addDays(todayISO(),4),days:[],shot:'Graphic',cue:'',needsGfx:true,order:0};
+  TVE=id||null;
+  openModal(`<div class="mhead wide"><h2>${id?'Edit announcement':'New announcement'}</h2><button class="x" data-closemodal>×</button></div>
+    <div class="fields tvsegf">
+      <label>Title</label><input id="aTitle" value="${esc(a.title||'')}" placeholder="Short name, e.g. Hot Rodders fundraiser">
+      <label>From</label><input id="aFrom" value="${esc(a.from||'')}" placeholder="Who sent it (optional)">
+      <label>Original email</label><textarea id="aEmail" rows="3" placeholder="Paste the approved email text here for your records">${esc(a.email||'')}</textarea>
+      <label>On-air wording</label><textarea id="aSay" rows="5" data-voice placeholder="Your edited version. A blank line between paragraphs switches anchors.">${esc(a.say||'')}</textarea>
+      <label>Runs</label><span class="tvdates"><input type="date" id="aStart" value="${esc(a.start||'')}"> to <input type="date" id="aEnd" value="${esc(a.end||'')}"></span>
+      <label>Only on</label><span class="tvdays">${[1,2,3,4,5].map(x=>`<label><input type="checkbox" data-aday="${x}" ${(a.days||[]).includes(x)?'checked':''}> ${WD[x]}</label>`).join('')}<span class="hint">Leave all unchecked for every day</span></span>
+      <label>Shot</label><select id="aShot">${TV_SHOTS.map(x=>`<option ${a.shot===x?'selected':''}>${x}</option>`).join('')}</select>
+      <label>Video column</label><input id="aCue" value="${esc(a.cue||'')}" placeholder="e.g. Hot rodder graphic (defaults to the title + Graphic)">
+      <label>Graphic</label><label class="fopt"><input type="checkbox" id="aGfx" ${a.needsGfx?'checked':''}> A student needs to make a graphic (shows in What needs doing)</label>
+      ${id&&a.needsGfx?`<label>Graphic file</label><input id="aFile" value="${esc(a.file||'')}" placeholder="Link to the finished graphic">`:''}
+      <label>Order</label><input id="aOrder" type="number" value="${a.order||0}"><span></span><span class="hint">Lower numbers read first among the announcements.</span>
+    </div>
+    <div class="mfoot">${id?`<button class="btn danger" data-tvanndel="${id}">Delete</button>`:''}<span class="grow"></span><button class="btn primary" data-tvannsave>Save</button></div>`);
+}
+function tvAnnView(id,d){
+  const a=tvById(id); if(!a) return; if(isTeacher() && !d) return tvAnnModal(id);
+  const mine=(a.who||[]).includes(S.viewer), day=d&&tvDay(d);
+  openModal(`<div class="mhead"><h2>📣 ${esc(a.title||'Announcement')}</h2><button class="x" data-closemodal>×</button></div>
+    <p class="hint">Runs ${esc(fmt(a.start))} – ${esc(fmt(a.end))}. Approved wording. Copy it exactly.</p>
+    <div class="tvfixed"><div>${esc(a.say||'').replace(/\n/g,'<br>')}</div></div>
+    ${a.needsGfx?`<div class="fields"><span class="lbl">Graphic by</span><span>${avatars(a.who||[],4)} ${isTeacher()?'':`<button class="btn tiny ${mine?'':'primary'}" data-tvclaim="${a.id}">${mine?'Drop it':'I’ll do it'}</button>`}</span>
+      <span class="lbl">Status</span><select id="tvStatus" ${isTeacher()||mine?'':'disabled'}>${TV_ST.map(([k,l])=>`<option value="${k}" ${(a.status||'not')===k?'selected':''}>${l}</option>`).join('')}</select>
+      <span class="lbl">Final file</span><input id="tvFile" value="${esc(a.file||'')}" ${isTeacher()||mine?'':'disabled'} placeholder="Link to the finished graphic"></div>`:''}
+    <div class="mfoot">${isTeacher()&&day?`<button class="btn" data-tvskip="${id}|${d}">Skip it on ${esc(fmt(d))}</button><button class="btn" data-tvannedit="${id}">Edit</button>`:''}${a.needsGfx&&(isTeacher()||mine)?`<button class="btn primary" data-tvsaveann="${id}">Save</button>`:''}</div>`);
+}
+
+/* ---------- Clicks ---------- */
+function tvClick(d,t,e){
+  if(d.tvtab){ UI.tvTab=d.tvtab; render(); return true; }
+  if(d.tvweek!==undefined){ const n=+d.tvweek; UI.tvWeek = n===0?weekStartOf(todayISO()):addDays(UI.tvWeek||weekStartOf(todayISO()),n); render(); return true; }
+  if(d.tvflip){ const c=tvCfgW(); c.abSet={...(c.abSet||{})}; c.abSet[d.tvflip]=abOther(abFor(d.tvflip)); render(); toast(`${fmt(d.tvflip)} is now a ${c.abSet[d.tvflip]} day. The days after it follow.`); return true; }
+  if(d.tvoff){ const c=tvCfgW(), x=d.tvoff; c.off=(c.off||[]).filter(y=>y!==x); c.on=(c.on||[]).filter(y=>y!==x); if(tvSchoolDay(x)) c.off.push(x); else if(TV_OFF.has(x)) c.on.push(x); render(); return true; }
+  if(d.tvbuild){ tvSeed(); tvBuildDay(d.tvbuild); render(); return true; }
+  if(d.tvscript){ tvScriptModal(d.tvscript); return true; }
+  if(d.tvcopy){ tvCopy(d.tvcopy); return true; }
+  if(d.tvblock){ tvBlockModal(d.tvblock); return true; }
+  if(d.tvann){ tvAnnView(d.tvann,d.tvdate); return true; }
+  if(d.tvdoc){ const c=tvCfgW(), cur=(c.weekDocs||{})[d.tvdoc]||''; const u=prompt('Paste the Google Doc link for this week’s scripts:',cur); if(u===null) return true; c.weekDocs={...(c.weekDocs||{}),[d.tvdoc]:normUrl(u.trim())}; if(!u.trim()) delete c.weekDocs[d.tvdoc]; render(); return true; }
+  if(d.tvref!==undefined){ const c=tvCfgW(); const u=prompt('Paste the link to the Spartan TV reference doc (sports schedule, lunch menu, pronunciations…):',c.refUrl||''); if(u===null) return true; c.refUrl=u.trim()?normUrl(u.trim()):''; render(); return true; }
+  if(d.tvclaim){ const o=tvById(d.tvclaim); if(!o) return true; o.who=(o.who||[]).includes(S.viewer)?o.who.filter(x=>x!==S.viewer):[...(o.who||[]),S.viewer]; const open=!$('#modal').hidden; render(); if(open){ if(o.kind==='block') tvBlockModal(o.id); else tvAnnView(o.id,null); } toast((o.who||[]).includes(S.viewer)?'It’s yours':'Dropped'); return true; }
+  if(d.tvsaveblock){ const b=tvById(d.tvsaveblock); if(!b) return true;
+    if($('#tvText')) b.text=$('#tvText').value.slice(0,4000); if($('#tvStatus')) b.status=$('#tvStatus').value; if($('#tvFile')) b.file=$('#tvFile').value.trim().slice(0,500);
+    if(b.status==='done' && !b.doneAt) b.doneAt=Date.now(); b.editedBy=S.viewer;
+    if(isTeacher()){ b.who=$$('input[data-pp="tvwho"]:checked').map(x=>x.value); if($('#tvLink')) b.link=$('#tvLink').value; if(b.custom && $('#bName')) tvReadSeg('b',b); }
+    closeModal(); render(); toast('Saved'); return true; }
+  if(d.tvsaveann){ const a=tvById(d.tvsaveann); if(!a) return true; if($('#tvStatus')) a.status=$('#tvStatus').value; if($('#tvFile')) a.file=$('#tvFile').value.trim().slice(0,500); a.editedBy=S.viewer; closeModal(); render(); toast('Saved'); return true; }
+  if(d.tvskip){ const [id,dd]=d.tvskip.split('|'); const day=tvDay(dd); if(day){ day.skipAnn=[...new Set([...(day.skipAnn||[]),id])]; } closeModal(); render(); toast('Skipped for that day'); return true; }
+  if(d.tvmove){ const [id,dir]=d.tvmove.split('|'); const b=tvById(id); if(!b) return true; const list=tvRundown(b.date); const k=list.findIndex(x=>x.t==='b'&&x.b.id===id), j=k+(+dir); if(j<0||j>=list.length) return true;
+    const other=list[j]; const np = other.t==='b' ? (tvInfo(other.b).pos||0) : other.pos; const op=tvInfo(b).pos||0;
+    b.pos = np + (+dir>0?0.5:-0.5); if(other.t==='b' && other.b.pos===undefined) other.b.pos=tvInfo(other.b).pos; void op; render(); tvBlockModal(id); return true; }
+  if(d.tvcustom){ const b=tvById(d.tvcustom); if(!b) return true; Object.assign(b,tvInfo(b),{custom:true}); render(); tvBlockModal(b.id); setTimeout(()=>{ const det=$('#modal details'); if(det) det.open=true; },30); return true; }
+  if(d.tvdelblock){ if(!confirm('Remove this segment from this day?')) return true; S.broadcast=S.broadcast.filter(x=>x.id!==d.tvdelblock); closeModal(); render(); return true; }
+  if(d.tvannnew!==undefined){ tvAnnModal(null); return true; }
+  if(d.tvannedit){ tvAnnModal(d.tvannedit); return true; }
+  if(d.tvannsave!==undefined){
+    const v=id=>($('#'+id)||{}).value||''; const start=v('aStart'), end=v('aEnd');
+    if(!v('aSay').trim()){ toast('Add the on-air wording'); return true; } if(!start||!end||end<start){ toast('Check the start and end dates'); return true; }
+    const a=TVE?tvById(TVE):{id:rid('an'),kind:'ann',who:[],status:'not',file:''};
+    Object.assign(a,{title:v('aTitle').trim()||v('aSay').trim().slice(0,40),from:v('aFrom').trim(),email:v('aEmail'),say:v('aSay').trim(),start,end,days:$$('input[data-aday]:checked').map(x=>+x.dataset.aday),shot:v('aShot')||'Graphic',cue:v('aCue').trim(),needsGfx:!!$('#aGfx')?.checked,order:+v('aOrder')||0});
+    if($('#aFile')) a.file=v('aFile').trim();
+    if(!TVE) S.broadcast.push(a); closeModal(); render(); toast('Announcement saved'); return true; }
+  if(d.tvanndel){ if(!confirm('Delete this announcement?')) return true; S.broadcast=S.broadcast.filter(x=>x.id!==d.tvanndel); closeModal(); render(); return true; }
+  if(d.tvsegnew!==undefined){ tvSegModal(null); return true; }
+  if(d.tvsegedit){ tvSegModal(d.tvsegedit); return true; }
+  if(d.tvsegsave!==undefined){
+    const s=TVE?tvById(TVE):{id:rid('sg'),kind:'seg'}; tvReadSeg('s',s);
+    s.freq=($('input[name="sFreq"]:checked')||{}).value||'manual'; s.days=$$('input[data-sday]:checked').map(x=>+x.dataset.sday); if(s.freq==='days'&&!s.days.length){ toast('Check at least one day'); return true; }
+    s.pos=+$('#sPos').value||50; s.active=!!$('#sActive')?.checked;
+    if(!TVE) S.broadcast.push(s); closeModal(); render(); toast('Segment saved. New weeks will use it.'); return true; }
+  if(d.tvsegdel){ if(!confirm('Delete this segment from the library? Days that already use it keep a copy.')) return true; S.broadcast.filter(b=>b.kind==='block'&&b.segId===d.tvsegdel).forEach(b=>Object.assign(b,tvInfo(b),{custom:true})); S.broadcast=S.broadcast.filter(x=>x.id!==d.tvsegdel); closeModal(); render(); return true; }
+  return false;
+}
+document.addEventListener('change',e=>{ const t=e.target; if(!t||!t.dataset||!t.dataset.tvadd) return; const d=t.dataset.tvadd, v=t.value; t.value=''; if(!v) return;
+  if(v==='custom'){ const name=prompt('Name this one-time segment:'); if(!name||!name.trim()) return; const b=tvAddBlock(d,null,name.trim().slice(0,80)); b.pos=80; b.prompt='What to say'; render(); tvBlockModal(b.id); return; }
+  const s=tvById(v); if(!s) return; const b=tvAddBlock(d,s); render(); if(s.prompt||s.needs!=='none') tvBlockModal(b.id); });
+
 /* ---------- My list (teachers): private to-do lists like the phone's Reminders app ---------- */
 const TODO_COLORS=['#095641','#00954C','#3F7FD9','#7A5BD6','#C2519E','#D9772B','#B8862B','#807F83'];
 const myLists = () => S.todos.filter(t=>t.kind==='list' && t.by===S.viewer).sort((a,b)=>(a.order||0)-(b.order||0) || tsOf(a)-tsOf(b));
@@ -3400,6 +3788,14 @@ function autoClearDone(){
 function parsePasted(text){
   const lines=text.replace(/\r/g,'').split('\n').filter(l=>l.trim());
   return lines.map(l=>{ const m=l.match(/^(\s*)/)[1].replace(/\t/g,'  '); const lvl=Math.floor(m.length/2); return {lvl, title:l.trim().replace(/^([-*•◦▪]|\[[ xX]?\]|\d+[.)])\s+/,'').trim()}; }).filter(x=>x.title);
+}
+/* Quick add: new to-dos go on top, unless the Bottom toggle is on (it turns itself off after one add) */
+function addQuick(text,listId){
+  const before=new Set(myTodos().map(t=>t.id)), top=myTodos().filter(t=>t.listId===listId && !t.parentId);
+  const minO=top.length?Math.min(...top.map(t=>typeof t.order==='number'?t.order:0)):0;
+  const n = text.includes('\n') ? addPasted(text,listId) : (addTodo(text,listId,null),1);
+  if(!UI.tdBottom){ const fresh=myTodos().filter(t=>!before.has(t.id) && t.listId===listId && !t.parentId).sort(byOrder); fresh.forEach((t,k)=>t.order=minO-10*(fresh.length-k)); }
+  UI.tdBottom=false; return n;
 }
 function addPasted(text,listId){
   const rows=parsePasted(text); const stack=[];
@@ -3438,7 +3834,7 @@ function renderMyList(){
       <div class="swatches small">${TODO_COLORS.map(c=>`<button class="sw ${c===cur.color?'on':''}" style="background:${c}" data-tdcolor="${cur.id}|${c}" aria-label="List color"></button>`).join('')}</div>
       ${L.length>1?`<button class="linkbtn" data-tddellist="${cur.id}">Delete list</button>`:''}</div>`;
   }
-  h+=`<div class="tdadd"><textarea id="tdQuick" rows="1" data-voice placeholder="Add a to-do… (Enter to add · paste several lines at once)"></textarea></div>
+  h+=`<div class="tdadd"><textarea id="tdQuick" rows="1" data-voice placeholder="${window.innerWidth<700?'Add a to-do…':'Add a to-do… (Enter to add · paste several lines at once)'}"></textarea><button class="tdbottom ${UI.tdBottom?'on':''}" data-tdbottom aria-pressed="${UI.tdBottom?'true':'false'}" title="New to-dos go on top. Click this first to send the next one to the bottom.">↓ Bottom</button></div>
     <p class="hint tdkeys">Tip: in a to-do, <b>Enter</b> adds the next one, <b>Tab</b> tucks it under the one above, <b>Shift+Tab</b> pulls it back out. Drag the <b>⠿</b> handle to move a to-do (drag right to tuck it in, left to pull it out, or onto a list on the left).</p>`;
   const lists2 = cur ? [cur] : L;
   for(const l of lists2){
@@ -3508,6 +3904,7 @@ function myListClick(d,t,e){
   if(d.tdmore){ e&&e.stopPropagation(); const td=todoById(d.tdmore); if(!td) return true; const m=$('#menu'); m.classList.remove('notifs','assignmenu'); m.classList.add('tdm'); m.innerHTML=todoMenuHTML(td); const r=t.getBoundingClientRect(); m.classList.add('open'); m.style.left=Math.max(8,Math.min(window.scrollX+r.right-m.offsetWidth, window.scrollX+document.documentElement.clientWidth-m.offsetWidth-8))+'px'; m.style.top=(window.scrollY+r.bottom+4)+'px'; return true; }
   if(d.tdaddsub){ const p=todoById(d.tdaddsub); closeMenu(); if(!p) return true; UI.todoClosed.delete(p.id); const n=addTodo('',p.listId,p.id); render(); focusTodo(n.id); return true; }
   if(d.tdindent){ const [id,dir]=d.tdindent.split('|'); const td=todoById(id); closeMenu(); if(td && indentTodo(td,+dir)) render(); return true; }
+  if(d.tdbottom!==undefined){ UI.tdBottom=!UI.tdBottom; t.classList.toggle('on',UI.tdBottom); t.setAttribute('aria-pressed',UI.tdBottom?'true':'false'); $('#tdQuick')?.focus(); return true; }
   if(d.tdmove){ const [id,dir]=d.tdmove.split('|'); const td=todoById(id); if(td){ moveTodo(td,+dir); render(); } return true; }
   if(d.tddel){ const td=todoById(d.tddel); closeMenu(); if(!td) return true; const ds=todoDesc(td.id); if(ds.length && !confirm(`Delete “${td.title||'this to-do'}” and the ${ds.length} under it?`)) return true; const kill=new Set([td.id,...ds.map(x=>x.id)]); S.todos=S.todos.filter(x=>!kill.has(x.id)); render(); return true; }
   if(d.tdlinkopen){ const td=todoById(d.tdlinkopen); if(td&&td.link) openTarget(td.link); return true; }
@@ -3526,7 +3923,7 @@ function myListChange(t){
 function myListKey(e){
   const t=e.target; if(!isTeacher() || !t.dataset) return false;
   if(t.id==='tdQuick' && e.key==='Enter' && !e.shiftKey){ e.preventDefault(); const v=t.value.trim(); if(!v) return true; const L=UI.todoList&&UI.todoList!=='all'&&listById(UI.todoList)?listById(UI.todoList):ensureInbox();
-    if(v.includes('\n')) addPasted(v,L.id); else addTodo(v,L.id,null); t.value=''; render(); setTimeout(()=>$('#tdQuick')?.focus(),30); return true; }
+    addQuick(v,L.id); t.value=''; render(); setTimeout(()=>$('#tdQuick')?.focus(),30); return true; }
   const id=t.dataset.tdtitle; if(!id) return false; const td=todoById(id); if(!td) return false;
   if(e.key==='Enter'){ e.preventDefault(); td.title=t.value.trim(); const n=addTodo('',td.listId,td.parentId,td); render(); focusTodo(n.id); return true; }
   if(e.key==='Tab'){ e.preventDefault(); td.title=t.value.trim(); if(indentTodo(td,e.shiftKey?-1:1)){ render(); focusTodo(td.id); } return true; }
@@ -3538,7 +3935,7 @@ document.addEventListener('paste',e=>{
   const t=e.target; if(!isTeacher()||!t||t.id!=='tdQuick') return;
   const text=(e.clipboardData||window.clipboardData)?.getData('text')||''; if(!text.includes('\n')) return;
   e.preventDefault(); const L=UI.todoList&&UI.todoList!=='all'&&listById(UI.todoList)?listById(UI.todoList):ensureInbox();
-  const n=addPasted(text,L.id); render(); toast(`Added ${n} to-do${n===1?'':'s'}`);
+  const n=addQuick(text,L.id); render(); toast(`Added ${n} to-do${n===1?'':'s'}`);
 });
 document.addEventListener('change',e=>{ if(e.target && (e.target.id==='remDate'||e.target.id==='remTime')) remSyncChips(); });
 document.addEventListener('input',e=>{ const t=e.target; if(t&&t.dataset&&t.dataset.reflect){ saveReflection(t.dataset.reflect,t.value); const el=document.querySelector(`[data-refsaved="${t.dataset.reflect}"]`); if(el) el.textContent='Saving…'; return; } if(t&&t.dataset&&t.dataset.tdtitle){ const td=todoById(t.dataset.tdtitle); if(td){ td.title=t.value; clearTimeout(tdSaveTimer); tdSaveTimer=setTimeout(()=>persist(),700); } } });
@@ -3551,8 +3948,8 @@ function myListCard(){
 
 /* ---------- Render ---------- */
 const PAGES = () => isTeacher()
-  ? [['home','Class today'],['mylist','My list'],['board','Board'],['cal','Calendar'],['bank','Project bank'],['past','Past projects'],['week','Weekly reports'],['lessons','Lessons & polls'],['asks','Asks'],['sync','Schoology sync'],['roster','Roster'],['help','Help']]
-  : [['home','Home'],['board','Board'],['cal','Calendar'],['week','My week'],['bank','Project bank'],['past','Past projects'],['lessons','Lessons & polls'],['asks','Asks'],['help','Help']];
+  ? [['home','Class today'],['mylist','My list'],['board','Board'],['tv','Spartan TV'],['cal','Calendar'],['bank','Project bank'],['past','Past projects'],['week','Weekly reports'],['lessons','Lessons & polls'],['asks','Asks'],['sync','Schoology sync'],['roster','Roster'],['help','Help']]
+  : [['home','Home'],['board','Board'],['tv','Spartan TV'],['cal','Calendar'],['week','My week'],['bank','Project bank'],['past','Past projects'],['lessons','Lessons & polls'],['asks','Asks'],['help','Help']];
 function pageHTML(){
   if(SIMPLE() && !UI.more && !['home','board','week'].includes(UI.page)) UI.page='home';
   switch(UI.page){
@@ -3564,6 +3961,7 @@ function pageHTML(){
     case 'cal': return renderCal();
     case 'bank': return renderBank();
     case 'past': return renderPast();
+    case 'tv': return renderTV();
     case 'mylist': return isTeacher()?renderMyList():'';
     case 'roster': return isTeacher()?renderRoster():'';
     case 'lessons': return renderLessons();
@@ -3631,7 +4029,7 @@ function renderSide(){
   $('#verTag').textContent=`JARVIS v${APP_VERSION} · ${APP_DATE}`;
 }
 function renderHead(){
-  const titles = {home:isTeacher()?'Class today':'Home',board:UI.project==='assign'?'Class assignments':UI.project?(proj(UI.project)?.name||'Board'):(isTeacher()?'Class board':'My board'),today:isTeacher()?'My day':'Today',week:isTeacher()?'Weekly reports':'My week',mp:'Marking period',cal:'Calendar',bank:'Project bank',past:'Past projects',mylist:'My list',roster:'Roster',lessons:'Lessons & polls',asks:'Asks',sync:'Schoology sync',help:'Help'};
+  const titles = {home:isTeacher()?'Class today':'Home',board:UI.project==='assign'?'Class assignments':UI.project?(proj(UI.project)?.name||'Board'):(isTeacher()?'Class board':'My board'),today:isTeacher()?'My day':'Today',week:isTeacher()?'Weekly reports':'My week',mp:'Marking period',cal:'Calendar',bank:'Project bank',past:'Past projects',tv:'Spartan TV',mylist:'My list',roster:'Roster',lessons:'Lessons & polls',asks:'Asks',sync:'Schoology sync',help:'Help'};
   $('#pageTitle').textContent = titles[UI.page]||'';
   const onBoard = UI.page==='board';
   $('#boardActions').innerHTML = onBoard && SIMPLE() ? `<button class="btn" data-newproject>+ New project</button>` : onBoard ? `<div class="seg" role="tablist" aria-label="View"><button data-view="table" class="${UI.view==='table'?'on':''}">Table</button><button data-view="kanban" class="${UI.view==='kanban'?'on':''}">Kanban</button></div>
@@ -3753,6 +4151,7 @@ document.addEventListener('click',e=>{
     t.disabled=true; sb.auth.updateUser({password:a}).then(({error})=>{ t.disabled=false; if(error){ toast(error.message); return; } $('#pw1').value=''; $('#pw2').value=''; toast('Password changed'); }); return; }
   if(remindClick(d,t,e)) return;
   if(projClick(d,t,e)) return;
+  if(tvClick(d,t,e)) return;
   if(myListClick(d,t,e)) return;
   if(calClick(d,t)) return;
   if(bankClick(d,t)) return;
