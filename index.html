@@ -975,6 +975,7 @@ button.abtag{cursor:pointer}
   .head{padding:10px 12px 4px}
   .board{padding-bottom:calc(50px + env(safe-area-inset-bottom))}
 }
+.finishedlink{padding:10px 4px 30px}
 </style>
 </head>
 <body>
@@ -1031,7 +1032,7 @@ const CFG = window.JARVIS_CONFIG || {};
 const SUPABASE_URL = CFG.url || 'PASTE_YOUR_PROJECT_URL';
 const SUPABASE_ANON_KEY = CFG.anonKey || 'PASTE_YOUR_ANON_KEY';
 const LOGIN_DOMAIN = 'jarvis.local';
-const APP_VERSION = '1.4';
+const APP_VERSION = '1.4.1';
 const APP_DATE = 'Oct 8, 2026';
 
 /* ---------- Dates ---------- */
@@ -1543,9 +1544,21 @@ function moveItem(i,T){
 }
 
 /* ---------- Board: visibility + filtering ---------- */
+/* Finished assignments leave the board (v1.4.1). Nothing is deleted. */
+function asnHidden(i){
+  const a=i.source==='assignment' && i.assignmentId && asn(i.assignmentId); if(!a) return false;
+  const t=todayISO(), done=x=>x.status==='done';
+  if(!isTeacher()){ if(needsChanges(i)) return false; if(a.weekly) return addDays(a.weekStart,6)<t && (done(i)||addDays(a.weekStart,20)<t); return done(i); }
+  const insts=S.items.filter(x=>x.assignmentId===a.id); if(!insts.length) return false;
+  if(insts.some(x=>x.status==='sub')) return false;   // still waiting for your review
+  if(a.weekly) return addDays(a.weekStart,6)<t && (insts.every(done)||addDays(a.weekStart,20)<t);
+  return insts.every(done);
+}
 function visibleTop(){
   const v = S.viewer;
   let list = S.items.filter(i=>!i.parentId && !inDoneProj(i));
+  UI.hiddenFinished = new Set(list.filter(asnHidden).map(i=>i.assignmentId)).size;
+  if(!UI.showFinished) list = list.filter(i=>!asnHidden(i));
   if(!isTeacher()){
     const peek = UI.scope==='wholeclass';
     list = list.filter(i=> i.assignees.includes(v) || (i.projectId && (proj(i.projectId)?.roles||{})[v])
@@ -1657,6 +1670,11 @@ function battery(items){
   return `<div class="battery">${STATUSES.map(s=>{const n=items.filter(i=>i.status===s.id).length; return n?`<span style="width:${n/items.length*100}%;background:${s.color}" title="${s.label}: ${n}"></span>`:''}).join('')}</div>`;
 }
 function renderBoardPage(){
+  const h=renderBoardPage0(), n=UI.hiddenFinished||0;
+  if(!n && !UI.showFinished) return h;
+  return h+`<div class="finishedlink"><button class="linkbtn" data-showfinished>${UI.showFinished?'Hide finished assignments':`Show ${n} finished assignment${n===1?'':'s'}`}</button></div>`;
+}
+function renderBoardPage0(){
   const list = visibleTop();
   if(!S.items.length && !S.projects.length) return `<div class="empty">Nothing here yet. Click <b>+ New project</b> to start one.</div>`;
   if(UI.view==='kanban' && !SIMPLE()) return renderKanban(list);
@@ -4152,6 +4170,7 @@ document.addEventListener('click',e=>{
   if(remindClick(d,t,e)) return;
   if(projClick(d,t,e)) return;
   if(tvClick(d,t,e)) return;
+  if(d.showfinished!==undefined){ UI.showFinished=!UI.showFinished; render(); return; }
   if(myListClick(d,t,e)) return;
   if(calClick(d,t)) return;
   if(bankClick(d,t)) return;
