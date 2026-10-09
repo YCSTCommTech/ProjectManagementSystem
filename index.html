@@ -976,6 +976,7 @@ button.abtag{cursor:pointer}
   .board{padding-bottom:calc(50px + env(safe-area-inset-bottom))}
 }
 .finishedlink{padding:10px 4px 30px}
+.blinks{display:flex;flex-wrap:wrap;gap:6px}
 </style>
 </head>
 <body>
@@ -1032,7 +1033,7 @@ const CFG = window.JARVIS_CONFIG || {};
 const SUPABASE_URL = CFG.url || 'PASTE_YOUR_PROJECT_URL';
 const SUPABASE_ANON_KEY = CFG.anonKey || 'PASTE_YOUR_ANON_KEY';
 const LOGIN_DOMAIN = 'jarvis.local';
-const APP_VERSION = '1.4.1';
+const APP_VERSION = '1.4.2';
 const APP_DATE = 'Oct 8, 2026';
 
 /* ---------- Dates ---------- */
@@ -1203,7 +1204,7 @@ function normalize(t,o){
   if(t==='todos'){ if(o.kind==='todo'){ o.done=!!o.done; if(o.title==null) o.title=''; } }
   if(t==='reminders'){ o.when=+o.when||0; o.done=!!o.done; }
   if(t==='broadcast'){ if(o.kind==='block'||o.kind==='ann') arr('who'); if(o.kind==='day') arr('skipAnn'); }
-  if(t==='bank'){ arr('starts'); arr('hands'); arr('steps'); if(!o.status) o.status='raw'; if(!o.type) o.type='idea'; if(!o.title) o.title='Untitled'; }
+  if(t==='bank'){ arr('starts'); arr('hands'); arr('steps'); arr('links'); if(!o.status) o.status='raw'; if(!o.type) o.type='idea'; if(!o.title) o.title='Untitled'; }
   if(t==='events'){ if(!o.status) o.status='pending'; if(!o.kind) o.kind='event'; if(!o.title) o.title='Untitled event'; if(!o.date) o.date=todayISO(); }
   return o;
 }
@@ -3133,6 +3134,7 @@ function bankEditModal(b,type){
       <label>Title</label><input id="bkTitle" value="${esc(b.title)}">
       <label>Hook</label><input id="bkHook" value="${esc(b.hook||'')}" placeholder="One line, written to the student">
       <label>Details</label><textarea id="bkDesc" rows="3" placeholder="What to make, constraints, tips">${esc(b.description||'')}</textarea>
+      <label>Links</label><textarea id="bkLinks" rows="3" placeholder="One per line. Add a name first if you like:  Tutorial | https://youtube.com/...">${esc((b.links||[]).map(l=>l.label&&l.label!==l.url?`${l.label} | ${l.url}`:l.url).join('\n'))}</textarea>
       <label>Starter steps</label><textarea id="bkSteps" rows="3" placeholder="One per line — these become items when someone starts it">${esc((b.steps||[]).join('\n'))}</textarea>
       <label>Major</label><select id="bkMajor"><option value="">Any</option>${MAJORS.map(m=>`<option ${b.major===m?'selected':''}>${m}</option>`).join('')}</select>
       <label>Level</label><select id="bkLevel">${BANK_LEVELS.map(([k,l])=>`<option value="${k}" ${b.level===k?'selected':''}>${l}</option>`).join('')}</select>
@@ -3154,6 +3156,11 @@ function bankSuggestModal(){
       <label>Image link</label><input id="sgImg" placeholder="Optional"></div>
     <div class="mfoot"><button class="btn primary" data-banksendsg>Send to Mr. P</button></div>`);
 }
+function parseBankLinks(txt){
+  return String(txt||'').split('\n').map(l=>l.trim()).filter(Boolean).slice(0,20).map(l=>{ const k=l.lastIndexOf('|'); let label=k>0?l.slice(0,k).trim():'', url=(k>0?l.slice(k+1):l).trim(); url=normUrl(url); if(!label){ try{ label=new URL(url).hostname.replace(/^www\./,''); }catch(e){ label=url; } } return {label:label.slice(0,80),url:url.slice(0,800)}; }).filter(l=>/^https?:\/\/[^\s\/]+\.[^\s]+$/i.test(l.url));
+}
+/* Bank links come along as files when a student starts the idea or Mr. P activates a request */
+function bankFiles(b,by){ return (b.links||[]).map((l,k)=>({id:rid('f'),label:l.label,versions:[{v:1,url:l.url,by,at:fmtStamp(new Date()),ts:Date.now(),note:'From the project bank'}]})); }
 function bankDetail(b){
   const starts=(b.starts||[]).slice().reverse();
   openModal(`<div class="mhead wide"><h2>${esc(b.title)}</h2><button class="x" data-closemodal>×</button></div>
@@ -3161,6 +3168,7 @@ function bankDetail(b){
     <div class="btags">${b.major?`<span class="tag">${esc(b.major)}</span>`:''}${b.level?`<span class="lvtag lv-${b.level}">${esc(bankLabel(BANK_LEVELS,b.level))}</span>`:''}<span class="hint">${esc(bankLabel(BANK_SCOPES,b.scope))} · ${esc(bankLabel(BANK_DIFF,b.difficulty))}${b.source?` · requested by ${esc(b.source)}`:''}</span></div>
     ${b.hook?`<p class="bhook big">${esc(b.hook)} ${speakBtn(b.hook+'. '+(b.description||''))}</p>`:''}
     ${b.description?`<div class="desc">${esc(b.description)}</div>`:''}
+    ${(b.links||[]).length?`<h3 class="sech small">Links</h3><div class="blinks">${b.links.map(l=>`<a class="btn tiny" href="${esc(l.url)}" target="_blank" rel="noopener">${ICON.link||'🔗'} ${esc(l.label||l.url)}</a>`).join('')}</div>`:''}
     ${(b.steps||[]).length?`<h3 class="sech small">Starter steps</h3><ol class="bsteps">${b.steps.map(s=>`<li>${esc(s)}</li>`).join('')}</ol>`:''}
     ${b.type==='idea'?`<h3 class="sech small">Tried by ${starts.length}</h3>${starts.length?starts.map(s=>{ const target=s.itemId?item(s.itemId):proj(s.projectId); return `<div class="mrow">${av(s.by)}<b>${esc(pname(s.by))}</b><span class="hint">${esc(s.at||'')}</span>${target?`<button class="linkbtn" data-open="${s.itemId?'i:'+s.itemId:'p:'+s.projectId}">See their work</button>`:''}</div>`; }).join(''):'<p class="hint">Be the first.</p>'}`:''}
     ${b.status==='taken'?`<div class="note">Taken by ${esc((b.takenBy||[]).map(pname).join(', '))}${b.takenAt?` on ${esc(new Date(b.takenAt).toLocaleDateString('en-US',{month:'short',day:'numeric'}))}`:''}. ${b.takenProject&&proj(b.takenProject)?`<button class="linkbtn" data-open="p:${b.takenProject}">Open project</button>`:''}</div>`:''}
@@ -3182,11 +3190,11 @@ function startBankIdea(b){
   const mkItem=(title,projId,parent,extra={})=>{ const it={id:nid(),source:'task',title,description:extra.description||'',assignees:[v],status:'not',due:'',priority:'med',projectId:projId,parentId:parent,files:[],thread:[],history:[{kind:'created',by:v,...nowStamp()}],...extra}; S.items.push(it); return it; };
   if(inside){
     const p=proj(inside); if(!p){ toast('Pick a project'); return; }
-    const it=mkItem(b.title,p.id,null,{description:desc,bankId:b.id});
+    const it=mkItem(b.title,p.id,null,{description:desc,bankId:b.id}); it.files=bankFiles(b,v);
     (b.steps||[]).forEach((s,k)=>mkItem(s,p.id,it.id,{order:k*10}));
     key='i:'+it.id; projectId=p.id; itemId=it.id;
   } else {
-    const p={id:rid('p'),name:b.title,description:desc,owner:v,roles:{[v]:'admin'},private:true,major:b.major||me().major||'',color:GCOLORS[S.projects.length%GCOLORS.length],thread:[],files:[],bankId:b.id};
+    const p={id:rid('p'),name:b.title,description:desc,owner:v,roles:{[v]:'admin'},private:true,major:b.major||me().major||'',color:GCOLORS[S.projects.length%GCOLORS.length],thread:[],files:bankFiles(b,v),bankId:b.id};
     S.projects.push(p);
     (b.steps||[]).forEach((s,k)=>mkItem(s,p.id,null,{order:k*10}));
     key='p:'+p.id; projectId=p.id;
@@ -3207,7 +3215,7 @@ function activateRequest(b){
   const picked=$$('input[data-pp="bankact"]:checked').map(x=>x.value); if(!picked.length){ toast('Check at least one student'); return; }
   const ordered=[...(b.hands||[]).filter(x=>picked.includes(x)),...picked.filter(x=>!(b.hands||[]).includes(x))];
   const roles={}; ordered.forEach((s,k)=>roles[s]=k===0?'admin':'editor'); roles[S.viewer]='editor';
-  const p={id:rid('p'),name:b.title,description:[b.hook,b.description,b.source?`Requested by: ${b.source}`:''].filter(Boolean).join('\n\n'),owner:ordered[0],roles,private:true,major:b.major||'',color:GCOLORS[S.projects.length%GCOLORS.length],thread:[],files:[],bankId:b.id};
+  const p={id:rid('p'),name:b.title,description:[b.hook,b.description,b.source?`Requested by: ${b.source}`:''].filter(Boolean).join('\n\n'),owner:ordered[0],roles,private:true,major:b.major||'',color:GCOLORS[S.projects.length%GCOLORS.length],thread:[],files:bankFiles(b,S.viewer),bankId:b.id};
   S.projects.push(p);
   (b.steps||[]).forEach((s,k)=>S.items.push({id:nid(),source:'task',title:s,description:'',assignees:[...ordered],status:'not',due:'',priority:'med',projectId:p.id,parentId:null,order:k*10,files:[],thread:[],history:[{kind:'created',by:S.viewer,...nowStamp()}]}));
   Object.assign(b,{status:'taken',takenBy:ordered,takenProject:p.id,takenAt:Date.now()});
@@ -3218,7 +3226,7 @@ function activateRequest(b){
 function saveBank(id){
   const title=$('#bkTitle').value.trim(); if(!title){ toast('Add a title'); return; }
   const f={type:$('#bkType').value,title,hook:$('#bkHook').value.trim(),description:$('#bkDesc').value.trim(),steps:$('#bkSteps').value.split('\n').map(x=>x.trim()).filter(Boolean),
-    major:$('#bkMajor').value,level:$('#bkLevel').value,scope:$('#bkScope').value,difficulty:$('#bkDiff').value,source:$('#bkSource').value.trim(),image:normUrl($('#bkImg').value),status:$('#bkStatus').value};
+    major:$('#bkMajor').value,level:$('#bkLevel').value,scope:$('#bkScope').value,difficulty:$('#bkDiff').value,source:$('#bkSource').value.trim(),image:normUrl($('#bkImg').value),links:parseBankLinks($('#bkLinks').value),status:$('#bkStatus').value};
   if(id){ const b=bankById(id); const wasRaw=b.status==='raw'; Object.assign(b,f); if(wasRaw && b.status==='ready' && b.suggested && b.by!==S.viewer) notify(b.by,'bankready',{text:b.title}); }
   else S.bank.push({id:rid('bk'),...f,by:S.viewer,starts:[],hands:[],...nowStamp()});
   closeModal(); UI.bankTab = f.status==='raw'?'raw':f.status==='ready'?(f.type==='idea'?'ideas':'requests'):'archive'; render(); toast('Saved');
