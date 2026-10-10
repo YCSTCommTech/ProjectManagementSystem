@@ -977,6 +977,16 @@ button.abtag{cursor:pointer}
 }
 .finishedlink{padding:10px 4px 30px}
 .blinks{display:flex;flex-wrap:wrap;gap:6px}
+
+/* v1.4.3 */
+.tdurl{flex:none;font-size:12px;font-weight:600;color:var(--accent);text-decoration:none;border:1px solid var(--line);border-radius:6px;padding:2px 6px;white-space:nowrap;max-width:160px;overflow:hidden;text-overflow:ellipsis}
+.tdurl:hover{background:var(--accent-soft)}
+.bcard[draggable="true"]{position:relative;cursor:grab}
+.bgrip{position:absolute;top:6px;left:8px;z-index:2;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.6);font-size:16px}
+.breord{display:none;position:absolute;top:6px;right:6px;z-index:2;gap:4px}.breord button{width:34px;height:34px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
+@media (hover:none){ .breord{display:flex} .bgrip{display:none} }
+.bcard.dragging{opacity:.4}.bcard.bdropb{box-shadow:-4px 0 0 var(--accent)}.bcard.bdropa{box-shadow:4px 0 0 var(--accent)}
+.tag.prio-high{color:#b42318;border-color:#b42318}.tag.prio-low{color:var(--ink-3)}
 </style>
 </head>
 <body>
@@ -1033,8 +1043,8 @@ const CFG = window.JARVIS_CONFIG || {};
 const SUPABASE_URL = CFG.url || 'PASTE_YOUR_PROJECT_URL';
 const SUPABASE_ANON_KEY = CFG.anonKey || 'PASTE_YOUR_ANON_KEY';
 const LOGIN_DOMAIN = 'jarvis.local';
-const APP_VERSION = '1.4.2';
-const APP_DATE = 'Oct 8, 2026';
+const APP_VERSION = '1.4.3';
+const APP_DATE = 'Oct 10, 2026';
 
 /* ---------- Dates ---------- */
 const localISO = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -3089,8 +3099,20 @@ function bankVisible(tab){
     if(UI.bankLevel && b.level!==UI.bankLevel) return false;
     if(q && !((b.title||'')+' '+(b.hook||'')+' '+(b.description||'')).toLowerCase().includes(q)) return false;
     return true;
-  }).sort((a,b)=>tsOf(b)-tsOf(a));
+  }).sort(tab==='requests' ? bankReqOrder : (a,b)=>tsOf(b)-tsOf(a));
 }
+const BANK_PRIO=[['high','High'],['med','Medium'],['low','Low']];
+const prioRank = b => ({high:0,med:1,low:2})[b.prio||'med'] ?? 1;
+const bankReqOrder = (a,b) => prioRank(a)-prioRank(b) || (a.rank??1e9)-(b.rank??1e9) || tsOf(a)-tsOf(b);
+const openRequests = () => S.bank.filter(b=>b.type==='request'&&b.status==='ready').sort(bankReqOrder);
+/* Put request a before/after request b. Moving into another priority group takes on that priority. */
+function placeRequest(a,b,after){
+  if(!a||!b||a===b) return false;
+  const list=openRequests().filter(x=>x!==a); const k=list.indexOf(b); if(k<0) return false;
+  list.splice(after?k+1:k,0,a); a.prio=b.prio||'med';
+  list.forEach((x,n)=>{ if(x.rank!==n*10) x.rank=n*10; }); return true;
+}
+function moveRequest(a,dir){ const list=openRequests(); const k=list.indexOf(a), j=k+dir; if(k<0||j<0||j>=list.length) return; placeRequest(a,list[j],dir>0); }
 function bankCard(b){
   const T=isTeacher(), tried=(b.starts||[]).length, hands=b.hands||[], raised=hands.includes(S.viewer);
   const img = b.image ? `<div class="bimg"><img src="${esc(b.image)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.classList.add('noimg');this.remove()"></div>` : `<div class="bimg noimg"><span>${esc((b.major||'Idea').split(' ').map(w=>w[0]).join(''))}</span></div>`;
@@ -3099,8 +3121,9 @@ function bankCard(b){
   if(b.status==='ready' && b.type==='request') acts = T ? `<button class="btn tiny primary" data-bankactivate="${b.id}">Activate${hands.length?` (${hands.length})`:''}</button>` : `<button class="btn tiny ${raised?'':'primary'}" data-bankhand="${b.id}">${raised?'You asked · undo':'Request it'}</button>`;
   if(T && b.status==='raw') acts=`<button class="btn tiny primary" data-bankedit="${b.id}">Edit & make ready</button>`;
   if(T && b.status==='retired') acts=`<button class="btn tiny" data-bankrestore="${b.id}">Bring back</button>`;
-  return `<article class="bcard ${b.type}">${img}<div class="bbody">
-    <div class="btags">${b.type==='request'?'<span class="tag wait">Request</span>':''}${b.major?`<span class="tag">${esc(b.major)}</span>`:''}${b.level?`<span class="lvtag lv-${b.level}">${esc(bankLabel(BANK_LEVELS,b.level))}</span>`:''}${b.status==='raw'?'<span class="tag chg">Raw</span>':''}${b.status==='taken'?'<span class="tag ok">Taken</span>':''}${b.status==='retired'?'<span class="tag">Retired</span>':''}</div>
+  const reqDrag = T && b.type==='request' && b.status==='ready' && UI.bankTab==='requests';
+  return `<article class="bcard ${b.type}" ${reqDrag?`draggable="true" data-bdrag="${b.id}"`:''}>${reqDrag?`<span class="bgrip" title="Drag to reorder">⠿</span><span class="breord"><button data-bmove="${b.id}|-1" aria-label="Move up">▲</button><button data-bmove="${b.id}|1" aria-label="Move down">▼</button></span>`:''}${img}<div class="bbody">
+    <div class="btags">${b.type==='request'?'<span class="tag wait">Request</span>':''}${b.type==='request'&&b.status==='ready'?`<span class="tag prio-${b.prio||'med'}">${esc(bankLabel(BANK_PRIO,b.prio||'med'))} priority</span>`:''}${b.major?`<span class="tag">${esc(b.major)}</span>`:''}${b.level?`<span class="lvtag lv-${b.level}">${esc(bankLabel(BANK_LEVELS,b.level))}</span>`:''}${b.status==='raw'?'<span class="tag chg">Raw</span>':''}${b.status==='taken'?'<span class="tag ok">Taken</span>':''}${b.status==='retired'?'<span class="tag">Retired</span>':''}</div>
     <button class="btitle" data-bankopen="${b.id}">${esc(b.title)}</button>
     ${b.hook?`<p class="bhook">${esc(b.hook)}</p>`:''}
     <div class="bmeta">${b.scope?esc(bankLabel(BANK_SCOPES,b.scope)):''}${b.difficulty?` · ${esc(bankLabel(BANK_DIFF,b.difficulty))}`:''}${b.type==='idea'&&b.status==='ready'?` · tried by ${tried}`:''}${b.type==='request'&&b.status==='ready'&&(T||hands.length)?` · ${hands.length} interested`:''}${b.suggested?` · suggested by ${esc(first(b.by))}`:''}</div>
@@ -3131,6 +3154,7 @@ function bankEditModal(b,type){
     ${b.suggested?`<div class="note">Suggested by ${esc(pname(b.by))}.</div>`:''}
     <div class="bankedit"><div class="fields">
       <label>Type</label><select id="bkType"><option value="idea" ${b.type==='idea'?'selected':''}>Idea (repeatable, anyone can start it)</option><option value="request" ${b.type==='request'?'selected':''}>Request (one-time, you assign it)</option></select>
+      <label>Priority</label><select id="bkPrio">${BANK_PRIO.map(([k,l])=>`<option value="${k}" ${(b.prio||'med')===k?'selected':''}>${l}</option>`).join('')}</select><span></span><span class="hint">For requests: they’re listed High → Low. Drag cards to fine-tune.</span>
       <label>Title</label><input id="bkTitle" value="${esc(b.title)}">
       <label>Hook</label><input id="bkHook" value="${esc(b.hook||'')}" placeholder="One line, written to the student">
       <label>Details</label><textarea id="bkDesc" rows="3" placeholder="What to make, constraints, tips">${esc(b.description||'')}</textarea>
@@ -3226,13 +3250,15 @@ function activateRequest(b){
 function saveBank(id){
   const title=$('#bkTitle').value.trim(); if(!title){ toast('Add a title'); return; }
   const f={type:$('#bkType').value,title,hook:$('#bkHook').value.trim(),description:$('#bkDesc').value.trim(),steps:$('#bkSteps').value.split('\n').map(x=>x.trim()).filter(Boolean),
-    major:$('#bkMajor').value,level:$('#bkLevel').value,scope:$('#bkScope').value,difficulty:$('#bkDiff').value,source:$('#bkSource').value.trim(),image:normUrl($('#bkImg').value),links:parseBankLinks($('#bkLinks').value),status:$('#bkStatus').value};
-  if(id){ const b=bankById(id); const wasRaw=b.status==='raw'; Object.assign(b,f); if(wasRaw && b.status==='ready' && b.suggested && b.by!==S.viewer) notify(b.by,'bankready',{text:b.title}); }
-  else S.bank.push({id:rid('bk'),...f,by:S.viewer,starts:[],hands:[],...nowStamp()});
+    major:$('#bkMajor').value,level:$('#bkLevel').value,scope:$('#bkScope').value,difficulty:$('#bkDiff').value,source:$('#bkSource').value.trim(),image:normUrl($('#bkImg').value),links:parseBankLinks($('#bkLinks').value),status:$('#bkStatus').value,prio:($('#bkPrio')||{}).value||'med'};
+  const toBottom = o => { const same=openRequests().filter(x=>x!==o && (x.prio||'med')===(o.prio||'med')); o.rank = same.length?Math.max(...same.map(x=>x.rank??0))+10:0; };
+  if(id){ const b=bankById(id); const wasRaw=b.status==='raw', oldPrio=b.prio||'med'; Object.assign(b,f); if(b.type==='request' && (oldPrio!==b.prio || b.rank==null)) toBottom(b); if(wasRaw && b.status==='ready' && b.suggested && b.by!==S.viewer) notify(b.by,'bankready',{text:b.title}); }
+  else { const nb={id:rid('bk'),...f,by:S.viewer,starts:[],hands:[],...nowStamp()}; if(nb.type==='request') toBottom(nb); S.bank.push(nb); }
   closeModal(); UI.bankTab = f.status==='raw'?'raw':f.status==='ready'?(f.type==='idea'?'ideas':'requests'):'archive'; render(); toast('Saved');
 }
 function bankClick(d,t){
   if(d.banktab){ UI.bankTab=d.banktab; render(); return true; }
+  if(d.bmove){ const [id,dir]=d.bmove.split('|'); moveRequest(bankById(id),+dir); render(); return true; }
   if(d.banknew){ bankEditModal(null,d.banknew); return true; }
   if(d.bankedit){ bankEditModal(bankById(d.bankedit)); return true; }
   if(d.banksave!==undefined){ saveBank(d.banksave); return true; }
@@ -3828,6 +3854,25 @@ function addPasted(text,listId){
   rows.forEach(r=>{ while(stack.length>r.lvl) stack.pop(); const parent=stack[stack.length-1]||null; const t=addTodo(r.title,listId,parent?parent.id:null); stack.push(t); });
   return rows.length;
 }
+const URL_RE=/\b((?:https?:\/\/|www\.)[^\s<>"']+[^\s<>"'.,;:!?)\]])/gi;
+function todoUrls(txt){ return [...String(txt||'').matchAll(URL_RE)].map(m=>normUrl(m[1])).slice(0,3); }
+function urlHost(u){ try{ return new URL(u).hostname.replace(/^www\./,''); }catch(e){ return 'link'; } }
+/* Copy a list (unchecked to-dos with their subitems) as text + HTML, e.g. for a Substack draft */
+function listCopyData(lists){
+  let text='', html='';
+  const linkify = s => esc(s).replace(URL_RE,m=>`<a href="${esc(normUrl(m))}">${esc(m)}</a>`);
+  const walk=(parentId,listId,depth)=>{ const kids=myTodos().filter(t=>t.listId===listId && (t.parentId||null)===parentId && !t.done).sort(byOrder); if(!kids.length) return '';
+    let h='<ul>'; kids.forEach(t=>{ text+=`${'  '.repeat(depth)}- ${t.title}\n`; h+=`<li>${linkify(t.title)}${walk(t.id,listId,depth+1)}</li>`; }); return h+'</ul>'; };
+  lists.forEach((l,k)=>{ if(lists.length>1){ text+=(k?'\n':'')+l.name+'\n'; html+=`<h3>${esc(l.name)}</h3>`; } html+=walk(null,l.id,0); });
+  return {text:text.trim(),html};
+}
+async function copyList(lists){
+  const {text,html}=listCopyData(lists); if(!text){ toast('Nothing unchecked to copy'); return; }
+  try{ if(navigator.clipboard && window.ClipboardItem){ await navigator.clipboard.write([new ClipboardItem({'text/html':new Blob([html],{type:'text/html'}),'text/plain':new Blob([text],{type:'text/plain'})})]); toast('List copied'); return; } }catch(e){}
+  try{ if(navigator.clipboard){ await navigator.clipboard.writeText(text); toast('List copied'); return; } }catch(e){}
+  try{ const ta=document.createElement('textarea'); ta.value=text; ta.style.cssText='position:fixed;left:-9999px'; document.body.appendChild(ta); ta.select(); const ok=document.execCommand('copy'); ta.remove(); if(ok){ toast('List copied'); return; } }catch(e){}
+  toast('Couldn’t copy automatically');
+}
 function todoRowHTML(t,depth){
   const kids=todoKids(t.id), open=!UI.todoClosed.has(t.id), link=t.link&&targetInfo(t.link);
   const overdue=t.due && !t.done && t.due<todayISO();
@@ -3835,7 +3880,7 @@ function todoRowHTML(t,depth){
     <span class="tdgrip" title="Drag to move. Drag right to tuck it under the one above, left to pull it out, or onto a list." aria-hidden="true">⠿</span>
     ${kids.length?`<button class="tdcaret ${open?'open':''}" data-tdtoggle="${t.id}" aria-label="Show or hide subitems">${ICON.right}</button>`:'<span class="tdcaret sp"></span>'}
     <input type="checkbox" class="tdcheck" data-tdcheck="${t.id}" ${t.done?'checked':''} aria-label="Done">
-    <input class="tdtitle" data-tdtitle="${t.id}" value="${esc(t.title)}" aria-label="To-do">
+    <input class="tdtitle" data-tdtitle="${t.id}" value="${esc(t.title)}" aria-label="To-do">${todoUrls(t.title).map(u=>`<a class="tdurl" href="${esc(u)}" target="_blank" rel="noopener" title="${esc(u)}">↗ ${esc(urlHost(u))}</a>`).join('')}
     ${t.due?`<span class="tddue ${overdue?'overdue':''}">${esc(t.due===todayISO()?'Today':fmt(t.due))}</span>`:''}
     ${link?`<button class="tdlink" data-tdlinkopen="${t.id}" title="Open ${esc(link.label)}">${ICON.link} ${esc(link.label)}</button>`:''}
     ${kids.length?`<span class="hint">${kids.filter(k=>k.done).length}/${kids.length}</span>`:''}
@@ -3858,7 +3903,7 @@ function renderMyList(){
   if(cur){
     h+=`<div class="tdhead"><input class="tdlistname" data-tdlistname="${cur.id}" value="${esc(cur.name)}" aria-label="List name" style="color:${cur.color}">
       <div class="swatches small">${TODO_COLORS.map(c=>`<button class="sw ${c===cur.color?'on':''}" style="background:${c}" data-tdcolor="${cur.id}|${c}" aria-label="List color"></button>`).join('')}</div>
-      ${L.length>1?`<button class="linkbtn" data-tddellist="${cur.id}">Delete list</button>`:''}</div>`;
+      <button class="btn tiny" data-tdcopy="${cur.id}" title="Copy the unchecked to-dos and subitems, with links">Copy list</button>${L.length>1?`<button class="linkbtn" data-tddellist="${cur.id}">Delete list</button>`:''}</div>`;
   }
   h+=`<div class="tdadd"><textarea id="tdQuick" rows="1" data-voice placeholder="${window.innerWidth<700?'Add a to-do…':'Add a to-do… (Enter to add · paste several lines at once)'}"></textarea><button class="tdbottom ${UI.tdBottom?'on':''}" data-tdbottom aria-pressed="${UI.tdBottom?'true':'false'}" title="New to-dos go on top. Click this first to send the next one to the bottom.">↓ Bottom</button></div>
     <p class="hint tdkeys">Tip: in a to-do, <b>Enter</b> adds the next one, <b>Tab</b> tucks it under the one above, <b>Shift+Tab</b> pulls it back out. Drag the <b>⠿</b> handle to move a to-do (drag right to tuck it in, left to pull it out, or onto a list on the left).</p>`;
@@ -3930,6 +3975,7 @@ function myListClick(d,t,e){
   if(d.tdmore){ e&&e.stopPropagation(); const td=todoById(d.tdmore); if(!td) return true; const m=$('#menu'); m.classList.remove('notifs','assignmenu'); m.classList.add('tdm'); m.innerHTML=todoMenuHTML(td); const r=t.getBoundingClientRect(); m.classList.add('open'); m.style.left=Math.max(8,Math.min(window.scrollX+r.right-m.offsetWidth, window.scrollX+document.documentElement.clientWidth-m.offsetWidth-8))+'px'; m.style.top=(window.scrollY+r.bottom+4)+'px'; return true; }
   if(d.tdaddsub){ const p=todoById(d.tdaddsub); closeMenu(); if(!p) return true; UI.todoClosed.delete(p.id); const n=addTodo('',p.listId,p.id); render(); focusTodo(n.id); return true; }
   if(d.tdindent){ const [id,dir]=d.tdindent.split('|'); const td=todoById(id); closeMenu(); if(td && indentTodo(td,+dir)) render(); return true; }
+  if(d.tdcopy){ copyList(d.tdcopy==='all'?myLists():[listById(d.tdcopy)].filter(Boolean)); return true; }
   if(d.tdbottom!==undefined){ UI.tdBottom=!UI.tdBottom; t.classList.toggle('on',UI.tdBottom); t.setAttribute('aria-pressed',UI.tdBottom?'true':'false'); $('#tdQuick')?.focus(); return true; }
   if(d.tdmove){ const [id,dir]=d.tdmove.split('|'); const td=todoById(id); if(td){ moveTodo(td,+dir); render(); } return true; }
   if(d.tddel){ const td=todoById(d.tddel); closeMenu(); if(!td) return true; const ds=todoDesc(td.id); if(ds.length && !confirm(`Delete “${td.title||'this to-do'}” and the ${ds.length} under it?`)) return true; const kill=new Set([td.id,...ds.map(x=>x.id)]); S.todos=S.todos.filter(x=>!kill.has(x.id)); render(); return true; }
@@ -4458,7 +4504,11 @@ document.addEventListener('input',e=>{
 /* Drag and drop (kanban) + panel resize */
 let dragId=null;
 let rowDrag=null;
-let tdDrag=null;
+let tdDrag=null, bDrag=null;
+document.addEventListener('dragstart',e=>{ const c=e.target.closest&&e.target.closest('[data-bdrag]'); if(!c) return; bDrag=c.dataset.bdrag; c.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; try{ e.dataTransfer.setData('text/plain',bDrag); }catch(x){} },true);
+document.addEventListener('dragover',e=>{ if(!bDrag) return; const c=e.target.closest&&e.target.closest('[data-bdrag]'); $$('.bdropb,.bdropa').forEach(x=>x.classList.remove('bdropb','bdropa')); if(!c||c.dataset.bdrag===bDrag) return; e.preventDefault(); const r=c.getBoundingClientRect(); c.classList.add(e.clientX>r.left+r.width/2?'bdropa':'bdropb'); },true);
+document.addEventListener('drop',e=>{ if(!bDrag) return; const c=e.target.closest&&e.target.closest('[data-bdrag]'); const a=bankById(bDrag); bDrag=null; if(!c) return; e.preventDefault(); e.stopPropagation(); const after=c.classList.contains('bdropa'); if(placeRequest(a,bankById(c.dataset.bdrag),after)) render(); },true);
+document.addEventListener('dragend',()=>{ bDrag=null; $$('.bdropb,.bdropa').forEach(x=>x.classList.remove('bdropb','bdropa')); },true);
 document.addEventListener('mousedown',e=>{ const g=e.target.closest&&e.target.closest('.tdgrip'); if(!g) return; const row=g.closest('[data-tdrow]'); if(row) row.draggable=true; });
 document.addEventListener('mouseup',()=>{ if(!tdDrag) $$('.tdrow[draggable="true"]').forEach(x=>x.draggable=false); });
 function tdZone(row,e){
