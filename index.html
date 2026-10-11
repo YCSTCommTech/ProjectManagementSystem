@@ -1043,8 +1043,8 @@ const CFG = window.JARVIS_CONFIG || {};
 const SUPABASE_URL = CFG.url || 'PASTE_YOUR_PROJECT_URL';
 const SUPABASE_ANON_KEY = CFG.anonKey || 'PASTE_YOUR_ANON_KEY';
 const LOGIN_DOMAIN = 'jarvis.local';
-const APP_VERSION = '1.4.3';
-const APP_DATE = 'Oct 10, 2026';
+const APP_VERSION = '1.4.4';
+const APP_DATE = 'Oct 11, 2026';
 
 /* ---------- Dates ---------- */
 const localISO = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -1079,17 +1079,22 @@ const GCOLORS = ['#00954C','#3F7FD9','#9A7BE0','#E0617A','#EE9E2F','#16A3B8','#7
 const AVCOL = ['#C2519E','#16A3B8','#7A5BD6','#D9772B','#2E8B57','#C0392B','#3F6FD8','#8C6A1F','#B0487A','#1F8A8A','#6A58C9','#C0662A','#3A7D44','#A93A3A','#2F62C4','#7D6420','#9C3F8E','#207C9A','#5E4DB8','#B8582B','#2D7F6B','#8A4FB0','#B24B4B'];
 /* People come from the roster (people table) after sign-in */
 const PEOPLE = {};
-let STUDENTS = [], SENIORS = [], JUNIORS = [];
+let STUDENTS = [], SENIORS = [], JUNIORS = [], UPPER = [], SOPHS = [], FRESHMEN = [];
 const SENIOR_YEAR = (()=>{ const d=new Date(); return d.getMonth()>=6 ? d.getFullYear()+1 : d.getFullYear(); })();
 const JUNIOR_YEAR = SENIOR_YEAR + 1;
-const gradLabel = g => g===SENIOR_YEAR ? 'Senior' : g===JUNIOR_YEAR ? 'Junior' : (g && g<SENIOR_YEAR ? 'Graduated' : 'Student');
-const gradFromLabel = l => /senior/i.test(l||'') ? SENIOR_YEAR : /junior/i.test(l||'') ? JUNIOR_YEAR : null;
+const SOPH_YEAR = SENIOR_YEAR + 2, FRESH_YEAR = SENIOR_YEAR + 3;
+const GRADE_NAMES = [['Senior',SENIOR_YEAR],['Junior',JUNIOR_YEAR],['Sophomore',SOPH_YEAR],['Freshman',FRESH_YEAR]];
+const gradLabel = g => g===SENIOR_YEAR ? 'Senior' : g===JUNIOR_YEAR ? 'Junior' : g===SOPH_YEAR ? 'Sophomore' : g===FRESH_YEAR ? 'Freshman' : (g && g<SENIOR_YEAR ? 'Graduated' : 'Student');
+const gradFromLabel = l => /senior|12/i.test(l||'') ? SENIOR_YEAR : /junior|11/i.test(l||'') ? JUNIOR_YEAR : /soph|10/i.test(l||'') ? SOPH_YEAR : /fresh|9/i.test(l||'') ? FRESH_YEAR : null;
+/* Underclassmen (freshmen, sophomores) use projects but skip check-ins, weekly reports and “Everyone” assignments */
+const isLowerGrad = g => g===SOPH_YEAR || g===FRESH_YEAR;
+const lowerMe = () => !isTeacher() && isLowerGrad(me()?.grad);
 function hashColor(pid){ let h=0; for(const c of String(pid)) h=(h*31+c.charCodeAt(0))>>>0; return AVCOL[h%AVCOL.length]; }
 function setPeople(rows){
   for(const k of Object.keys(PEOPLE)) delete PEOPLE[k];
   for(const r of rows) PEOPLE[r.pid] = {id:r.pid, uid:r.id, username:r.username, name:r.name, role:r.role, grad:r.grad, major:r.major||'', active:r.active, color: r.role==='teacher'?'#095641':hashColor(r.pid)};
   STUDENTS = Object.values(PEOPLE).filter(p=>p.role==='student' && p.active).sort((a,b)=>a.name.localeCompare(b.name));
-  SENIORS = STUDENTS.filter(s=>s.grad===SENIOR_YEAR); JUNIORS = STUDENTS.filter(s=>s.grad===JUNIOR_YEAR);
+  SENIORS = STUDENTS.filter(s=>s.grad===SENIOR_YEAR); JUNIORS = STUDENTS.filter(s=>s.grad===JUNIOR_YEAR); SOPHS = STUDENTS.filter(s=>s.grad===SOPH_YEAR); FRESHMEN = STUDENTS.filter(s=>s.grad===FRESH_YEAR); UPPER = STUDENTS.filter(s=>!isLowerGrad(s.grad));
 }
 const LOCAL_KEY = 'jarvis-prefs';
 const TABLES = ['projects','assignments','items','notifs','syncs','asks','lessons','polls','checkins','weeks','settings','events','bank','reminders','todos','reflections','broadcast'];
@@ -1117,8 +1122,8 @@ const STAGES = [
 /* ---------- Audience helpers ---------- */
 function studentsFor(aud){
   if(!aud) return [];
-  if(typeof aud==='string'){ if(aud==='all') return STUDENTS; const [k,v]=aud.split(':'); if(k==='grad') return STUDENTS.filter(s=>s.grad===+v); if(k==='major') return STUDENTS.filter(s=>s.major===v); return []; }
-  if(aud.all) return STUDENTS;
+  if(typeof aud==='string'){ if(aud==='all') return UPPER; const [k,v]=aud.split(':'); if(k==='grad') return STUDENTS.filter(s=>s.grad===+v); if(k==='major') return STUDENTS.filter(s=>s.major===v); return []; }
+  if(aud.all) return UPPER;
   const set=new Set();
   (aud.grads||[]).forEach(g=>STUDENTS.filter(s=>s.grad===g).forEach(s=>set.add(s.id)));
   (aud.majors||[]).forEach(m=>STUDENTS.filter(s=>s.major===m).forEach(s=>set.add(s.id)));
@@ -1127,9 +1132,9 @@ function studentsFor(aud){
 }
 function audienceLabel(aud){
   if(!aud) return '';
-  if(typeof aud==='string'){ if(aud==='all') return 'Everyone'; const [k,v]=aud.split(':'); return k==='grad'?(+v===SENIOR_YEAR?'Seniors':'Juniors'):v+' majors'; }
+  if(typeof aud==='string'){ if(aud==='all') return 'Everyone'; const [k,v]=aud.split(':'); return k==='grad'?(gradLabel(+v)+'s'):v+' majors'; }
   if(aud.all) return 'Everyone';
-  const parts=[]; (aud.grads||[]).forEach(g=>parts.push(g===SENIOR_YEAR?'Seniors':g===JUNIOR_YEAR?'Juniors':'Class of '+g)); (aud.majors||[]).forEach(m=>parts.push(m+' majors'));
+  const parts=[]; (aud.grads||[]).forEach(g=>parts.push(['Student','Graduated'].includes(gradLabel(g))?'Class of '+g:gradLabel(g)+'s')); (aud.majors||[]).forEach(m=>parts.push(m+' majors'));
   if((aud.students||[]).length) parts.push(aud.students.length+' student'+(aud.students.length===1?'':'s'));
   return parts.join(' + ')||'Nobody yet';
 }
@@ -1680,6 +1685,13 @@ function battery(items){
   if(!items.length) return '';
   return `<div class="battery">${STATUSES.map(s=>{const n=items.filter(i=>i.status===s.id).length; return n?`<span style="width:${n/items.length*100}%;background:${s.color}" title="${s.label}: ${n}"></span>`:''}).join('')}</div>`;
 }
+/* v1.4.4: project and assignment groups start collapsed (remembered per device); other groupings start open */
+const defCollapse = key => !UI.project && (key==='assign' || !!proj(key));
+const groupCollapsed = key => defCollapse(key) ? !(S.prefs.open||[]).includes(key) : UI.collapsed.has(key);
+function toggleGroup(key){
+  if(defCollapse(key)){ const o=new Set(S.prefs.open||[]); o.has(key)?o.delete(key):o.add(key); S.prefs.open=[...o].slice(-300); saveLocal(); }
+  else UI.collapsed.has(key)?UI.collapsed.delete(key):UI.collapsed.add(key);
+}
 function renderBoardPage(){
   const h=renderBoardPage0(), n=UI.hiddenFinished||0;
   if(!n && !UI.showFinished) return h;
@@ -1694,7 +1706,7 @@ function renderBoardPage0(){
   const showProj = UI.groupBy!=='project';
   const cols = showProj?7:6;
   return groups.map(g=>{
-    const col = UI.collapsed.has(g.key);
+    const col = groupCollapsed(g.key);
     let extra = '';
     if(g.kind==='project'){
       const p=g.project;
@@ -1762,14 +1774,14 @@ function sec(key,title,content,defOpen,extra=''){
 }
 function ppHTML(key, opts, selected, o={}){
   const sel = selected instanceof Set ? selected : new Set(selected||[]);
-  const groups = [['Teachers',opts.filter(x=>isTeacherId(x))],['Seniors',opts.filter(x=>PEOPLE[x]?.grad===SENIOR_YEAR)],['Juniors',opts.filter(x=>PEOPLE[x]?.grad===JUNIOR_YEAR)],['Others',opts.filter(x=>!isTeacherId(x)&&PEOPLE[x]&&PEOPLE[x].grad!==SENIOR_YEAR&&PEOPLE[x].grad!==JUNIOR_YEAR)]].filter(g=>g[1].length);
+  const groups = [['Teachers',opts.filter(x=>isTeacherId(x))],...GRADE_NAMES.map(([n,g])=>[n==='Freshman'?'Freshmen':n+'s',opts.filter(x=>PEOPLE[x]?.grad===g)]),['Others',opts.filter(x=>!isTeacherId(x)&&PEOPLE[x]&&!GRADE_NAMES.some(([,g])=>PEOPLE[x].grad===g))]].filter(g=>g[1].length);
   const sc = (o.shortcuts||[]).map(s=>`<button class="chip small" data-ppall="${key}" data-ids="${s.ids.join(',')}" ${o.disabled?'disabled':''}>${esc(s.label)}</button>`).join('');
   const chip = pid => { const on=sel.has(pid); const locked=(o.locked||[]).includes(pid);
     return `<label class="ck ${on?'on':''} ${locked?'off':''}"><input type="checkbox" data-pp="${key}" value="${pid}" ${on?'checked':''} ${o.disabled||locked?'disabled':''}>${av(pid)}${esc(first(pid))}${on&&o.roles?`<select data-pprole="${key}" data-pid="${pid}" ${o.disabled||locked?'disabled':''} aria-label="Role">${['viewer','editor','admin'].map(r=>`<option value="${r}" ${o.roles[pid]===r?'selected':''}>${r[0].toUpperCase()+r.slice(1)}</option>`).join('')}</select>`:''}</label>`; };
   return `<div class="pp">${sc?`<div class="ppsc">${sc}</div>`:''}${groups.map(([l,ids])=>`<div class="pplabel">${l}</div><div class="checks">${ids.map(chip).join('')}</div>`).join('')}</div>`;
 }
-const gradShortcuts = () => [{label:'All seniors',ids:SENIORS.map(s=>s.id)},{label:'All juniors',ids:JUNIORS.map(s=>s.id)},{label:'Everyone',ids:STUDENTS.map(s=>s.id)},...MAJORS.map(m=>({label:m,ids:STUDENTS.filter(s=>s.major===m).map(s=>s.id)}))];
-const allPeople = () => [...teacherIds(),...SENIORS.map(s=>s.id),...JUNIORS.map(s=>s.id),...STUDENTS.filter(s=>s.grad!==SENIOR_YEAR&&s.grad!==JUNIOR_YEAR).map(s=>s.id)];
+const gradShortcuts = () => [{label:'All seniors',ids:SENIORS.map(s=>s.id)},{label:'All juniors',ids:JUNIORS.map(s=>s.id)},...(SOPHS.length?[{label:'All sophomores',ids:SOPHS.map(s=>s.id)}]:[]),...(FRESHMEN.length?[{label:'All freshmen',ids:FRESHMEN.map(s=>s.id)}]:[]),{label:'Everyone',ids:STUDENTS.map(s=>s.id)},...MAJORS.map(m=>({label:m,ids:STUDENTS.filter(s=>s.major===m).map(s=>s.id)}))];
+const allPeople = () => [...teacherIds(),...SENIORS.map(s=>s.id),...JUNIORS.map(s=>s.id),...SOPHS.map(s=>s.id),...FRESHMEN.map(s=>s.id),...STUDENTS.filter(s=>!GRADE_NAMES.some(([,g])=>s.grad===g)).map(s=>s.id)];
 function normUrl(u){ u=(u||'').trim(); if(!u) return ''; return /^[a-z]+:\/\//i.test(u)?u:'https://'+u; }
 function filesHTML(ownerKey,files,canFiles,emptyMsg){
   files = files||[];
@@ -2043,8 +2055,8 @@ function renderHomeStudent(){
   const stage = stageDue(v,ws);
   const hr=new Date().getHours(); const greet = hr<12?'Good morning':hr<17?'Good afternoon':'Good evening';
   let h = `<div class="hello"><h2>${greet}, ${esc(first(v))}</h2><span class="hint">${esc(fmtDay(t))}</span></div><div class="hgrid">`+remindersCard();
-  h += card('Today', ci&&ci.line ? `<div class="ciline">“${esc(ci.line)}”</div><div class="checks">${(ci.active||[]).map(k=>`<span class="tag">${esc(activeLabel(k))}</span>`).join('')}</div><div class="askacts"><button class="btn tiny" data-editcheckin>Edit check-in</button><button class="btn tiny" data-page="today">Open my schedule</button></div>` : (ci&&ci.absent?'<div class="hint">You marked today as absent.</div>':`<button class="btn primary" data-editcheckin>Check in for today</button>`));
-  if(stage && stage!=='monday') h += card(stage==='mid'?'Midweek check-in is ready':'Friday reflection is ready', `<p class="hint">${stage==='mid'?'Two quick questions about how your week is going.':'Wrap up your week. Your daily check-ins are there to help you remember.'}</p><button class="btn primary" data-page="week">Open My week</button>`);
+  if(!lowerMe()) h += card('Today', ci&&ci.line ? `<div class="ciline">“${esc(ci.line)}”</div><div class="checks">${(ci.active||[]).map(k=>`<span class="tag">${esc(activeLabel(k))}</span>`).join('')}</div><div class="askacts"><button class="btn tiny" data-editcheckin>Edit check-in</button><button class="btn tiny" data-page="today">Open my schedule</button></div>` : (ci&&ci.absent?'<div class="hint">You marked today as absent.</div>':`<button class="btn primary" data-editcheckin>Check in for today</button>`));
+  if(stage && !lowerMe() && stage!=='monday') h += card(stage==='mid'?'Midweek check-in is ready':'Friday reflection is ready', `<p class="hint">${stage==='mid'?'Two quick questions about how your week is going.':'Wrap up your week. Your daily check-ins are there to help you remember.'}</p><button class="btn primary" data-page="week">Open My week</button>`);
   h += card('Due soon', due.length?due.map(miniRow).join(''):'<div class="hint">Nothing due in the next few days.</div>', `<button class="linkbtn" data-page="board">Board</button>`);
   if(changes.length) h += card('Needs changes', changes.map(miniRow).join(''));
   if(waiting.length) h += card('Waiting on you', waiting.map(a=>askCardHTML(a,{showTarget:true})).join(''));
@@ -2056,7 +2068,7 @@ function renderHomeStudent(){
 function renderHomeTeacher(){
   const t=todayISO();
   if(!STUDENTS.length) return `<div class="empty" style="margin-top:16px">Welcome to JARVIS. Start by adding your students. <button class="btn primary" data-page="roster" style="margin-left:8px">Go to Roster</button></div>`;
-  const roster = STUDENTS.filter(s=>!UI.homeGrade || s.grad===+UI.homeGrade);
+  const roster = UI.homeGrade ? STUDENTS.filter(s=>s.grad===+UI.homeGrade) : UPPER;
   const rows = roster.map(s=>{ const ci=checkin(s.id,t); const classDay=isClassDay(s.id,t);
     const status = ci&&ci.absent ? '<span class="tag">Absent</span>' : ci&&ci.line ? `<span class="tag ok">${esc(new Date(ci.ts).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}))}</span>` : (classDay?'<span class="tag chg">Not yet</span>':'<span class="hint">No class</span>');
     return `<tr class="row" data-openweek="${s.id}|${weekStartOf(t)}"><td class="c-item"><div class="cell-item">${av(s.id)}<b>${nameTag(s.id)}</b>${remindBtn('s:'+s.id,'mini')}<button class="linkbtn small" data-editprofile="${s.id}" title="Edit profile">Profile</button></div></td><td class="small">${gradLabel(s.grad)} · ${esc(s.major)}</td><td>${status}</td><td class="small wrap">${ci&&ci.active?(ci.active.map(k=>esc(activeLabel(k))).join(', ')):''}</td><td class="small wrap">${ci&&ci.line?esc(ci.line):''}</td></tr>`; }).join('');
@@ -2068,7 +2080,7 @@ function renderHomeTeacher(){
     <div class="stats"><div><b>${inN}/${roster.length}</b><span>checked in</span></div><div><b>${absN}</b><span>absent</span></div>
       <button data-gotoreview><b>${review}</b><span>to review</span></button><button data-page="asks"><b>${help}</b><span>open asks</span></button><button data-page="lessons"><b>${lreq}</b><span>lesson requests</span></button><button data-page="mp"><b>${S.settings.filter(x=>x.id.startsWith('claim_')&&x.status==='submitted').length}</b><span>credit requests</span></button></div>
     <div class="hgrid" style="margin-top:12px">${remindersCard()}${myListCard()}</div>
-    <div class="filters" style="margin:10px 0 8px">${['',String(SENIOR_YEAR),String(JUNIOR_YEAR)].map(g=>`<button class="chip ${UI.homeGrade===g?'on':''}" data-homegrade="${g}">${g===''?'Everyone':g===String(SENIOR_YEAR)?'Seniors':'Juniors'}</button>`).join('')}<span class="hint">Click a student to open their week.</span></div>
+    <div class="filters" style="margin:10px 0 8px">${['',String(SENIOR_YEAR),String(JUNIOR_YEAR),...(SOPHS.length?[String(SOPH_YEAR)]:[]),...(FRESHMEN.length?[String(FRESH_YEAR)]:[])].map(g=>`<button class="chip ${UI.homeGrade===g?'on':''}" data-homegrade="${g}">${g===''?'Juniors & seniors':gradLabel(+g)==='Freshman'?'Freshmen':gradLabel(+g)+'s'}</button>`).join('')}<span class="hint">Click a student to open their week.</span></div>
     <div class="tablewrap" style="--g:var(--accent)"><table class="roster"><thead><tr><th class="c-item">Student</th><th>Grade · major</th><th>Check-in</th><th>Working on</th><th>Today’s line</th></tr></thead><tbody>${rows}</tbody></table></div>`;
   const pend=S.settings.filter(x=>x.id.startsWith('profile_') && x.imgPending && PEOPLE[x.id.slice(8)]);
   const pendCard = pend.length ? card('Pictures to approve', pend.map(x=>{ const pid=x.id.slice(8); return `<div class="mrow"><span class="av big sh-${x.shape||'circle'}" style="background:center/cover url(${x.imgPending});color:transparent"></span><b>${esc(realName(pid))}</b><button class="btn tiny primary" data-avok="${pid}">Approve</button><button class="btn tiny" data-avno="${pid}">Decline</button></div>`; }).join('')) : '';
@@ -2147,13 +2159,13 @@ function renderWeek(){
   const simple=SIMPLE();
   if(!UI.wkStart) UI.wkStart=weekStartOf(t);
   const ws=UI.wkStart;
-  const pid = isTeacher() ? (UI.wkStudent||(STUDENTS[0]&&STUDENTS[0].id)) : S.viewer;
+  const pid = isTeacher() ? (UI.wkStudent||(UPPER[0]&&UPPER[0].id)) : S.viewer;
   if(!pid) return '<div class="empty">Add students on the Roster page first.</div>';
   const w=weekDoc(pid,ws);
   const nav = `<div class="weeknav"><button class="btn tiny" data-wk="-7">‹ Prev</button><b>Week of ${esc(fmt(ws))}</b><button class="btn tiny" data-wk="7" ${ws>=weekStartOf(t)?'disabled':''}>Next ›</button></div>`;
   let h = `<div class="hello"><h2>${isTeacher()?'Weekly reports':'My week'}</h2>${helpDot('weekly')}</div>`;
   if(isTeacher()){
-    h += `<div class="filters"><button class="btn tiny" data-wkstu="-1" title="Previous student (← key)">‹ Student</button><select id="wkStudent">${STUDENTS.map(s=>`<option value="${s.id}" ${s.id===pid?'selected':''}>${esc(s.name)} — ${gradLabel(s.grad)}</option>`).join('')}</select><button class="btn tiny" data-wkstu="1" title="Next student (→ key)">Student ›</button>${nav}${remindBtn('w:'+pid+'|'+ws)}</div>`;
+    h += `<div class="filters"><button class="btn tiny" data-wkstu="-1" title="Previous student (← key)">‹ Student</button><select id="wkStudent">${UPPER.map(s=>`<option value="${s.id}" ${s.id===pid?'selected':''}>${esc(s.name)} — ${gradLabel(s.grad)}</option>`).join('')}</select><button class="btn tiny" data-wkstu="1" title="Next student (→ key)">Student ›</button>${nav}${remindBtn('w:'+pid+'|'+ws)}</div>`;
     const all=[0,1,2,3,4,5,6].map(k=>addDays(ws,k)), cdays=weekDays(null,ws), sdays=weekDays(pid,ws), w0=weekDoc(pid,ws), custom=!!(w0&&w0.days&&w0.days.length);
     const box=(attr,d,on)=>`<label class="ck ${on?'on':''}"><input type="checkbox" ${attr}="${d}" ${on?'checked':''}>${esc(dow(d))} <span class="hint">${esc(fmt(d).replace(/^\w+ /,''))}</span></label>`;
     h += `<div class="dayscard"><div class="drow"><span class="dlab">Whole class</span><div class="checks">${all.map(d=>box('data-cdays',d,cdays.includes(d))).join('')}</div></div>
@@ -2306,7 +2318,7 @@ function assignmentForm(a){
     </div>
     <div class="sech small">Assign to ${edit?'<span class="hint">(adding people creates their copies; nobody is removed)</span>':''}</div>
     <div class="checks"><label class="ck ${aud.all?'on':''}"><input type="checkbox" id="audAll" ${aud.all?'checked':''}> Everyone</label>
-      ${[SENIOR_YEAR,JUNIOR_YEAR].map(g=>`<label class="ck ${(aud.grads||[]).includes(g)?'on':''}"><input type="checkbox" class="audGrad" value="${g}" ${(aud.grads||[]).includes(g)?'checked':''}> ${g===SENIOR_YEAR?'Seniors':'Juniors'}</label>`).join('')}
+      ${[SENIOR_YEAR,JUNIOR_YEAR,SOPH_YEAR,FRESH_YEAR].map(g=>`<label class="ck ${(aud.grads||[]).includes(g)?'on':''}"><input type="checkbox" class="audGrad" value="${g}" ${(aud.grads||[]).includes(g)?'checked':''}> ${g===SENIOR_YEAR?'Seniors':'Juniors'}</label>`).join('')}
       ${MAJORS.map(m=>`<label class="ck ${(aud.majors||[]).includes(m)?'on':''}"><input type="checkbox" class="audMajor" value="${m}" ${(aud.majors||[]).includes(m)?'checked':''}> ${m}</label>`).join('')}</div>
     <details class="psec"><summary><span class="st">Or pick individual students</span></summary>${ppHTML('aud',STUDENTS.map(s=>s.id).sort((x,y)=>PEOPLE[x].grad-PEOPLE[y].grad),aud.students||[])}</details>
     <p class="hint" id="audCount"></p>
@@ -2327,7 +2339,7 @@ function pollForm(){
     <div class="fields"><label>Question</label><input id="pQ" placeholder="e.g. Who wants a Premiere keyframing lesson?">
       <label>Type</label><select id="pKind"><option value="choice">Multiple choice</option><option value="scale">Interest 1–5</option><option value="text">Short answer</option></select>
       <label>Options</label><textarea id="pOpts" rows="4" placeholder="One option per line (multiple choice only)"></textarea>
-      <label>Who</label><select id="pAud"><option value="all">Everyone</option><option value="${SENIOR_YEAR}">Seniors</option><option value="${JUNIOR_YEAR}">Juniors</option></select>
+      <label>Who</label><select id="pAud"><option value="all">Everyone</option><option value="${SENIOR_YEAR}">Seniors</option><option value="${JUNIOR_YEAR}">Juniors</option><option value="${SOPH_YEAR}">Sophomores</option><option value="${FRESH_YEAR}">Freshmen</option></select>
       <label>You see</label><select id="pNames"><option value="1">Names with answers</option><option value="0">Anonymous answers</option></select>
       <label>Class sees</label><select id="pClass"><option value="counts">Results, no names</option><option value="names">Results with names</option><option value="hidden">Nothing (only you see results)</option></select></div>
     <div class="mfoot"><button class="btn primary" data-savepoll>Post poll</button></div>`;
@@ -2354,7 +2366,7 @@ function askModal(kind){
 /* ---------- Check-in ---------- */
 let CI = null;
 function maybeCheckin(){
-  if(!ready || !S.viewer || isTeacher()) return;
+  if(!ready || !S.viewer || isTeacher() || lowerMe()) return;
   const v=S.viewer, t=todayISO(), ci=checkin(v,t);
   if(!isClassDay(v,t)) return;
   const needLine = !(ci && ci.line), needPlan = !weekDoc(v,weekStartOf(t))?.stages?.monday;
@@ -2642,7 +2654,7 @@ function renderRoster(){
   const on=all.filter(p=>p.active), off=all.filter(p=>!p.active);
   const row=p=>`<tr class="${p.active?'':'offrow'}"><td class="c-item"><div class="cell-item">${av(p.id)}<input class="rin rname" data-rname="${p.id}" value="${esc(p.name)}" aria-label="Name" ${p.active?'':'disabled'}></div></td>
     <td><input class="rin ruser" data-ruser="${p.id}" value="${esc(p.username)}" aria-label="Username" ${p.active?'':'disabled'}></td>
-    <td><select class="rin" data-rgrade="${p.id}" aria-label="Grade" ${p.active?'':'disabled'}>${['Senior','Junior'].map(g=>`<option ${gradLabel(p.grad)===g?'selected':''}>${g}</option>`).join('')}${['Senior','Junior'].includes(gradLabel(p.grad))?'':`<option selected>${esc(gradLabel(p.grad))}</option>`}</select></td>
+    <td><select class="rin" data-rgrade="${p.id}" aria-label="Grade" ${p.active?'':'disabled'}>${['Senior','Junior','Sophomore','Freshman'].map(g=>`<option ${gradLabel(p.grad)===g?'selected':''}>${g}</option>`).join('')}${['Senior','Junior','Sophomore','Freshman'].includes(gradLabel(p.grad))?'':`<option selected>${esc(gradLabel(p.grad))}</option>`}</select></td>
     <td><select class="rin" data-rmajor="${p.id}" aria-label="Major" ${p.active?'':'disabled'}><option value="">—</option>${MAJORS.map(m=>`<option ${p.major===m?'selected':''}>${m}</option>`).join('')}</select></td>
     <td>${roleSel(p)}</td>
     <td class="ractions">${p.active?`<button class="btn tiny" data-rreset="${p.id}">Password</button><button class="linkbtn" data-roff="${p.id}">Turn off</button>`:`<button class="btn tiny" data-ron="${p.id}">Turn back on</button>`}</td></tr>`;
@@ -2772,7 +2784,7 @@ function printCards(){
 function addStudentModal(){
   openModal(`<div class="mhead"><h2>Add a student</h2><button class="x" data-closemodal>×</button></div>
     <div class="fields"><label>First name</label><input id="raFirst"><label>Last name</label><input id="raLast">
-      <label>Grade</label><select id="raGrade"><option>Senior</option><option>Junior</option></select>
+      <label>Grade</label><select id="raGrade"><option>Senior</option><option>Junior</option><option>Sophomore</option><option>Freshman</option></select>
       <label>Major</label><select id="raMajor"><option value="">—</option>${MAJORS.map(m=>`<option>${m}</option>`).join('')}</select>
       <label>Username</label><input id="raUser" placeholder="Filled in from the name"></div>
     <div class="mfoot"><button class="btn primary" data-raddgo>Create account</button></div>`);
@@ -2787,7 +2799,7 @@ function editStudentModal(pid){
   const p=PEOPLE[pid];
   openModal(`<div class="mhead"><h2>Edit ${esc(p.name)}</h2><button class="x" data-closemodal>×</button></div>
     <div class="fields"><label>Name</label><input id="reName" value="${esc(p.name)}">
-      <label>Grade</label><select id="reGrade">${['Senior','Junior'].map(g=>`<option ${gradLabel(p.grad)===g?'selected':''}>${g}</option>`).join('')}</select>
+      <label>Grade</label><select id="reGrade">${['Senior','Junior','Sophomore','Freshman'].map(g=>`<option ${gradLabel(p.grad)===g?'selected':''}>${g}</option>`).join('')}</select>
       <label>Major</label><select id="reMajor"><option value="">—</option>${MAJORS.map(m=>`<option ${p.major===m?'selected':''}>${m}</option>`).join('')}</select>
       <label>Username</label><span><code>${esc(p.username)}</code> <span class="hint">(can’t be changed)</span></span></div>
     <div class="mfoot"><button class="btn primary" data-resave="${pid}">Save</button></div>`);
@@ -2908,7 +2920,7 @@ function calFilterBar(){
   const F=UI.calF||calDefaults();
   const chips=(isTeacher()?[['events','Events'],['lessons','Lessons'],['assign','Assignments'],['tasks','Project deadlines'],['sched','Scheduled'],['todos','My list']]:[['events','Events'],['lessons','Lessons'],['assign','My assignments'],['tasks','My deadlines'],['sched','Scheduled']])
     .map(([k,l])=>`<button class="chip small ${F[k]?'on':''}" data-calf="${k}">${l}</button>`).join('');
-  const people = isTeacher() ? `<select id="calGrade" aria-label="Grade"><option value="">All grades</option><option value="${SENIOR_YEAR}" ${UI.calGrade==String(SENIOR_YEAR)?'selected':''}>Seniors</option><option value="${JUNIOR_YEAR}" ${UI.calGrade==String(JUNIOR_YEAR)?'selected':''}>Juniors</option></select>
+  const people = isTeacher() ? `<select id="calGrade" aria-label="Grade"><option value="">All grades</option><option value="${SENIOR_YEAR}" ${UI.calGrade==String(SENIOR_YEAR)?'selected':''}>Seniors</option><option value="${JUNIOR_YEAR}" ${UI.calGrade==String(JUNIOR_YEAR)?'selected':''}>Juniors</option><option value="${SOPH_YEAR}" ${UI.calGrade==String(SOPH_YEAR)?'selected':''}>Sophomores</option><option value="${FRESH_YEAR}" ${UI.calGrade==String(FRESH_YEAR)?'selected':''}>Freshmen</option></select>
     <select id="calMajor" aria-label="Major"><option value="">All majors</option>${MAJORS.map(m=>`<option ${UI.calMajor===m?'selected':''}>${m}</option>`).join('')}</select>
     <select id="calStudent" aria-label="Student"><option value="">All students</option>${STUDENTS.map(s=>`<option value="${s.id}" ${UI.calStudent===s.id?'selected':''}>${esc(s.name)}</option>`).join('')}</select>` : '';
   const off=Object.entries(F).filter(([k,v])=>!v).length + (UI.calGrade?1:0) + (UI.calMajor?1:0) + (UI.calStudent?1:0);
@@ -3196,7 +3208,7 @@ function bankDetail(b){
     ${(b.steps||[]).length?`<h3 class="sech small">Starter steps</h3><ol class="bsteps">${b.steps.map(s=>`<li>${esc(s)}</li>`).join('')}</ol>`:''}
     ${b.type==='idea'?`<h3 class="sech small">Tried by ${starts.length}</h3>${starts.length?starts.map(s=>{ const target=s.itemId?item(s.itemId):proj(s.projectId); return `<div class="mrow">${av(s.by)}<b>${esc(pname(s.by))}</b><span class="hint">${esc(s.at||'')}</span>${target?`<button class="linkbtn" data-open="${s.itemId?'i:'+s.itemId:'p:'+s.projectId}">See their work</button>`:''}</div>`; }).join(''):'<p class="hint">Be the first.</p>'}`:''}
     ${b.status==='taken'?`<div class="note">Taken by ${esc((b.takenBy||[]).map(pname).join(', '))}${b.takenAt?` on ${esc(new Date(b.takenAt).toLocaleDateString('en-US',{month:'short',day:'numeric'}))}`:''}. ${b.takenProject&&proj(b.takenProject)?`<button class="linkbtn" data-open="p:${b.takenProject}">Open project</button>`:''}</div>`:''}
-    <div class="mfoot">${remindBtn('b:'+b.id)}${b.status==='ready'&&b.type==='idea'?`<button class="btn primary" data-bankstart="${b.id}">Start this</button>`:''}${b.status==='ready'&&b.type==='request'&&!isTeacher()?`<button class="btn primary" data-bankhand="${b.id}">${(b.hands||[]).includes(S.viewer)?'Undo request':'Request it'}</button>`:''}${b.status==='ready'&&b.type==='request'&&isTeacher()?`<button class="btn primary" data-bankactivate="${b.id}">Activate</button>`:''}${isTeacher()?`<button class="btn" data-bankedit="${b.id}">Edit</button>`:''}</div>`);
+    <div class="mfoot">${remindBtn('b:'+b.id)}${isTeacher()&&b.status==='ready'&&b.type==='idea'?`<button class="btn" data-bankcopy="${b.id}">Give everyone a copy</button>`:''}${b.status==='ready'&&b.type==='idea'?`<button class="btn primary" data-bankstart="${b.id}">Start this</button>`:''}${b.status==='ready'&&b.type==='request'&&!isTeacher()?`<button class="btn primary" data-bankhand="${b.id}">${(b.hands||[]).includes(S.viewer)?'Undo request':'Request it'}</button>`:''}${b.status==='ready'&&b.type==='request'&&isTeacher()?`<button class="btn primary" data-bankactivate="${b.id}">Activate</button>`:''}${isTeacher()?`<button class="btn" data-bankedit="${b.id}">Edit</button>`:''}</div>`);
 }
 function bankStartModal(b){
   const mine=S.projects.filter(p=>liveProj(p) && canEditProject(p) && (p.roles||{})[S.viewer]);
@@ -3228,6 +3240,27 @@ function startBankIdea(b){
   closeModal(); UI.page='board'; UI.project=''; render();
   if(itemId) openPanel('i:'+itemId); else openPanel('p:'+projectId);
   toast('Started! It’s on your board.');
+}
+function bankCopyModal(b){
+  const had=new Set((b.starts||[]).map(s=>s.by));
+  openModal(`<div class="mhead"><h2>Give everyone a copy</h2><button class="x" data-closemodal>×</button></div>
+    <p class="hint" style="margin:0">Each student you check gets their own private project, “${esc(b.title)},” with the starter steps${(b.links||[]).length?' and links':''}. They can add their own subitems. You see all of them.${had.size?` ${had.size} student${had.size===1?' has':'s have'} already started it and won’t get a second copy.`:''}</p>
+    ${ppHTML('bankcopy',STUDENTS.map(s=>s.id),[],{shortcuts:gradShortcuts()})}
+    <div class="mfoot"><button class="btn primary" data-bankcopygo="${b.id}">Create the projects</button></div>`);
+}
+function giveCopies(b){
+  const had=new Set((b.starts||[]).map(s=>s.by));
+  const picked=$$('input[data-pp="bankcopy"]:checked').map(x=>x.value).filter(x=>!had.has(x));
+  if(!picked.length){ toast(had.size?'Everyone checked already has it':'Check at least one student'); return; }
+  const desc=[b.hook,b.description].filter(Boolean).join('\n\n'), starts=[...(b.starts||[])];
+  picked.forEach((sid,n)=>{
+    const p={id:rid('p'),name:b.title,description:desc,owner:sid,roles:{[sid]:'admin'},private:true,major:b.major||PEOPLE[sid]?.major||'',color:GCOLORS[(S.projects.length+n)%GCOLORS.length],thread:[],files:bankFiles(b,sid),bankId:b.id,...nowStamp()};
+    S.projects.push(p);
+    (b.steps||[]).forEach((st,k)=>S.items.push({id:nid(),source:'task',title:st,description:'',assignees:[sid],status:'not',due:'',priority:'med',projectId:p.id,parentId:null,order:k*10,files:[],thread:[],history:[{kind:'created',by:S.viewer,...nowStamp()}]}));
+    starts.push({by:sid,projectId:p.id,itemId:null,...nowStamp()});
+    notify(sid,'added',{projectId:p.id,text:p.name});
+  });
+  b.starts=starts; closeModal(); render(); toast(`Created ${picked.length} project${picked.length===1?'':'s'}`);
 }
 function bankActivateModal(b){
   openModal(`<div class="mhead"><h2>Activate “${esc(b.title)}”</h2><button class="x" data-closemodal>×</button></div>
@@ -3273,6 +3306,8 @@ function bankClick(d,t){
     closeModal(); render(); toast(has?'Request withdrawn':'Request sent — Mr. P picks who gets it'); return true; }
   if(d.bankactivate){ const b=bankById(d.bankactivate); if(b) bankActivateModal(b); return true; }
   if(d.bankactgo){ const b=bankById(d.bankactgo); if(b) activateRequest(b); return true; }
+  if(d.bankcopy){ const b=bankById(d.bankcopy); if(b) bankCopyModal(b); return true; }
+  if(d.bankcopygo){ const b=bankById(d.bankcopygo); if(b) giveCopies(b); return true; }
   if(d.banksuggest!==undefined){ bankSuggestModal(); return true; }
   if(d.banksendsg!==undefined){ const title=$('#sgTitle').value.trim(); if(!title){ toast('Give it a title'); return true; }
     S.bank.push({id:rid('bk'),type:$('#sgType').value,status:'raw',title,hook:'',description:$('#sgDesc').value.trim(),major:$('#sgMajor').value,level:'micro',scope:'day',difficulty:'2',image:normUrl($('#sgImg').value),steps:[],by:S.viewer,suggested:true,starts:[],hands:[],...nowStamp()});
@@ -3554,9 +3589,62 @@ function tvAddBlock(d,s,custom){
 }
 /* A block shows its library segment's current wording unless it was changed for that day */
 function tvInfo(b){ const s=!b.custom && b.segId && tvById(b.segId); return s ? {...b,name:s.name,shot:s.shot,cue:s.cue,say:s.say,prompt:s.prompt,needs:s.needs,videoOnly:!!s.videoOnly,pos:b.pos??s.pos} : b; }
+/* v1.4.4 announcement rules:
+   - normal: airs start..end on its set days, and ALWAYS on its first and last school day (moved to the nearest school day if those are days off)
+   - event dates: airs M/W/F of the week before each date, plus the day of. {NEXT} becomes the next date.
+   - same Combine group airing the same day → one combined read */
+function annFirstLast(a){
+  let fd=null, ld=null;
+  for(let d=a.start,k=0; d<=a.end && k<400; d=addDays(d,1),k++){ if(tvSchoolDay(d)){ if(!fd) fd=d; ld=d; } }
+  if(!fd){ let d=a.end; for(let k=0;k<20;k++){ d=addDays(d,-1); if(tvSchoolDay(d)){ fd=ld=d; break; } } }
+  return [fd,ld];
+}
+function annAir(a,d){
+  if(!tvSchoolDay(d)) return null;
+  const ev=(a.dates||[]).filter(Boolean).sort();
+  if(ev.length){
+    for(const E of ev){
+      if(E===d) return {next:E,today:true};
+      const pw=addDays(weekStartOf(E),-7);
+      if([0,2,4].some(k=>addDays(pw,k)===d) && d<E) return {next:E,today:false};
+    }
+    return null;
+  }
+  if(!a.start||!a.end) return null;
+  const [fd,ld]=annFirstLast(a); if(d===fd||d===ld) return {};
+  if(d<a.start||d>a.end) return null;
+  const wd=parseISO(d).getDay();
+  return (!(a.days||[]).length || a.days.includes(wd)) ? {} : null;
+}
+const tvNextLabel = E => parseISO(E).toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
+function annText(a,info){
+  const short=a.short||a.title||'';
+  if(info.today) return (a.sayToday||String(a.say||'').replace(/\bon \{NEXT\}/g,'today').replace(/\{NEXT\}/g,'today')).replace(/\{SHORT\}/g,short).replace(/\{NEXT\}/g,'today');
+  return String(a.say||'').replace(/\{NEXT\}/g,info.next?tvNextLabel(info.next):'').replace(/\{SHORT\}/g,short);
+}
+const joinAnd = L => L.length<=1?(L[0]||''):L.slice(0,-1).join(', ')+' and '+L[L.length-1];
 function tvAnnsFor(d){
-  const wd=parseISO(d).getDay(), day=tvDay(d), skip=new Set((day&&day.skipAnn)||[]);
-  return tvRows('ann').filter(a=>a.start && a.end && a.start<=d && d<=a.end && (!(a.days||[]).length || a.days.includes(wd)) && !skip.has(a.id)).sort((a,b)=>(a.order||0)-(b.order||0)||(a.start||'').localeCompare(b.start||''));
+  const day=tvDay(d), skip=new Set((day&&day.skipAnn)||[]), groups=(tvCfg().groups||{});
+  const on=tvRows('ann').map(a=>({a,info:skip.has(a.id)?null:annAir(a,d)})).filter(x=>x.info).sort((x,y)=>(x.a.order||0)-(y.a.order||0)||(x.a.start||'').localeCompare(y.a.start||''));
+  const out=[], used=new Set();
+  for(const x of on){
+    if(used.has(x.a.id)) continue;
+    const g=(x.a.group||'').trim(), mates=g?on.filter(y=>(y.a.group||'').trim()===g):[x];
+    if(mates.length>1){
+      mates.forEach(y=>used.add(y.a.id)); mates.sort((p,q)=>(p.info.today?'0':p.info.next||'9').localeCompare(q.info.today?'0':q.info.next||'9'));
+      const list=joinAnd(mates.map(y=>`${y.a.short||y.a.title}${y.info.today?' today':y.info.next?' on '+tvNextLabel(y.info.next):''}`));
+      const tpl=(groups[g]&&groups[g].say)||'Coming up: {LIST}.';
+      out.push({...mates[0].a,title:g,say:tpl.replace(/\{LIST\}/g,list),cue:mates.map(y=>y.a.cue||(y.a.short||y.a.title)+' graphic').join(' / '),combined:mates.map(y=>y.a.id)});
+    } else { used.add(x.a.id); out.push({...x.a,say:annText(x.a,x.info)}); }
+  }
+  return out;
+}
+function parseEventDates(txt){
+  const out=new Set(), sy=SENIOR_YEAR;
+  String(txt||'').replace(/(\d{4})-(\d{2})-(\d{2})/g,(m)=>{ out.add(m); return ' '; }).replace(/(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/g,(m,mo,da,yr)=>{
+    mo=+mo; da=+da; let y=yr?+yr:(mo>=7?sy-1:sy); if(y<100) y+=2000;
+    if(mo>=1&&mo<=12&&da>=1&&da<=31) out.add(`${y}-${String(mo).padStart(2,'0')}-${String(da).padStart(2,'0')}`); return ' '; });
+  return [...out].sort();
 }
 function tvRundown(d){
   const out=S.broadcast.filter(b=>b.kind==='block'&&b.date===d).map(b=>({t:'b',b,i:tvInfo(b),pos:tvInfo(b).pos||0}));
@@ -3740,8 +3828,13 @@ function tvAnnModal(id){
       <label>Title</label><input id="aTitle" value="${esc(a.title||'')}" placeholder="Short name, e.g. Hot Rodders fundraiser">
       <label>From</label><input id="aFrom" value="${esc(a.from||'')}" placeholder="Who sent it (optional)">
       <label>Original email</label><textarea id="aEmail" rows="3" placeholder="Paste the approved email text here for your records">${esc(a.email||'')}</textarea>
-      <label>On-air wording</label><textarea id="aSay" rows="5" data-voice placeholder="Your edited version. A blank line between paragraphs switches anchors.">${esc(a.say||'')}</textarea>
-      <label>Runs</label><span class="tvdates"><input type="date" id="aStart" value="${esc(a.start||'')}"> to <input type="date" id="aEnd" value="${esc(a.end||'')}"></span>
+      <label>On-air wording</label><textarea id="aSay" rows="5" data-voice placeholder="Your edited version. A blank line between paragraphs switches anchors. For event dates, write {NEXT} where the date goes.">${esc(a.say||'')}</textarea>
+      <label>Runs</label><span class="tvdates"><input type="date" id="aStart" value="${esc(a.start||'')}"> to <input type="date" id="aEnd" value="${esc(a.end||'')}"></span><span></span><span class="hint">Always airs on its first and last day, even if those aren’t checked below.</span>
+      <label>Or event dates</label><textarea id="aDates" rows="2" placeholder="For visits that repeat, e.g. 10/13, 11/10, 12/8. Airs Mon/Wed/Fri the week before each date and the day of. (Leave empty to use Runs.)">${esc((a.dates||[]).map(x=>{ const t=parseISO(x); return (t.getMonth()+1)+'/'+t.getDate()+'/'+String(t.getFullYear()).slice(2); }).join(', '))}</textarea>
+      <label>Short name</label><input id="aShort" value="${esc(a.short||'')}" placeholder="e.g. the U.S. Army. Used for {SHORT} and in combined reads">
+      <label>Day-of wording</label><textarea id="aSayToday" rows="2" placeholder="Optional. Leave empty and “on {NEXT}” becomes “today.”">${esc(a.sayToday||'')}</textarea>
+      <label>Combine group</label><input id="aGroup" list="annGroups" value="${esc(a.group||'')}" placeholder="Optional, e.g. Military visits. Same-day announcements in a group become one read"><datalist id="annGroups">${[...new Set(tvRows('ann').map(x=>x.group).filter(Boolean))].map(g=>`<option value="${esc(g)}">`).join('')}</datalist>
+      <label>Group wording</label><input id="aGroupSay" value="${esc(((tvCfg().groups||{})[a.group||'']||{}).say||'')}" placeholder="e.g. Coming up at lunch: {LIST}. Stop by with your questions.">
       <label>Only on</label><span class="tvdays">${[1,2,3,4,5].map(x=>`<label><input type="checkbox" data-aday="${x}" ${(a.days||[]).includes(x)?'checked':''}> ${WD[x]}</label>`).join('')}<span class="hint">Leave all unchecked for every day</span></span>
       <label>Shot</label><select id="aShot">${TV_SHOTS.map(x=>`<option ${a.shot===x?'selected':''}>${x}</option>`).join('')}</select>
       <label>Video column</label><input id="aCue" value="${esc(a.cue||'')}" placeholder="e.g. Hot rodder graphic (defaults to the title + Graphic)">
@@ -3792,10 +3885,13 @@ function tvClick(d,t,e){
   if(d.tvannnew!==undefined){ tvAnnModal(null); return true; }
   if(d.tvannedit){ tvAnnModal(d.tvannedit); return true; }
   if(d.tvannsave!==undefined){
-    const v=id=>($('#'+id)||{}).value||''; const start=v('aStart'), end=v('aEnd');
+    const v=id=>($('#'+id)||{}).value||''; const dates=parseEventDates(v('aDates')); let start=v('aStart'), end=v('aEnd');
+    if(v('aDates').trim() && !dates.length){ toast('Couldn’t read those event dates. Try 10/13/26, 11/10/26'); return true; }
+    if(dates.length){ start=addDays(weekStartOf(dates[0]),-7); end=dates[dates.length-1]; }
     if(!v('aSay').trim()){ toast('Add the on-air wording'); return true; } if(!start||!end||end<start){ toast('Check the start and end dates'); return true; }
+    const grp=v('aGroup').trim(); if(grp && v('aGroupSay').trim()){ const c=tvCfgW(); c.groups={...(c.groups||{}),[grp]:{say:v('aGroupSay').trim()}}; }
     const a=TVE?tvById(TVE):{id:rid('an'),kind:'ann',who:[],status:'not',file:''};
-    Object.assign(a,{title:v('aTitle').trim()||v('aSay').trim().slice(0,40),from:v('aFrom').trim(),email:v('aEmail'),say:v('aSay').trim(),start,end,days:$$('input[data-aday]:checked').map(x=>+x.dataset.aday),shot:v('aShot')||'Graphic',cue:v('aCue').trim(),needsGfx:!!$('#aGfx')?.checked,order:+v('aOrder')||0});
+    Object.assign(a,{title:v('aTitle').trim()||v('aSay').trim().slice(0,40),from:v('aFrom').trim(),email:v('aEmail'),say:v('aSay').trim(),start,end,days:$$('input[data-aday]:checked').map(x=>+x.dataset.aday),shot:v('aShot')||'Graphic',cue:v('aCue').trim(),needsGfx:!!$('#aGfx')?.checked,order:+v('aOrder')||0,dates,short:v('aShort').trim(),sayToday:v('aSayToday').trim(),group:grp});
     if($('#aFile')) a.file=v('aFile').trim();
     if(!TVE) S.broadcast.push(a); closeModal(); render(); toast('Announcement saved'); return true; }
   if(d.tvanndel){ if(!confirm('Delete this announcement?')) return true; S.broadcast=S.broadcast.filter(x=>x.id!==d.tvanndel); closeModal(); render(); return true; }
@@ -4021,7 +4117,7 @@ function myListCard(){
 /* ---------- Render ---------- */
 const PAGES = () => isTeacher()
   ? [['home','Class today'],['mylist','My list'],['board','Board'],['tv','Spartan TV'],['cal','Calendar'],['bank','Project bank'],['past','Past projects'],['week','Weekly reports'],['lessons','Lessons & polls'],['asks','Asks'],['sync','Schoology sync'],['roster','Roster'],['help','Help']]
-  : [['home','Home'],['board','Board'],['tv','Spartan TV'],['cal','Calendar'],['week','My week'],['bank','Project bank'],['past','Past projects'],['lessons','Lessons & polls'],['asks','Asks'],['help','Help']];
+  : [['home','Home'],['board','Board'],['tv','Spartan TV'],['cal','Calendar'],...(lowerMe()?[]:[['week','My week']]),['bank','Project bank'],['past','Past projects'],['lessons','Lessons & polls'],['asks','Asks'],['help','Help']];
 function pageHTML(){
   if(SIMPLE() && !UI.more && !['home','board','week'].includes(UI.page)) UI.page='home';
   switch(UI.page){
@@ -4296,7 +4392,7 @@ document.addEventListener('click',e=>{
     render(); return; }
   if(d.readall!==undefined){ notifsFor(S.viewer).forEach(n=>{ if(!n.readBy.includes(S.viewer)) n.readBy.push(S.viewer); }); closeMenu(); render(); return; }
   if(d.subs){ UI.openSubs.has(d.subs)?UI.openSubs.delete(d.subs):UI.openSubs.add(d.subs); render(); return; }
-  if(d.collapse){ UI.collapsed.has(d.collapse)?UI.collapsed.delete(d.collapse):UI.collapsed.add(d.collapse); render(); return; }
+  if(d.collapse){ toggleGroup(d.collapse); render(); return; }
   if(d.editassign){ openModal(assignmentForm(asn(d.editassign))); updAudCount(); return; }
   if(d.openweek){ const [pid,ws]=d.openweek.split('|'); if(isTeacher()) UI.wkStudent=pid; UI.wkStart=ws; UI.page='week'; closePanel(); render(); window.scrollTo(0,0); return; }
   if(d.open){ openPanel(d.open); return; }
@@ -4415,7 +4511,7 @@ document.addEventListener('click',e=>{
 });
 $('#scrim').addEventListener('click',closePanel);
 document.addEventListener('toggle', e=>{ const d=e.target; if(d && d.dataset && d.dataset.sec) UI.sec[d.dataset.sec]=d.open; }, true);
-function stepStudent(n){ if(!STUDENTS.length) return; const cur=UI.wkStudent||STUDENTS[0].id; let k=STUDENTS.findIndex(s=>s.id===cur); k=(k+n+STUDENTS.length)%STUDENTS.length; UI.wkStudent=STUDENTS[k].id; render(); }
+function stepStudent(n){ const L=UPPER; if(!L.length) return; const cur=UI.wkStudent||L[0].id; let k=L.findIndex(s=>s.id===cur); k=(k+n+L.length)%L.length; UI.wkStudent=LTS[k].id; render(); }
 document.addEventListener('keydown',e=>{
   if(myListKey(e)) return;
   if((e.key==='ArrowLeft'||e.key==='ArrowRight') && UI.page==='week' && isTeacher() && !typing() && !(e.target.closest && e.target.closest('select')) && $('#modal').hidden && !UI.panel && !e.altKey && !e.metaKey && !e.ctrlKey){ e.preventDefault(); stepStudent(e.key==='ArrowRight'?1:-1); return; }
