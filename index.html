@@ -1043,7 +1043,7 @@ const CFG = window.JARVIS_CONFIG || {};
 const SUPABASE_URL = CFG.url || 'PASTE_YOUR_PROJECT_URL';
 const SUPABASE_ANON_KEY = CFG.anonKey || 'PASTE_YOUR_ANON_KEY';
 const LOGIN_DOMAIN = 'jarvis.local';
-const APP_VERSION = '1.4.6';
+const APP_VERSION = '1.4.7';
 const APP_DATE = 'Oct 11, 2026';
 
 /* ---------- Dates ---------- */
@@ -3610,8 +3610,7 @@ function annAir(a,d){
   if(ev.length){
     for(const E of ev){
       if(E===d) return {next:E,today:true};
-      const pw=addDays(weekStartOf(E),-7);
-      if([0,2,4].some(k=>addDays(pw,k)===d) && d<E) return {next:E,today:false};
+      if(d<E && d>=addDays(E,-7) && [1,3,5].includes(parseISO(d).getDay())) return {next:E,today:false};
     }
     return null;
   }
@@ -3624,6 +3623,7 @@ function annAir(a,d){
 const tvNextLabel = E => parseISO(E).toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
 function annText(a,info){
   const short=a.short||a.title||'';
+  a={...a,say:String(a.say||'').replace(/\((?:date|day|insert day)\)/gi,'{NEXT}').replace(/\binsert day\b/gi,'{NEXT}')};
   if(info.today) return (a.sayToday||String(a.say||'').replace(/\bon \{NEXT\}/g,'today').replace(/\{NEXT\}/g,'today')).replace(/\{SHORT\}/g,short).replace(/\{NEXT\}/g,'today');
   return String(a.say||'').replace(/\{NEXT\}/g,info.next?tvNextLabel(info.next):'').replace(/\{SHORT\}/g,short);
 }
@@ -3634,7 +3634,7 @@ function tvAnnsFor(d){
   const out=[], used=new Set();
   for(const x of on){
     if(used.has(x.a.id)) continue;
-    const g=(x.a.group||'').trim(), mates=g?on.filter(y=>(y.a.group||'').trim()===g):[x];
+    const mates=[x];
     if(mates.length>1){
       mates.forEach(y=>used.add(y.a.id)); mates.sort((p,q)=>(p.info.today?'0':p.info.next||'9').localeCompare(q.info.today?'0':q.info.next||'9'));
       const list=joinAnd(mates.map(y=>`${y.a.short||y.a.title}${y.info.today?' today':y.info.next?' on '+tvNextLabel(y.info.next):''}`));
@@ -3644,13 +3644,30 @@ function tvAnnsFor(d){
   }
   return out;
 }
-function parseEventDates(txt){
-  const out=new Set(), sy=SENIOR_YEAR;
-  String(txt||'').replace(/(\d{4})-(\d{2})-(\d{2})/g,(m)=>{ out.add(m); return ' '; }).replace(/(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/g,(m,mo,da,yr)=>{
-    mo=+mo; da=+da; let y=yr?+yr:(mo>=7?sy-1:sy); if(y<100) y+=2000;
-    if(mo>=1&&mo<=12&&da>=1&&da<=31) out.add(`${y}-${String(mo).padStart(2,'0')}-${String(da).padStart(2,'0')}`); return ' '; });
-  return [...out].sort();
+const MONTHS=['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+const WDN=['sun','mon','tue','wed','thu','fri','sat'];
+/* Reads dates typed like people say them. Returns {dates:[iso], bad:[text]} */
+function parseLooseDates(txt){
+  const out=new Set(), bad=[], start=addDays(todayISO(),-30);
+  for(let tok of String(txt||'').split(/[,;\n]+|\band\b/i)){
+    tok=tok.trim(); if(!tok) continue; const t=tok.toLowerCase();
+    let m=t.match(/(\d{4})-(\d{2})-(\d{2})/); if(m){ out.add(m[0]); continue; }
+    let mo=null, da=null, yr=null, wd=null;
+    m=t.match(/(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/); if(m){ mo=+m[1]; da=+m[2]; if(m[3]) yr=+m[3]<100?+m[3]+2000:+m[3]; }
+    else { const mi=MONTHS.findIndex(x=>new RegExp('\\b'+x).test(t)); if(mi>=0) mo=mi+1; const dm=t.match(/\b(\d{1,2})(?:st|nd|rd|th)?\b/); if(dm) da=+dm[1]; }
+    const wi=WDN.findIndex(x=>new RegExp('\\b'+x).test(t)); if(wi>=0) wd=wi;
+    if(!da || da>31 || (mo && (mo<1||mo>12))){ bad.push(tok); continue; }
+    let found=null;
+    for(let k=0, d=start; k<400; k++, d=addDays(d,1)){
+      const x=parseISO(d); if(x.getDate()!==da) continue; if(mo && x.getMonth()+1!==mo) continue; if(yr && x.getFullYear()!==yr) continue; if(wd!=null && x.getDay()!==wd) continue;
+      found=d; break;
+    }
+    if(found) out.add(found); else bad.push(tok);
+  }
+  return {dates:[...out].sort(),bad};
 }
+function parseEventDates(txt){ return parseLooseDates(txt).dates; }
+const shortDate = iso => { const x=parseISO(iso); return `${WDN[x.getDay()][0].toUpperCase()+WDN[x.getDay()].slice(1)} ${MONTHS[x.getMonth()][0].toUpperCase()+MONTHS[x.getMonth()].slice(1)} ${x.getDate()}`+(iso>addDays(todayISO(),240)?` ${x.getFullYear()}`:''); };
 function tvRundown(d){
   const out=S.broadcast.filter(b=>b.kind==='block'&&b.date===d).map(b=>({t:'b',b,i:tvInfo(b),pos:tvInfo(b).pos||0}));
   const ap=tvCfg().annPos??40;
@@ -3828,26 +3845,26 @@ function tvSegModal(id){
 function tvAnnModal(id,preset){
   const a=preset||(id?tvById(id):null)||{title:'',from:'',email:'',say:'',start:todayISO(),end:addDays(todayISO(),4),days:[],shot:'Graphic',cue:'',needsGfx:true,order:0};
   TVE=id||null;
+  const hasDates=(a.dates||[]).length>0;
   openModal(`<div class="mhead wide"><h2>${id?'Edit announcement':preset?'Copy of announcement':'New announcement'}</h2><button class="x" data-closemodal>×</button></div>
     <div class="fields tvsegf">
-      <label>Title</label><input id="aTitle" value="${esc(a.title||'')}" placeholder="Short name, e.g. Hot Rodders fundraiser">
-      <label>From</label><input id="aFrom" value="${esc(a.from||'')}" placeholder="Who sent it (optional)">
-      <label>Original email</label><textarea id="aEmail" rows="3" placeholder="Paste the approved email text here for your records">${esc(a.email||'')}</textarea>
-      <label>On-air wording</label><textarea id="aSay" rows="5" data-voice placeholder="Your edited version. A blank line between paragraphs switches anchors. For event dates, write {NEXT} where the date goes.">${esc(a.say||'')}</textarea>
-      <label>Runs</label><span class="tvdates"><input type="date" id="aStart" value="${esc(a.start||'')}"> to <input type="date" id="aEnd" value="${esc(a.end||'')}"></span><span></span><span class="hint">Always airs on its first and last day, even if those aren’t checked below.</span>
-      <label>Or event dates</label><textarea id="aDates" rows="2" placeholder="For visits that repeat, e.g. 10/13, 11/10, 12/8. Airs Mon/Wed/Fri the week before each date and the day of. (Leave empty to use Runs.)">${esc((a.dates||[]).map(x=>{ const t=parseISO(x); return (t.getMonth()+1)+'/'+t.getDate()+'/'+String(t.getFullYear()).slice(2); }).join(', '))}</textarea>
-      <label>Short name</label><input id="aShort" value="${esc(a.short||'')}" placeholder="e.g. the U.S. Army. Used for {SHORT} and in combined reads">
-      <label>Day-of wording</label><textarea id="aSayToday" rows="2" placeholder="Optional. Leave empty and “on {NEXT}” becomes “today.”">${esc(a.sayToday||'')}</textarea>
-      <label>Combine group</label><input id="aGroup" list="annGroups" value="${esc(a.group||'')}" placeholder="Optional, e.g. Military visits. Same-day announcements in a group become one read"><datalist id="annGroups">${[...new Set(tvRows('ann').map(x=>x.group).filter(Boolean))].map(g=>`<option value="${esc(g)}">`).join('')}</datalist>
-      <label>Group wording</label><input id="aGroupSay" value="${esc(((tvCfg().groups||{})[a.group||'']||{}).say||'')}" placeholder="e.g. Coming up at lunch: {LIST}. Stop by with your questions.">
-      <label>Only on</label><span class="tvdays">${[1,2,3,4,5].map(x=>`<label><input type="checkbox" data-aday="${x}" ${(a.days||[]).includes(x)?'checked':''}> ${WD[x]}</label>`).join('')}<span class="hint">Leave all unchecked for every day</span></span>
-      <label>Shot</label><select id="aShot">${TV_SHOTS.map(x=>`<option ${a.shot===x?'selected':''}>${x}</option>`).join('')}</select>
-      <label>Video column</label><input id="aCue" value="${esc(a.cue||'')}" placeholder="e.g. Hot rodder graphic (defaults to the title + Graphic)">
-      <label>Graphic</label><label class="fopt"><input type="checkbox" id="aGfx" ${a.needsGfx?'checked':''}> A student needs to make a graphic (shows in What needs doing)</label>
-      ${id&&a.needsGfx?`<label>Graphic file</label><input id="aFile" value="${esc(a.file||'')}" placeholder="Link to the finished graphic">`:''}
-      <label>Order</label><input id="aOrder" type="number" value="${a.order||0}"><span></span><span class="hint">Lower numbers read first among the announcements.</span>
+      <label>Title</label><input id="aTitle" value="${esc(a.title||'')}" placeholder="e.g. Army visit or Hot Rodders fundraiser">
+      <label>On-air wording</label><textarea id="aSay" rows="5" data-voice placeholder="What the anchors read. For visits, type (date) where the date goes: “The Army will be here on (date).”">${esc(String(a.say||'').replace(/\{NEXT\}/g,'(date)'))}</textarea>
+      <label>Visit dates</label><span><input id="aDates" value="${esc((a.dates||[]).map(shortDate).join(', '))}" placeholder="For visits: Tuesday the 13th, Tue Nov 10, 12/8">
+        <span class="hint" id="aDatesHint">Airs Mon/Wed/Fri in the 7 days before each date, and on the day itself it says “today.” Leave empty for a regular announcement.</span></span>
+      <label>Runs</label><span><span class="tvdates"><input type="date" id="aStart" value="${esc(hasDates?'':(a.start||''))}"> to <input type="date" id="aEnd" value="${esc(hasDates?'':(a.end||''))}"></span><span class="hint">For regular announcements. Always airs on its first and last day.</span></span>
+      <label>Graphic</label><label class="fopt"><input type="checkbox" id="aGfx" ${a.needsGfx?'checked':''}> A student needs to make a graphic</label>
     </div>
-    <div class="mfoot">${id?`<button class="btn danger" data-tvanndel="${id}">Delete</button><button class="btn" data-tvanndup="${id}" title="Start a new announcement with everything filled in from this one">Copy</button>`:''}<span class="grow"></span><button class="btn primary" data-tvannsave>${preset?'Save copy':'Save'}</button></div>`);
+    <details class="psec"><summary><span class="st">More options</span></summary><div class="fields tvsegf">
+      <label>From</label><input id="aFrom" value="${esc(a.from||'')}" placeholder="Who sent it (optional)">
+      <label>Original email</label><textarea id="aEmail" rows="3" placeholder="Paste the approved email for your records">${esc(a.email||'')}</textarea>
+      <label>Only on</label><span class="tvdays">${[1,2,3,4,5].map(x=>`<label><input type="checkbox" data-aday="${x}" ${(a.days||[]).includes(x)?'checked':''}> ${WD[x]}</label>`).join('')}<span class="hint">Regular announcements only. Leave unchecked for every day.</span></span>
+      <label>Shot</label><select id="aShot">${TV_SHOTS.map(x=>`<option ${a.shot===x?'selected':''}>${x}</option>`).join('')}</select>
+      <label>Video column</label><input id="aCue" value="${esc(a.cue||'')}" placeholder="Defaults to the title + Graphic">
+      ${id&&a.needsGfx?`<label>Graphic file</label><input id="aFile" value="${esc(a.file||'')}" placeholder="Link to the finished graphic">`:''}
+      <label>Order</label><input id="aOrder" type="number" value="${a.order||0}"><span></span><span class="hint">Lower numbers read first.</span>
+    </div></details>
+    <div class="mfoot">${id?`<button class="btn danger" data-tvanndel="${id}">Delete</button><button class="btn" data-tvanndup="${id}" title="Start a new announcement filled in from this one">Copy</button>`:''}<span class="grow"></span><button class="btn primary" data-tvannsave>${preset?'Save copy':'Save'}</button></div>`);
 }
 function tvAnnView(id,d){
   const a=tvById(id); if(!a) return; if(isTeacher() && !d) return tvAnnModal(id);
@@ -3890,15 +3907,16 @@ function tvClick(d,t,e){
   if(d.tvannnew!==undefined){ tvAnnModal(null); return true; }
   if(d.tvannedit){ tvAnnModal(d.tvannedit); return true; }
   if(d.tvannsave!==undefined){
-    const v=id=>($('#'+id)||{}).value||''; const dates=parseEventDates(v('aDates')); let start=v('aStart'), end=v('aEnd');
-    if(v('aDates').trim() && !dates.length){ toast('Couldn’t read those event dates. Try 10/13/26, 11/10/26'); return true; }
-    if(dates.length){ start=addDays(weekStartOf(dates[0]),-7); end=dates[dates.length-1]; }
-    if(!v('aSay').trim()){ toast('Add the on-air wording'); return true; } if(!start||!end||end<start){ toast('Check the start and end dates'); return true; }
-    const grp=v('aGroup').trim(); if(grp && v('aGroupSay').trim()){ const c=tvCfgW(); c.groups={...(c.groups||{}),[grp]:{say:v('aGroupSay').trim()}}; }
+    const v=id=>($('#'+id)||{}).value||''; const P=parseLooseDates(v('aDates')); const dates=P.dates; let start=v('aStart'), end=v('aEnd');
+    if(P.bad.length){ toast(`Couldn’t match: ${P.bad.join(', ')}. Try “Tuesday Nov 10” or 11/10.`); return true; }
+    if(dates.length){ start=addDays(dates[0],-7); end=dates[dates.length-1]; }
+    if(!v('aSay').trim()){ toast('Add the on-air wording'); return true; }
+    if(!start||!end||end<start){ toast(dates.length?'Check the dates':'Add visit dates, or a Runs start and end'); return true; }
+    if(dates.length && !/\((?:date|day|insert day)\)|\{NEXT\}/i.test(v('aSay'))) { if(!confirm('The wording has no (date) in it, so it won’t say which day. Save anyway?')) return true; }
     const a=TVE?tvById(TVE):{id:rid('an'),kind:'ann',who:[],status:'not',file:''};
-    Object.assign(a,{title:v('aTitle').trim()||v('aSay').trim().slice(0,40),from:v('aFrom').trim(),email:v('aEmail'),say:v('aSay').trim(),start,end,days:$$('input[data-aday]:checked').map(x=>+x.dataset.aday),shot:v('aShot')||'Graphic',cue:v('aCue').trim(),needsGfx:!!$('#aGfx')?.checked,order:+v('aOrder')||0,dates,short:v('aShort').trim(),sayToday:v('aSayToday').trim(),group:grp});
+    Object.assign(a,{title:v('aTitle').trim()||v('aSay').trim().slice(0,40),from:v('aFrom').trim(),email:v('aEmail'),say:v('aSay').trim(),start,end,days:$$('input[data-aday]:checked').map(x=>+x.dataset.aday),shot:v('aShot')||'Graphic',cue:v('aCue').trim(),needsGfx:!!$('#aGfx')?.checked,order:+v('aOrder')||0,dates});
     if($('#aFile')) a.file=v('aFile').trim();
-    if(!TVE) S.broadcast.push(a); closeModal(); render(); toast('Announcement saved'); return true; }
+    if(!TVE) S.broadcast.push(a); closeModal(); render(); toast(dates.length?`Saved · ${dates.length} date${dates.length===1?'':'s'}: ${dates.map(shortDate).join(', ')}`:'Announcement saved'); return true; }
   if(d.tvanndup){ const src=tvById(d.tvanndup); if(!src) return true; const {id,who,status,file,doneAt,editedBy,...rest}=src; tvAnnModal(null,{...rest,title:(src.title||'Announcement')+' (copy)'}); return true; }
   if(d.tvanndel){ if(!confirm('Delete this announcement?')) return true; S.broadcast=S.broadcast.filter(x=>x.id!==d.tvanndel); closeModal(); render(); return true; }
   if(d.tvsegnew!==undefined){ tvSegModal(null); return true; }
@@ -4112,6 +4130,7 @@ document.addEventListener('paste',e=>{
   const n=addQuick(text,L.id); render(); toast(`Added ${n} to-do${n===1?'':'s'}`);
 });
 document.addEventListener('change',e=>{ if(e.target && (e.target.id==='remDate'||e.target.id==='remTime')) remSyncChips(); });
+document.addEventListener('input',e=>{ if(!e.target||e.target.id!=='aDates') return; const P=parseLooseDates(e.target.value), h=$('#aDatesHint'); if(!h) return; h.textContent = !e.target.value.trim() ? 'Airs Mon/Wed/Fri in the 7 days before each date, and on the day itself it says “today.” Leave empty for a regular announcement.' : (P.dates.length?'Reads as: '+P.dates.map(shortDate).join(', '):'')+(P.bad.length?`  ·  Can’t match: ${P.bad.join(', ')}`:''); });
 document.addEventListener('input',e=>{ const t=e.target; if(t&&t.dataset&&t.dataset.reflect){ saveReflection(t.dataset.reflect,t.value); const el=document.querySelector(`[data-refsaved="${t.dataset.reflect}"]`); if(el) el.textContent='Saving…'; return; } if(t&&t.dataset&&t.dataset.tdtitle){ const td=todoById(t.dataset.tdtitle); if(td){ td.title=t.value; clearTimeout(tdSaveTimer); tdSaveTimer=setTimeout(()=>persist(),700); } } });
 function myListCard(){
   if(!isTeacher()) return '';
