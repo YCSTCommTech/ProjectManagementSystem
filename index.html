@@ -1043,7 +1043,7 @@ const CFG = window.JARVIS_CONFIG || {};
 const SUPABASE_URL = CFG.url || 'PASTE_YOUR_PROJECT_URL';
 const SUPABASE_ANON_KEY = CFG.anonKey || 'PASTE_YOUR_ANON_KEY';
 const LOGIN_DOMAIN = 'jarvis.local';
-const APP_VERSION = '1.4.4';
+const APP_VERSION = '1.4.5';
 const APP_DATE = 'Oct 11, 2026';
 
 /* ---------- Dates ---------- */
@@ -2042,6 +2042,12 @@ function pollHTML(q){
     ${isTeacher()?`<div class="askacts"><button class="linkbtn" data-pollopen="${q.id}">${q.open?'Close poll':'Reopen'}</button><button class="linkbtn" data-polldel="${q.id}">Delete</button></div>`:''}</div>`;
 }
 const pollsFor = v => S.polls.filter(q=> isTeacherId(v) || studentsFor(q.audience).some(s=>s.id===v));
+const pendingPictures = () => S.settings.filter(x=>x.id.startsWith('profile_') && x.imgPending && PEOPLE[x.id.slice(8)]);
+const pendingPicRows = () => pendingPictures().map(x=>{ const pid=x.id.slice(8); return `<div class="mrow"><span class="av big sh-${x.shape||'circle'}" style="background:center/cover url(${x.imgPending});color:transparent"></span><b>${esc(realName(pid))}</b><button class="btn tiny primary" data-avok="${pid}">Approve</button><button class="btn tiny" data-avno="${pid}">Decline</button></div>`; }).join('');
+function picApproveModal(){
+  if(!pendingPictures().length){ closeModal(); toast('No pictures waiting'); return; }
+  openModal(`<div class="mhead"><h2>Pictures to approve</h2><button class="x" data-closemodal>×</button></div><p class="hint" style="margin:0">Students’ profile pictures show up for everyone once you approve them.</p>${pendingPicRows()}`);
+}
 function renderHomeStudent(){
   if(SIMPLE()) return renderHomeSimple();
   const v=S.viewer, t=todayISO(), ws=weekStartOf(t), ci=checkin(v,t);
@@ -2082,8 +2088,7 @@ function renderHomeTeacher(){
     <div class="hgrid" style="margin-top:12px">${remindersCard()}${myListCard()}</div>
     <div class="filters" style="margin:10px 0 8px">${['',String(SENIOR_YEAR),String(JUNIOR_YEAR),...(SOPHS.length?[String(SOPH_YEAR)]:[]),...(FRESHMEN.length?[String(FRESH_YEAR)]:[])].map(g=>`<button class="chip ${UI.homeGrade===g?'on':''}" data-homegrade="${g}">${g===''?'Juniors & seniors':gradLabel(+g)==='Freshman'?'Freshmen':gradLabel(+g)+'s'}</button>`).join('')}<span class="hint">Click a student to open their week.</span></div>
     <div class="tablewrap" style="--g:var(--accent)"><table class="roster"><thead><tr><th class="c-item">Student</th><th>Grade · major</th><th>Check-in</th><th>Working on</th><th>Today’s line</th></tr></thead><tbody>${rows}</tbody></table></div>`;
-  const pend=S.settings.filter(x=>x.id.startsWith('profile_') && x.imgPending && PEOPLE[x.id.slice(8)]);
-  const pendCard = pend.length ? card('Pictures to approve', pend.map(x=>{ const pid=x.id.slice(8); return `<div class="mrow"><span class="av big sh-${x.shape||'circle'}" style="background:center/cover url(${x.imgPending});color:transparent"></span><b>${esc(realName(pid))}</b><button class="btn tiny primary" data-avok="${pid}">Approve</button><button class="btn tiny" data-avno="${pid}">Decline</button></div>`; }).join('')) : '';
+  const pendCard = pendingPictures().length ? card('Pictures to approve', pendingPicRows()) : '';
   if(lessons.length || pendCard) h += `<div class="hgrid" style="margin-top:16px">${pendCard}${lessons.length?card('Lessons today', lessons.map(lessonMini).join('')):''}</div>`;
   return h;
 }
@@ -4364,8 +4369,8 @@ document.addEventListener('click',e=>{
   if(d.prmode){ PR.mode=d.prmode; $$('[data-prmode]').forEach(x=>x.classList.toggle('on',x===t)); drawPrMode(); drawPrPrev(); return; }
   if(d.prclearimg!==undefined){ PR.clearImg=true; PR.img=null; drawPrPrev(); t.remove(); return; }
   if(d.prsave!==undefined){ saveProfile(); return; }
-  if(d.avok){ const x=ensureProfile(d.avok); x.img=x.imgPending; delete x.imgPending; x.mode='img'; notify(d.avok,'avatarok',{text:'Your picture was approved'}); render(); toast('Picture approved'); return; }
-  if(d.avno){ const x=ensureProfile(d.avno); delete x.imgPending; if(!x.img && x.mode==='img') x.mode='initials'; notify(d.avno,'avatarno',{text:'Try a different picture — no photos of people'}); render(); toast('Picture declined'); return; }
+  if(d.avok){ const x=ensureProfile(d.avok); x.img=x.imgPending; delete x.imgPending; x.mode='img'; notify(d.avok,'avatarok',{text:'Your picture was approved'}); render(); if(!$('#modal').hidden && $('#modal').textContent.includes('Pictures to approve')) picApproveModal(); toast('Picture approved'); return; }
+  if(d.avno){ const x=ensureProfile(d.avno); delete x.imgPending; if(!x.img && x.mode==='img') x.mode='initials'; notify(d.avno,'avatarno',{text:'Try a different picture — no photos of people'}); render(); if(!$('#modal').hidden && $('#modal').textContent.includes('Pictures to approve')) picApproveModal(); toast('Picture declined'); return; }
   if(d.closemodal!==undefined){ closeModal(); return; }
   if(d.set){
     const it=item(d.id); if(!it) return;
@@ -4388,6 +4393,8 @@ document.addEventListener('click',e=>{
     else if(['lesson','lessonreq','poll'].includes(n.kind)) UI.page='lessons';
     else if(['banksuggest','bankhand','banktaken','bankready'].includes(n.kind)){ UI.page='bank'; UI.bankTab = n.kind==='banksuggest'?'raw':n.kind==='bankhand'?'requests':'ideas'; }
     else if(['eventreq','eventok','eventno'].includes(n.kind)){ UI.page='cal'; UI.calView='week'; resetCalFilters(); }
+    else if(n.kind==='avatar' && isTeacher()){ render(); picApproveModal(); return; }
+    else if(['avatarok','avatarno'].includes(n.kind)){ render(); openProfile(S.viewer); return; }
     else if(['credit','creditok','creditback'].includes(n.kind)){ UI.page='cal'; UI.calView='mp'; resetCalFilters(); } else if(n.askId) UI.page='asks';
     render(); return; }
   if(d.readall!==undefined){ notifsFor(S.viewer).forEach(n=>{ if(!n.readBy.includes(S.viewer)) n.readBy.push(S.viewer); }); closeMenu(); render(); return; }
