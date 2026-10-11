@@ -1043,7 +1043,7 @@ const CFG = window.JARVIS_CONFIG || {};
 const SUPABASE_URL = CFG.url || 'PASTE_YOUR_PROJECT_URL';
 const SUPABASE_ANON_KEY = CFG.anonKey || 'PASTE_YOUR_ANON_KEY';
 const LOGIN_DOMAIN = 'jarvis.local';
-const APP_VERSION = '1.4.5';
+const APP_VERSION = '1.4.6';
 const APP_DATE = 'Oct 11, 2026';
 
 /* ---------- Dates ---------- */
@@ -3825,10 +3825,10 @@ function tvSegModal(id){
   openModal(`<div class="mhead wide"><h2>${id?'Edit segment':'New segment'}</h2><button class="x" data-closemodal>×</button></div>${tvSegFields(s,'s')}
     <div class="mfoot">${id?`<button class="btn danger" data-tvsegdel="${id}">Delete</button>`:''}<span class="grow"></span><button class="btn primary" data-tvsegsave>Save segment</button></div>`);
 }
-function tvAnnModal(id){
-  const a=id?tvById(id):{title:'',from:'',email:'',say:'',start:todayISO(),end:addDays(todayISO(),4),days:[],shot:'Graphic',cue:'',needsGfx:true,order:0};
+function tvAnnModal(id,preset){
+  const a=preset||(id?tvById(id):null)||{title:'',from:'',email:'',say:'',start:todayISO(),end:addDays(todayISO(),4),days:[],shot:'Graphic',cue:'',needsGfx:true,order:0};
   TVE=id||null;
-  openModal(`<div class="mhead wide"><h2>${id?'Edit announcement':'New announcement'}</h2><button class="x" data-closemodal>×</button></div>
+  openModal(`<div class="mhead wide"><h2>${id?'Edit announcement':preset?'Copy of announcement':'New announcement'}</h2><button class="x" data-closemodal>×</button></div>
     <div class="fields tvsegf">
       <label>Title</label><input id="aTitle" value="${esc(a.title||'')}" placeholder="Short name, e.g. Hot Rodders fundraiser">
       <label>From</label><input id="aFrom" value="${esc(a.from||'')}" placeholder="Who sent it (optional)">
@@ -3847,7 +3847,7 @@ function tvAnnModal(id){
       ${id&&a.needsGfx?`<label>Graphic file</label><input id="aFile" value="${esc(a.file||'')}" placeholder="Link to the finished graphic">`:''}
       <label>Order</label><input id="aOrder" type="number" value="${a.order||0}"><span></span><span class="hint">Lower numbers read first among the announcements.</span>
     </div>
-    <div class="mfoot">${id?`<button class="btn danger" data-tvanndel="${id}">Delete</button>`:''}<span class="grow"></span><button class="btn primary" data-tvannsave>Save</button></div>`);
+    <div class="mfoot">${id?`<button class="btn danger" data-tvanndel="${id}">Delete</button><button class="btn" data-tvanndup="${id}" title="Start a new announcement with everything filled in from this one">Copy</button>`:''}<span class="grow"></span><button class="btn primary" data-tvannsave>${preset?'Save copy':'Save'}</button></div>`);
 }
 function tvAnnView(id,d){
   const a=tvById(id); if(!a) return; if(isTeacher() && !d) return tvAnnModal(id);
@@ -3899,6 +3899,7 @@ function tvClick(d,t,e){
     Object.assign(a,{title:v('aTitle').trim()||v('aSay').trim().slice(0,40),from:v('aFrom').trim(),email:v('aEmail'),say:v('aSay').trim(),start,end,days:$$('input[data-aday]:checked').map(x=>+x.dataset.aday),shot:v('aShot')||'Graphic',cue:v('aCue').trim(),needsGfx:!!$('#aGfx')?.checked,order:+v('aOrder')||0,dates,short:v('aShort').trim(),sayToday:v('aSayToday').trim(),group:grp});
     if($('#aFile')) a.file=v('aFile').trim();
     if(!TVE) S.broadcast.push(a); closeModal(); render(); toast('Announcement saved'); return true; }
+  if(d.tvanndup){ const src=tvById(d.tvanndup); if(!src) return true; const {id,who,status,file,doneAt,editedBy,...rest}=src; tvAnnModal(null,{...rest,title:(src.title||'Announcement')+' (copy)'}); return true; }
   if(d.tvanndel){ if(!confirm('Delete this announcement?')) return true; S.broadcast=S.broadcast.filter(x=>x.id!==d.tvanndel); closeModal(); render(); return true; }
   if(d.tvsegnew!==undefined){ tvSegModal(null); return true; }
   if(d.tvsegedit){ tvSegModal(d.tvsegedit); return true; }
