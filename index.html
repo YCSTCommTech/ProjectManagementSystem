@@ -1069,7 +1069,7 @@ const CFG = window.JARVIS_CONFIG || {};
 const SUPABASE_URL = CFG.url || 'PASTE_YOUR_PROJECT_URL';
 const SUPABASE_ANON_KEY = CFG.anonKey || 'PASTE_YOUR_ANON_KEY';
 const LOGIN_DOMAIN = 'jarvis.local';
-const APP_VERSION = '1.4.9';
+const APP_VERSION = '1.4.10';
 const APP_DATE = 'Oct 13, 2026';
 
 /* ---------- Dates ---------- */
@@ -2098,7 +2098,7 @@ function renderHomeStudent(){
   return h+'</div>';
 }
 /* ---------- Start-of-class slide (v1.4.8) ---------- */
-const SC_SECTIONS=[['notes','My notes',1],['due','Due soon',1],['new','New & high priority',1],['lessons','Lessons',1],['mp','Marking period',1],['tv','Spartan TV needs',1],['weekly','Weekly report',0],['events','Coming up',0],['bank','Project bank',0],['polls','Polls',0],['shout','Shout-outs',0]];
+const SC_SECTIONS=[['notes','My notes',1],['due','Assignments',1],['new','New & high priority',1],['lessons','Lessons',1],['mp','Marking period',1],['tv','Spartan TV needs',1],['weekly','Weekly report',0],['events','Coming up',0],['bank','Project bank',0],['polls','Polls',0],['shout','Shout-outs',0]];
 function scOn(k){ const p=(S.prefs.sc||{}); return k in p ? !!p[k] : !!(SC_SECTIONS.find(x=>x[0]===k)||[])[2]; }
 const scNotesRow = () => S.settings.find(x=>x.id==='class_notes');
 function startClassData(){
@@ -2107,7 +2107,7 @@ function startClassData(){
   const since=parseISO(prevDay).getTime()-12*3600e3;
   const out={};
   const n=scNotesRow(); out.notes = n && n.text && n.date===t ? n.text : '';
-  out.due = S.assignments.filter(a=>a.due && a.due>=t && a.due<=horizon).sort((a,b)=>a.due.localeCompare(b.due)).map(a=>{ const ins=S.items.filter(i=>i.assignmentId===a.id); const left=ins.filter(i=>!complete(i)).length; return {id:a.id,title:a.weekly?'Weekly report':a.title,when:a.due,left,total:ins.length}; }).filter(x=>x.total);
+  out.due = S.assignments.filter(a=>{ const ins=S.items.filter(i=>i.assignmentId===a.id); return ins.length && !asnHidden(ins[0]); }).sort((a,b)=>(a.due||'9999').localeCompare(b.due||'9999')).map(a=>{ const ins=S.items.filter(i=>i.assignmentId===a.id); const left=ins.filter(i=>!complete(i)).length; return {id:a.id,title:a.weekly?'Weekly report':a.title,when:a.due,left,total:ins.length}; }).filter(x=>x.total);
   out.new = S.items.filter(i=>i.source==='task' && !i.parentId && !complete(i) && !inDoneProj(i) && (i.priority==='high' || tsOf(i)>=since)).sort((a,b)=>(b.priority==='high')-(a.priority==='high')||tsOf(b)-tsOf(a)).slice(0,6).map(i=>({title:i.title,proj:proj(i.projectId)?.name||'',high:i.priority==='high',due:i.due,who:i.assignees}));
   out.newProj = S.projects.filter(p=>liveProj(p) && tsOf(p)>=since).map(p=>p.name);
   out.lessons = S.lessons.filter(l=>l.date>=t && l.date<=horizon).sort((a,b)=>(a.date+a.start).localeCompare(b.date+b.start)).map(l=>({title:l.title,date:l.date,start:l.start,open:Math.max(0,(l.seats||0)-(l.signups||[]).length)}));
@@ -2120,7 +2120,7 @@ function startClassData(){
   const seenS=new Set(); out.shout = S.items.filter(i=>!seenS.has(i.id) && seenS.add(i.id) && i.source==='task' && i.status==='done' && (i.history||[]).some(h=>h.kind==='status' && h.to==='done' && (h.ts||0)>=since)).slice(0,6).map(i=>({title:i.title,who:i.assignees}));
   return out;
 }
-const scDay = d => d===todayISO()?'Today':d===addDays(todayISO(),1)?'Tomorrow':parseISO(d).toLocaleDateString('en-US',{weekday:'long'});
+const scDay = d => d===todayISO()?'Today':d===addDays(todayISO(),1)?'Tomorrow':d<=addDays(todayISO(),6)?parseISO(d).toLocaleDateString('en-US',{weekday:'long'}):parseISO(d).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
 function startClassHTML(){
   const D=startClassData(), t=todayISO(), ab=abFor(t), names=ids=>(ids||[]).filter(x=>PEOPLE[x]&&!isTeacherId(x)).map(first).join(', ');
   const box=(k,title,body)=>scOn(k)&&body?`<section class="scbox sc-${k}"><h3>${title}</h3>${body}</section>`:'';
@@ -2130,7 +2130,7 @@ function startClassHTML(){
   if(scOn('notes')) h+=`<div class="scnotes" contenteditable="true" data-scnotes spellcheck="true" data-ph="Click to add today’s notes…">${esc(D.notes)}</div>`;
   h+='<div class="scgrid">';
   const hid=new Set(S.prefs.scHide||[]), dueShown=D.due.filter(x=>!hid.has(x.id)), dueHidden=D.due.filter(x=>hid.has(x.id));
-  h+=box('due','Due soon',li(dueShown.map(x=>`<li class="schide-row"><button class="schide" data-schide="${x.id}" title="Hide this from the slide">✕</button><b>${esc(x.title)}</b><span>${esc(scDay(x.when))}${x.left?` · ${x.left} still to turn in`:' · all in'}</span></li>`))+(dueHidden.length?`<button class="scshowhid" data-scunhideall>${dueHidden.length} hidden · show</button>`:''));
+  h+=box('due','Assignments',li(dueShown.map(x=>`<li class="schide-row"><button class="schide" data-schide="${x.id}" title="Hide this from the slide">✕</button><b>${esc(x.title)}</b><span>${!x.when?'No due date':x.when<t?'Was due '+esc(parseISO(x.when).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})):'Due '+esc(scDay(x.when))}${x.left?` · ${x.left} still to turn in`:' · all in'}</span></li>`))+(dueHidden.length?`<button class="scshowhid" data-scunhideall>${dueHidden.length} hidden · show</button>`:''));
   h+=box('new','New & high priority',li([...D.newProj.map(n=>`<li><b>New project:</b> ${esc(n)}</li>`),...D.new.map(x=>`<li>${x.high?'<span class="schi">HIGH</span> ':''}<b>${esc(x.title)}</b><span>${esc(x.proj)}${x.due?' · due '+esc(scDay(x.due)):''}${names(x.who)?' · '+esc(names(x.who)):''}</span></li>`)]));
   h+=box('lessons','Lessons',li(D.lessons.map(x=>`<li><b>${esc(x.title)}</b><span>${esc(scDay(x.date))} ${esc(fmtTime(x.start))} · ${x.open?x.open+' seat'+(x.open===1?'':'s')+' open':'full'}</span></li>`)));
   h+=box('mp','Marking period',D.mp?`<div class="scbig">${D.mp.left}</div><p>class day${D.mp.left===1?'':'s'} left in MP${D.mp.num} (ends ${esc(fmt(D.mp.end))})${D.mp.left<=7?'<br><b>Submit your work for credit!</b>':''}</p>`:'');
@@ -2141,7 +2141,7 @@ function startClassHTML(){
   h+=box('polls','Polls open',li(D.polls.map(q=>`<li>${esc(q)}</li>`)));
   h+=box('shout','Shout-outs 🎉',li(D.shout.map(x=>`<li><b>${esc(names(x.who)||'Someone')}</b><span>finished ${esc(x.title)}</span></li>`)));
   h+='</div>';
-  if(UI.scGear) h+=`<div class="scpanel"><b>Show on this screen</b>${SC_SECTIONS.map(([k,l])=>`<label><input type="checkbox" data-sctoggle="${k}" ${scOn(k)?'checked':''}> ${l}</label>`).join('')}${D.due.length?`<b style="margin-top:8px">Due soon items</b>${D.due.map(x=>`<label><input type="checkbox" data-scdue="${x.id}" ${hid.has(x.id)?'':'checked'}> ${esc(x.title)}</label>`).join('')}`:''}</div>`;
+  if(UI.scGear) h+=`<div class="scpanel"><b>Show on this screen</b>${SC_SECTIONS.map(([k,l])=>`<label><input type="checkbox" data-sctoggle="${k}" ${scOn(k)?'checked':''}> ${l}</label>`).join('')}${D.due.length?`<b style="margin-top:8px">Assignments</b>${D.due.map(x=>`<label><input type="checkbox" data-scdue="${x.id}" ${hid.has(x.id)?'':'checked'}> ${esc(x.title)}</label>`).join('')}`:''}</div>`;
   return h;
 }
 function openStartClass(){
