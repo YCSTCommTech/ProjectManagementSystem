@@ -1013,6 +1013,8 @@ body.scopen{overflow:hidden}
 .schide-row:hover .schide,.schide:focus{opacity:1}
 @media (hover:none){ .schide{opacity:.6} }
 .scshowhid{margin-top:1vh;border:0;background:none;color:#4a5a53;font:inherit;font-size:clamp(13px,1.1vw,18px);text-decoration:underline;cursor:pointer;padding:0}
+
+.remail{min-width:190px}
 </style>
 </head>
 <body>
@@ -1069,7 +1071,7 @@ const CFG = window.JARVIS_CONFIG || {};
 const SUPABASE_URL = CFG.url || 'PASTE_YOUR_PROJECT_URL';
 const SUPABASE_ANON_KEY = CFG.anonKey || 'PASTE_YOUR_ANON_KEY';
 const LOGIN_DOMAIN = 'jarvis.local';
-const APP_VERSION = '1.4.10';
+const APP_VERSION = '1.4.11';
 const APP_DATE = 'Oct 13, 2026';
 
 /* ---------- Dates ---------- */
@@ -1249,12 +1251,34 @@ function normalize(t,o){
   if(t==='events'){ if(!o.status) o.status='pending'; if(!o.kind) o.kind='event'; if(!o.title) o.title='Untitled event'; if(!o.date) o.date=todayISO(); }
   return o;
 }
+/* v1.4.11 school emails: private table, only the student and teachers can read it */
+const CONTACTS={}; let contactsReady=false;
+async function loadContacts(){ try{ const {data,error}=await sb.from('contacts').select('pid,email'); if(error) throw error; for(const k of Object.keys(CONTACTS)) delete CONTACTS[k]; (data||[]).forEach(r=>CONTACTS[r.pid]=r.email); contactsReady=true; }catch(e){ contactsReady=false; } }
+const emailOf = pid => CONTACTS[pid]||'';
+const SCHOOL_EMAIL_RE=/^[a-z0-9._%+-]+@([a-z0-9-]+\.)*ytech\.edu$/i;
+async function saveEmail(pid,email){
+  email=String(email||'').trim().toLowerCase();
+  if(email && !SCHOOL_EMAIL_RE.test(email)){ toast('Use a school email ending in ytech.edu'); return false; }
+  const {data,error}=await sb.rpc('jarvis_set_email',{p_email:email,p_pid:pid});
+  if(error){ toast(niceError(error)); return false; }
+  if(data) CONTACTS[pid]=data; else delete CONTACTS[pid];
+  return true;
+}
+function emailAskModal(){
+  UI.emailAsked=true;
+  openModal(`<div class="mhead"><h2>What’s your school email?</h2></div>
+    <p class="hint" style="margin:0">JARVIS will use it to send you calendar invites and reminders for your work. Only you and your teachers can see it.</p>
+    <div class="fields"><label>School email</label><input id="myEmail" type="email" placeholder="you@ytech.edu" autocomplete="email" inputmode="email"></div>
+    <div class="mfoot"><button class="linkbtn" data-emaillater>Later</button><button class="btn primary" data-emailsave="${S.viewer}">Save</button></div>`);
+}
+function maybeAskEmail(){ if(!contactsReady || isTeacher() || !S.viewer || emailOf(S.viewer) || UI.emailAsked) return; if($('#modal').hidden) emailAskModal(); else UI.emailPending=true; }
 async function loadPeople(){
   const {data,error}=await sb.from('people').select('id,pid,username,name,role,grad,major,active').limit(2000);
   if(error) throw error; setPeople(data||[]);
 }
 async function loadAll(){
   await loadPeople();
+  await loadContacts();
   for(const t of TABLES){
     const {data,error} = await sb.from(t).select('id,data').limit(10000);
     if(error) throw error;
@@ -1335,7 +1359,7 @@ async function startSession(){
   resetFilters(); Object.assign(UI,{page:'home',project:'',wkStudent:'',wkStart:null,more:false});
   try{ const standalone=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone; if(isTeacher() && standalone && window.innerWidth<760){ UI.page='mylist'; setTimeout(()=>$('#tdQuick')?.focus(),400); } }catch(e){}
   if(ensureWeeklyReport()) persist();
-  render(); maybeCheckin();
+  render(); maybeCheckin(); setTimeout(maybeAskEmail,600);
 }
 async function boot(){
   if(!window.supabase || SUPABASE_URL.startsWith('PASTE') || SUPABASE_ANON_KEY.startsWith('PASTE')){
@@ -2401,7 +2425,7 @@ function renderHelp(){
 
 /* ---------- Modal ---------- */
 function openModal(html){ const m=$('#modal'); m.innerHTML=`<div class="modalbox ${html.includes('mhead wide')?'wide':''}" role="dialog" aria-modal="true">${html}</div>`; m.hidden=false; const f=m.querySelector('input,textarea,select'); if(f) setTimeout(()=>f.focus(),30); }
-function closeModal(){ const m=$('#modal'); if(m){ m.hidden=true; m.innerHTML=''; } }
+function closeModal(){ const m=$('#modal'); if(m){ m.hidden=true; m.innerHTML=''; } if(UI.emailPending){ UI.emailPending=false; setTimeout(maybeAskEmail,300); } }
 function assignmentForm(a){
   const edit=!!a; a=a||{title:'',description:'',audience:{all:true},due:dayOff(7),priority:'med',template:''};
   const aud = typeof a.audience==='object'?a.audience:{all:true};
@@ -2514,6 +2538,7 @@ function openProfile(pid){
     <div class="checks">${[['initials','Initials'],['text','Letters or emoji'],['img','Picture']].map(([k,l])=>`<button class="chip small ${k===PR.mode?'on':''}" data-prmode="${k}">${l}</button>`).join('')}</div>
     <div id="prModeBox"></div>
     <div class="mfoot"><button class="btn primary" data-prsave>Save profile</button></div>
+    ${!isTeacherId(pid) && (self||isTeacher()) ? `<details class="psec" ${emailOf(pid)?'':'open'}><summary><span class="st">School email</span><span class="hint">${esc(emailOf(pid)||'not set')}</span></summary><div class="psec-body"><div class="fields"><label>School email</label><input id="myEmail" type="email" value="${esc(emailOf(pid))}" placeholder="name@ytech.edu"></div><button class="btn" data-emailsave="${pid}" style="align-self:flex-start">Save email</button></div></details>`:''}
     ${self?`<details class="psec"><summary><span class="st">Change my password</span></summary><div class="psec-body"><div class="fields"><label>New password</label><input type="password" id="pw1" autocomplete="new-password"><label>Again</label><input type="password" id="pw2" autocomplete="new-password"></div><button class="btn tiny" data-pwsave>Change password</button></div></details>`:''}`);
   drawPrMode(); drawPrPrev();
 }
@@ -2751,6 +2776,7 @@ function renderRoster(){
   const on=all.filter(p=>p.active), off=all.filter(p=>!p.active);
   const row=p=>`<tr class="${p.active?'':'offrow'}"><td class="c-item"><div class="cell-item">${av(p.id)}<input class="rin rname" data-rname="${p.id}" value="${esc(p.name)}" aria-label="Name" ${p.active?'':'disabled'}></div></td>
     <td><input class="rin ruser" data-ruser="${p.id}" value="${esc(p.username)}" aria-label="Username" ${p.active?'':'disabled'}></td>
+    <td><input class="rin remail" data-remail="${p.id}" value="${esc(emailOf(p.id))}" placeholder="${contactsReady?'not set':'run 1.4.11 SQL'}" aria-label="School email" ${p.active&&contactsReady?'':'disabled'}></td>
     <td><select class="rin" data-rgrade="${p.id}" aria-label="Grade" ${p.active?'':'disabled'}>${['Senior','Junior','Sophomore','Freshman'].map(g=>`<option ${gradLabel(p.grad)===g?'selected':''}>${g}</option>`).join('')}${['Senior','Junior','Sophomore','Freshman'].includes(gradLabel(p.grad))?'':`<option selected>${esc(gradLabel(p.grad))}</option>`}</select></td>
     <td><select class="rin" data-rmajor="${p.id}" aria-label="Major" ${p.active?'':'disabled'}><option value="">—</option>${MAJORS.map(m=>`<option ${p.major===m?'selected':''}>${m}</option>`).join('')}</select></td>
     <td>${roleSel(p)}</td>
@@ -2761,7 +2787,7 @@ function renderRoster(){
     <h3 class="sech">Teachers <span class="hint">Full access to everything, same as you.</span></h3>
     <div class="tablewrap" style="--g:var(--accent)"><table class="roster"><thead><tr><th class="c-item">Teacher</th><th>Username</th><th>Role</th><th></th></tr></thead><tbody>${teachers.map(trow).join('')}</tbody></table></div>
     <h3 class="sech">Students <span class="hint">${on.length}</span></h3>
-    ${on.length?`<div class="tablewrap" style="--g:var(--accent)"><table class="roster"><thead><tr><th class="c-item">Student</th><th>Username</th><th>Grade</th><th>Major</th><th>Role</th><th></th></tr></thead><tbody>${on.map(row).join('')}</tbody></table></div>`:'<div class="empty">No students yet. Import your spreadsheet or add students one at a time.</div>'}
+    ${on.length?`<div class="tablewrap" style="--g:var(--accent)"><table class="roster"><thead><tr><th class="c-item">Student</th><th>Username</th><th>School email</th><th>Grade</th><th>Major</th><th>Role</th><th></th></tr></thead><tbody>${on.map(row).join('')}</tbody></table></div>`:'<div class="empty">No students yet. Import your spreadsheet or add students one at a time.</div>'}
     ${off.length?`<details class="psec" data-sec="rosteroff" style="margin-top:14px"><summary><span class="st">Turned off</span><span class="hint">${off.length}</span></summary><div class="tablewrap" style="border:0"><table class="roster"><tbody>${off.map(row).join('')}</tbody></table></div></details>`:''}`;
 }
 /* --- spreadsheet reading --- */
@@ -2911,6 +2937,7 @@ async function rosterChange(t){
   if(d.rrole){ const p=PEOPLE[d.rrole]; const role=t.value;
     if(!confirm(role==='teacher'?`Make ${p.name} a teacher? They’ll have full access, same as you.`:`Change ${p.name} to a student? They’ll lose teacher access.`)){ t.value=p.role; return true; }
     try{ await adminCall({action:'setRole',pid:d.rrole,role}); await loadPeople(); render(); toast(`${p.name} is now a ${role}`); }catch(e){ t.value=p.role; toast(e.message); } return true; }
+  if(d.remail){ const ok=await saveEmail(d.remail,t.value); if(ok) toast('Email saved'); else t.value=emailOf(d.remail); return true; }
   if(d.ruser){ const p=PEOPLE[d.ruser], u=cleanUser(t.value); t.value=u; if(!u||u===p.username){ t.value=p.username; return true; }
     try{ await adminCall({action:'rename',pid:d.ruser,username:u}); await loadPeople(); render(); toast(`Username is now ${u} — tell ${p.name.split(' ')[0]}`); }catch(e){ t.value=p.username; toast(e.message); } return true; }
   return false;
@@ -4438,6 +4465,8 @@ document.addEventListener('click',e=>{
   if(projClick(d,t,e)) return;
   if(tvClick(d,t,e)) return;
   if(startClassClick(d,t)) return;
+  if(d.emaillater!==undefined){ closeModal(); toast('No problem. You can add it anytime under Edit my profile.'); return; }
+  if(d.emailsave){ const v=($('#myEmail')||{}).value; saveEmail(d.emailsave,v).then(ok=>{ if(ok){ toast(v.trim()?'Email saved':'Email removed'); if($('#modal').textContent.includes('What’s your school email')) closeModal(); else render(); } }); return; }
   if(d.showfinished!==undefined){ UI.showFinished=!UI.showFinished; render(); return; }
   if(myListClick(d,t,e)) return;
   if(calClick(d,t)) return;
@@ -4662,7 +4691,7 @@ document.addEventListener('change',e=>{
   if(d.fshow){ UI.scope=d.fshow; render(); return; }
   if(t.id==='fGroup'){ UI.groupBy=t.value; render(); return; }
   if(t.id==='wkStudent'){ UI.wkStudent=t.value; render(); return; }
-  if(isTeacher() && (d.rname||d.ruser||d.rgrade||d.rmajor||d.rrole)){ rosterChange(t); return; }
+  if(isTeacher() && (d.rname||d.ruser||d.remail||d.rgrade||d.rmajor||d.rrole)){ rosterChange(t); return; }
   if(t.id==='rosterFile'){ const f=t.files&&t.files[0]; t.value=''; if(f) readRosterFile(f).then(list=>{ if(!list.length){ toast('No students found in that file'); return; } rosterPreview(list); }).catch(e=>toast(e.message)); return; }
   if(d.rp!==undefined){ const r=RIMP[+d.rp]; if(r){ r[d.f]= d.f==='username'?cleanUser(t.value):t.value.trim(); drawPreview(); } return; }
   if(t.id==='restoreFile'){ const f=t.files&&t.files[0]; t.value=''; if(f && isTeacher()) restoreBackup(f); return; }
