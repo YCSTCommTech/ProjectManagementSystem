@@ -1007,6 +1007,12 @@ button.abtag{cursor:pointer}
 .schi{display:inline-block;background:#b42318;color:#fff;border-radius:6px;padding:.1em .45em;font-size:.55em;font-weight:800;vertical-align:middle;letter-spacing:.04em}
 .scpanel{position:fixed;top:80px;right:4vw;background:#fff;color:#14231d;border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:6px;box-shadow:0 10px 30px rgba(0,0,0,.3);font-size:15px}
 body.scopen{overflow:hidden}
+
+.schide-row{position:relative;padding-right:40px}
+.schide{position:absolute;right:0;top:.1em;width:32px;height:32px;border-radius:8px;border:0;background:#eef2f0;color:#4a5a53;font-size:16px;cursor:pointer;opacity:0;transition:opacity .15s}
+.schide-row:hover .schide,.schide:focus{opacity:1}
+@media (hover:none){ .schide{opacity:.6} }
+.scshowhid{margin-top:1vh;border:0;background:none;color:#4a5a53;font:inherit;font-size:clamp(13px,1.1vw,18px);text-decoration:underline;cursor:pointer;padding:0}
 </style>
 </head>
 <body>
@@ -1063,7 +1069,7 @@ const CFG = window.JARVIS_CONFIG || {};
 const SUPABASE_URL = CFG.url || 'PASTE_YOUR_PROJECT_URL';
 const SUPABASE_ANON_KEY = CFG.anonKey || 'PASTE_YOUR_ANON_KEY';
 const LOGIN_DOMAIN = 'jarvis.local';
-const APP_VERSION = '1.4.8';
+const APP_VERSION = '1.4.9';
 const APP_DATE = 'Oct 13, 2026';
 
 /* ---------- Dates ---------- */
@@ -2101,7 +2107,7 @@ function startClassData(){
   const since=parseISO(prevDay).getTime()-12*3600e3;
   const out={};
   const n=scNotesRow(); out.notes = n && n.text && n.date===t ? n.text : '';
-  out.due = S.assignments.filter(a=>a.due && a.due>=t && a.due<=horizon).sort((a,b)=>a.due.localeCompare(b.due)).map(a=>{ const ins=S.items.filter(i=>i.assignmentId===a.id); const left=ins.filter(i=>!complete(i)).length; return {title:a.weekly?'Weekly report':a.title,when:a.due,left,total:ins.length}; }).filter(x=>x.total);
+  out.due = S.assignments.filter(a=>a.due && a.due>=t && a.due<=horizon).sort((a,b)=>a.due.localeCompare(b.due)).map(a=>{ const ins=S.items.filter(i=>i.assignmentId===a.id); const left=ins.filter(i=>!complete(i)).length; return {id:a.id,title:a.weekly?'Weekly report':a.title,when:a.due,left,total:ins.length}; }).filter(x=>x.total);
   out.new = S.items.filter(i=>i.source==='task' && !i.parentId && !complete(i) && !inDoneProj(i) && (i.priority==='high' || tsOf(i)>=since)).sort((a,b)=>(b.priority==='high')-(a.priority==='high')||tsOf(b)-tsOf(a)).slice(0,6).map(i=>({title:i.title,proj:proj(i.projectId)?.name||'',high:i.priority==='high',due:i.due,who:i.assignees}));
   out.newProj = S.projects.filter(p=>liveProj(p) && tsOf(p)>=since).map(p=>p.name);
   out.lessons = S.lessons.filter(l=>l.date>=t && l.date<=horizon).sort((a,b)=>(a.date+a.start).localeCompare(b.date+b.start)).map(l=>({title:l.title,date:l.date,start:l.start,open:Math.max(0,(l.seats||0)-(l.signups||[]).length)}));
@@ -2123,7 +2129,8 @@ function startClassHTML(){
     <div class="scbtns"><button class="scgear" data-scgear title="Choose what shows">⚙</button><button class="scx" data-scclose title="Close (Esc)">×</button></div></div>`;
   if(scOn('notes')) h+=`<div class="scnotes" contenteditable="true" data-scnotes spellcheck="true" data-ph="Click to add today’s notes…">${esc(D.notes)}</div>`;
   h+='<div class="scgrid">';
-  h+=box('due','Due soon',li(D.due.map(x=>`<li><b>${esc(x.title)}</b><span>${esc(scDay(x.when))}${x.left?` · ${x.left} still to turn in`:' · all in'}</span></li>`)));
+  const hid=new Set(S.prefs.scHide||[]), dueShown=D.due.filter(x=>!hid.has(x.id)), dueHidden=D.due.filter(x=>hid.has(x.id));
+  h+=box('due','Due soon',li(dueShown.map(x=>`<li class="schide-row"><button class="schide" data-schide="${x.id}" title="Hide this from the slide">✕</button><b>${esc(x.title)}</b><span>${esc(scDay(x.when))}${x.left?` · ${x.left} still to turn in`:' · all in'}</span></li>`))+(dueHidden.length?`<button class="scshowhid" data-scunhideall>${dueHidden.length} hidden · show</button>`:''));
   h+=box('new','New & high priority',li([...D.newProj.map(n=>`<li><b>New project:</b> ${esc(n)}</li>`),...D.new.map(x=>`<li>${x.high?'<span class="schi">HIGH</span> ':''}<b>${esc(x.title)}</b><span>${esc(x.proj)}${x.due?' · due '+esc(scDay(x.due)):''}${names(x.who)?' · '+esc(names(x.who)):''}</span></li>`)]));
   h+=box('lessons','Lessons',li(D.lessons.map(x=>`<li><b>${esc(x.title)}</b><span>${esc(scDay(x.date))} ${esc(fmtTime(x.start))} · ${x.open?x.open+' seat'+(x.open===1?'':'s')+' open':'full'}</span></li>`)));
   h+=box('mp','Marking period',D.mp?`<div class="scbig">${D.mp.left}</div><p>class day${D.mp.left===1?'':'s'} left in MP${D.mp.num} (ends ${esc(fmt(D.mp.end))})${D.mp.left<=7?'<br><b>Submit your work for credit!</b>':''}</p>`:'');
@@ -2134,7 +2141,7 @@ function startClassHTML(){
   h+=box('polls','Polls open',li(D.polls.map(q=>`<li>${esc(q)}</li>`)));
   h+=box('shout','Shout-outs 🎉',li(D.shout.map(x=>`<li><b>${esc(names(x.who)||'Someone')}</b><span>finished ${esc(x.title)}</span></li>`)));
   h+='</div>';
-  if(UI.scGear) h+=`<div class="scpanel"><b>Show on this screen</b>${SC_SECTIONS.map(([k,l])=>`<label><input type="checkbox" data-sctoggle="${k}" ${scOn(k)?'checked':''}> ${l}</label>`).join('')}</div>`;
+  if(UI.scGear) h+=`<div class="scpanel"><b>Show on this screen</b>${SC_SECTIONS.map(([k,l])=>`<label><input type="checkbox" data-sctoggle="${k}" ${scOn(k)?'checked':''}> ${l}</label>`).join('')}${D.due.length?`<b style="margin-top:8px">Due soon items</b>${D.due.map(x=>`<label><input type="checkbox" data-scdue="${x.id}" ${hid.has(x.id)?'':'checked'}> ${esc(x.title)}</label>`).join('')}`:''}</div>`;
   return h;
 }
 function openStartClass(){
@@ -2144,13 +2151,15 @@ function openStartClass(){
 }
 function closeStartClass(){ const o=$('#startclass'); if(o){ o.hidden=true; } document.body.classList.remove('scopen'); UI.scGear=false; try{ if(document.fullscreenElement) document.exitFullscreen(); }catch(e){} }
 let scNotesTimer=null;
-document.addEventListener('change',e=>{ const t=e.target; if(!t||!t.dataset||!t.dataset.sctoggle) return; S.prefs.sc={...(S.prefs.sc||{}),[t.dataset.sctoggle]:t.checked}; saveLocal(); $('#startclass').innerHTML=startClassHTML(); });
+document.addEventListener('change',e=>{ const t=e.target; if(t&&t.dataset&&t.dataset.scdue){ const h=new Set(S.prefs.scHide||[]); t.checked?h.delete(t.dataset.scdue):h.add(t.dataset.scdue); S.prefs.scHide=[...h].slice(-200); saveLocal(); $('#startclass').innerHTML=startClassHTML(); return; } if(!t||!t.dataset||!t.dataset.sctoggle) return; S.prefs.sc={...(S.prefs.sc||{}),[t.dataset.sctoggle]:t.checked}; saveLocal(); $('#startclass').innerHTML=startClassHTML(); });
 document.addEventListener('input',e=>{ const t=e.target; if(!t||!t.dataset||t.dataset.scnotes===undefined) return; clearTimeout(scNotesTimer); scNotesTimer=setTimeout(()=>{ let r=scNotesRow(); if(!r){ r={id:'class_notes'}; S.settings.push(r); } r.text=String(t.innerText??t.textContent??"").trim().slice(0,1000); r.date=todayISO(); persist(); },600); });
 document.addEventListener('keydown',e=>{ if(e.key==='Escape' && $('#startclass') && !$('#startclass').hidden && !(e.target&&e.target.dataset&&e.target.dataset.scnotes!==undefined&&UI.scEditing)) closeStartClass(); });
 document.addEventListener('fullscreenchange',()=>{ if(!document.fullscreenElement && $('#startclass') && !$('#startclass').hidden) {/* stay open in window */} });
 function startClassClick(d,t){
   if(d.startclass!==undefined){ openStartClass(); return true; }
   if(d.scclose!==undefined){ closeStartClass(); render(); return true; }
+  if(d.schide){ S.prefs.scHide=[...new Set([...(S.prefs.scHide||[]),d.schide])].slice(-200); saveLocal(); $('#startclass').innerHTML=startClassHTML(); return true; }
+  if(d.scunhideall!==undefined){ const ids=new Set(startClassData().due.map(x=>x.id)); S.prefs.scHide=(S.prefs.scHide||[]).filter(x=>!ids.has(x)); saveLocal(); $('#startclass').innerHTML=startClassHTML(); return true; }
   if(d.scgear!==undefined){ UI.scGear=!UI.scGear; $('#startclass').innerHTML=startClassHTML(); return true; }
   return false;
 }
