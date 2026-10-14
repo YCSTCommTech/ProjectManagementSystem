@@ -1071,7 +1071,7 @@ const CFG = window.JARVIS_CONFIG || {};
 const SUPABASE_URL = CFG.url || 'PASTE_YOUR_PROJECT_URL';
 const SUPABASE_ANON_KEY = CFG.anonKey || 'PASTE_YOUR_ANON_KEY';
 const LOGIN_DOMAIN = 'jarvis.local';
-const APP_VERSION = '1.4.12';
+const APP_VERSION = '1.4.13';
 const APP_DATE = 'Oct 14, 2026';
 
 /* ---------- Dates ---------- */
@@ -3267,7 +3267,7 @@ function bankCard(b){
   if(T && b.status==='retired') acts=`<button class="btn tiny" data-bankrestore="${b.id}">Bring back</button>`;
   const reqDrag = T && b.type==='request' && b.status==='ready' && UI.bankTab==='requests';
   return `<article class="bcard ${b.type}" ${reqDrag?`draggable="true" data-bdrag="${b.id}"`:''}>${reqDrag?`<span class="bgrip" title="Drag to reorder">⠿</span><span class="breord"><button data-bmove="${b.id}|-1" aria-label="Move up">▲</button><button data-bmove="${b.id}|1" aria-label="Move down">▼</button></span>`:''}${img}<div class="bbody">
-    <div class="btags">${b.type==='request'?'<span class="tag wait">Request</span>':''}${b.type==='request'&&b.status==='ready'?`<span class="tag prio-${b.prio||'med'}">${esc(bankLabel(BANK_PRIO,b.prio||'med'))} priority</span>`:''}${b.major?`<span class="tag">${esc(b.major)}</span>`:''}${b.level?`<span class="lvtag lv-${b.level}">${esc(bankLabel(BANK_LEVELS,b.level))}</span>`:''}${b.status==='raw'?'<span class="tag chg">Raw</span>':''}${b.status==='taken'?'<span class="tag ok">Taken</span>':''}${b.status==='retired'?'<span class="tag">Retired</span>':''}</div>
+    <div class="btags">${b.type==='request'?'<span class="tag wait">Request</span>':''}${b.annId?'<span class="tag">📺 Spartan TV</span>':''}${b.type==='request'&&b.status==='ready'?`<span class="tag prio-${b.prio||'med'}">${esc(bankLabel(BANK_PRIO,b.prio||'med'))} priority</span>`:''}${b.major?`<span class="tag">${esc(b.major)}</span>`:''}${b.level?`<span class="lvtag lv-${b.level}">${esc(bankLabel(BANK_LEVELS,b.level))}</span>`:''}${b.status==='raw'?'<span class="tag chg">Raw</span>':''}${b.status==='taken'?'<span class="tag ok">Taken</span>':''}${b.status==='retired'?'<span class="tag">Retired</span>':''}</div>
     <button class="btitle" data-bankopen="${b.id}">${esc(b.title)}</button>
     ${b.hook?`<p class="bhook">${esc(b.hook)}</p>`:''}
     <div class="bmeta">${b.scope?esc(bankLabel(BANK_SCOPES,b.scope)):''}${b.difficulty?` · ${esc(bankLabel(BANK_DIFF,b.difficulty))}`:''}${b.type==='idea'&&b.status==='ready'?` · tried by ${tried}`:''}${b.type==='request'&&b.status==='ready'&&(T||hands.length)?` · ${hands.length} interested`:''}${b.suggested?` · suggested by ${esc(first(b.by))}`:''}</div>
@@ -3340,7 +3340,7 @@ function bankDetail(b){
     ${(b.steps||[]).length?`<h3 class="sech small">Starter steps</h3><ol class="bsteps">${b.steps.map(s=>`<li>${esc(s)}</li>`).join('')}</ol>`:''}
     ${b.type==='idea'?`<h3 class="sech small">Tried by ${starts.length}</h3>${starts.length?starts.map(s=>{ const target=s.itemId?item(s.itemId):proj(s.projectId); return `<div class="mrow">${av(s.by)}<b>${esc(pname(s.by))}</b><span class="hint">${esc(s.at||'')}</span>${target?`<button class="linkbtn" data-open="${s.itemId?'i:'+s.itemId:'p:'+s.projectId}">See their work</button>`:''}</div>`; }).join(''):'<p class="hint">Be the first.</p>'}`:''}
     ${b.status==='taken'?`<div class="note">Taken by ${esc((b.takenBy||[]).map(pname).join(', '))}${b.takenAt?` on ${esc(new Date(b.takenAt).toLocaleDateString('en-US',{month:'short',day:'numeric'}))}`:''}. ${b.takenProject&&proj(b.takenProject)?`<button class="linkbtn" data-open="p:${b.takenProject}">Open project</button>`:''}</div>`:''}
-    <div class="mfoot">${remindBtn('b:'+b.id)}${isTeacher()&&b.status==='ready'&&b.type==='idea'?`<button class="btn" data-bankcopy="${b.id}">Give everyone a copy</button>`:''}${b.status==='ready'&&b.type==='idea'?`<button class="btn primary" data-bankstart="${b.id}">Start this</button>`:''}${b.status==='ready'&&b.type==='request'&&!isTeacher()?`<button class="btn primary" data-bankhand="${b.id}">${(b.hands||[]).includes(S.viewer)?'Undo request':'Request it'}</button>`:''}${b.status==='ready'&&b.type==='request'&&isTeacher()?`<button class="btn primary" data-bankactivate="${b.id}">Activate</button>`:''}${isTeacher()?`<button class="btn" data-bankedit="${b.id}">Edit</button>`:''}</div>`);
+    <div class="mfoot">${remindBtn('b:'+b.id)}${b.annId&&tvById(b.annId)?`<button class="btn" data-tvann="${b.annId}">See the announcement</button>`:''}${isTeacher()&&b.status==='ready'&&b.type==='idea'?`<button class="btn" data-bankcopy="${b.id}">Give everyone a copy</button>`:''}${b.status==='ready'&&b.type==='idea'?`<button class="btn primary" data-bankstart="${b.id}">Start this</button>`:''}${b.status==='ready'&&b.type==='request'&&!isTeacher()?`<button class="btn primary" data-bankhand="${b.id}">${(b.hands||[]).includes(S.viewer)?'Undo request':'Request it'}</button>`:''}${b.status==='ready'&&b.type==='request'&&isTeacher()?`<button class="btn primary" data-bankactivate="${b.id}">Activate</button>`:''}${isTeacher()?`<button class="btn" data-bankedit="${b.id}">Edit</button>`:''}</div>`);
 }
 function bankStartModal(b){
   const mine=S.projects.filter(p=>liveProj(p) && canEditProject(p) && (p.roles||{})[S.viewer]);
@@ -3969,8 +3969,26 @@ function tvSegModal(id){
   openModal(`<div class="mhead wide"><h2>${id?'Edit segment':'New segment'}</h2><button class="x" data-closemodal>×</button></div>${tvSegFields(s,'s')}
     <div class="mfoot">${id?`<button class="btn danger" data-tvsegdel="${id}">Delete</button>`:''}<span class="grow"></span><button class="btn primary" data-tvsegsave>Save segment</button></div>`);
 }
+/* 1.4.13: "Needs a graphic" posts a one-time request in the project bank */
+function syncGfxRequest(a){
+  let b=a.bankId&&bankById(a.bankId);
+  if(!a.needsGfx){ if(b && b.status!=='taken' && !(b.hands||[]).length) S.bank=S.bank.filter(x=>x!==b); else if(b && b.status!=='taken') b.status='retired'; if(b&&b.status!=='taken') delete a.bankId; return; }
+  if(!b){ const same=openRequests(); b={id:rid('bk'),type:'request',status:'ready',by:S.viewer,starts:[],hands:[],level:'micro',scope:'day',difficulty:'2',major:'Graphic Design',image:'',steps:[],links:[],prio:'med',rank:same.length?Math.max(...same.map(x=>x.rank??0))+10:0,annId:a.id,...nowStamp()}; S.bank.push(b); a.bankId=b.id; }
+  if(b.status==='taken') return;
+  if(b.status==='retired') b.status='ready';
+  const when=(a.dates||[]).length?`Visit date${a.dates.length>1?'s':''}: ${a.dates.map(shortDate).join(', ')}`:`Airs ${fmt(a.start)} – ${fmt(a.end)}`;
+  Object.assign(b,{title:'Graphic: '+(a.title||'Announcement'),hook:`Spartan TV needs a graphic for this announcement. Needed by ${fmt(a.start)}.`,
+    description:[a.gfxNote?'Notes: '+a.gfxNote:'',when,'On-air wording:\n'+String(a.say||'').replace(/\{NEXT\}/g,'(date)')].filter(Boolean).join('\n\n'),source:'Spartan TV'});
+}
+function gfxFile(a){
+  if(a.file) return a.file;
+  const b=a.bankId&&bankById(a.bankId), p=b&&b.takenProject&&proj(b.takenProject); if(!p) return '';
+  let best=null; [...(p.files||[]),...S.items.filter(i=>i.projectId===p.id).flatMap(i=>i.files||[])].forEach(f=>(f.versions||[]).forEach(v=>{ if(v.note==='From the project bank'||!v.url) return; if(!best||(v.ts||0)>=(best.ts||0)) best=v; }));
+  return best?best.url:'';
+}
 function tvAnnModal(id,preset){
-  const a=preset||(id?tvById(id):null)||{title:'',from:'',email:'',say:'',start:todayISO(),end:addDays(todayISO(),4),days:[],shot:'Graphic',cue:'',needsGfx:true,order:0};
+  const a=preset||(id?tvById(id):null)||{title:'',from:'',email:'',say:'',start:todayISO(),end:addDays(todayISO(),4),days:[],shot:'Graphic',cue:'',needsGfx:false,order:0};
+  const gf=a.id?gfxFile(a):'', gb=a.bankId&&bankById(a.bankId);
   TVE=id||null;
   const hasDates=(a.dates||[]).length>0;
   openModal(`<div class="mhead wide"><h2>${id?'Edit announcement':preset?'Copy of announcement':'New announcement'}</h2><button class="x" data-closemodal>×</button></div>
@@ -3980,7 +3998,9 @@ function tvAnnModal(id,preset){
       <label>Visit dates</label><span><input id="aDates" value="${esc((a.dates||[]).map(shortDate).join(', '))}" placeholder="For visits: Tuesday the 13th, Tue Nov 10, 12/8">
         <span class="hint" id="aDatesHint">Airs Mon/Wed/Fri in the 7 days before each date, and on the day itself it says “today.” Leave empty for a regular announcement.</span></span>
       <label>Runs</label><span><span class="tvdates"><input type="date" id="aStart" value="${esc(hasDates?'':(a.start||''))}"> to <input type="date" id="aEnd" value="${esc(hasDates?'':(a.end||''))}"></span><span class="hint">For regular announcements. Always airs on its first and last day.</span></span>
-      <label>Graphic</label><label class="fopt"><input type="checkbox" id="aGfx" ${a.needsGfx?'checked':''}> A student needs to make a graphic</label>
+      <label>Graphic</label><span><label class="fopt"><input type="checkbox" id="aGfx" ${a.needsGfx?'checked':''}> Needs a graphic — post a request in the project bank</label>
+        <span class="hint">Leave unchecked for simple ones you edit in vMix.${gb?` Bank request: <b>${esc(gb.status==='taken'?'taken by '+(gb.takenBy||[]).map(first).join(', '):'waiting in Requests')}</b>.`:''}${gf?` <a href="${esc(gf)}" target="_blank" rel="noopener">Open finished graphic</a>`:''}</span></span>
+      <label>Graphic notes</label><textarea id="aGfxNote" rows="2" placeholder="Optional: use the club logo, vertical lower-third, school colors…">${esc(a.gfxNote||'')}</textarea>
     </div>
     <details class="psec"><summary><span class="st">More options</span></summary><div class="fields tvsegf">
       <label>From</label><input id="aFrom" value="${esc(a.from||'')}" placeholder="Who sent it (optional)">
@@ -4001,7 +4021,8 @@ function tvAnnView(id,d){
     <div class="tvfixed"><div>${esc(a.say||'').replace(/\n/g,'<br>')}</div></div>
     ${a.needsGfx?`<div class="fields"><span class="lbl">Graphic by</span><span>${avatars(a.who||[],4)} ${isTeacher()?'':`<button class="btn tiny ${mine?'':'primary'}" data-tvclaim="${a.id}">${mine?'Drop it':'I’ll do it'}</button>`}</span>
       <span class="lbl">Status</span><select id="tvStatus" ${isTeacher()||mine?'':'disabled'}>${TV_ST.map(([k,l])=>`<option value="${k}" ${(a.status||'not')===k?'selected':''}>${l}</option>`).join('')}</select>
-      <span class="lbl">Final file</span><input id="tvFile" value="${esc(a.file||'')}" ${isTeacher()||mine?'':'disabled'} placeholder="Link to the finished graphic"></div>`:''}
+      <span class="lbl">Final file</span><input id="tvFile" value="${esc(a.file||'')}" ${isTeacher()||mine?'':'disabled'} placeholder="Link to the finished graphic">${!a.file&&gfxFile(a)?`<span></span><a href="${esc(gfxFile(a))}" target="_blank" rel="noopener">Open finished graphic (from the project)</a>`:''}</div>`:''}
+    ${a.gfxNote?`<div class="hint">Graphic notes: ${esc(a.gfxNote)}</div>`:''}
     <div class="mfoot">${isTeacher()&&day?`<button class="btn" data-tvskip="${id}|${d}">Skip it on ${esc(fmt(d))}</button><button class="btn" data-tvannedit="${id}">Edit</button>`:''}${a.needsGfx&&(isTeacher()||mine)?`<button class="btn primary" data-tvsaveann="${id}">Save</button>`:''}</div>`);
 }
 
@@ -4041,11 +4062,11 @@ function tvClick(d,t,e){
     if(!start||!end||end<start){ toast(dates.length?'Check the dates':'Add visit dates, or a Runs start and end'); return true; }
     if(dates.length && !/\((?:date|day|insert day)\)|\{NEXT\}/i.test(v('aSay'))) { if(!confirm('The wording has no (date) in it, so it won’t say which day. Save anyway?')) return true; }
     const a=TVE?tvById(TVE):{id:rid('an'),kind:'ann',who:[],status:'not',file:''};
-    Object.assign(a,{title:v('aTitle').trim()||v('aSay').trim().slice(0,40),from:v('aFrom').trim(),email:v('aEmail'),say:v('aSay').trim(),start,end,days:$$('input[data-aday]:checked').map(x=>+x.dataset.aday),shot:v('aShot')||'Graphic',cue:v('aCue').trim(),needsGfx:!!$('#aGfx')?.checked,order:+v('aOrder')||0,dates});
+    Object.assign(a,{title:v('aTitle').trim()||v('aSay').trim().slice(0,40),from:v('aFrom').trim(),email:v('aEmail'),say:v('aSay').trim(),start,end,days:$$('input[data-aday]:checked').map(x=>+x.dataset.aday),shot:v('aShot')||'Graphic',cue:v('aCue').trim(),needsGfx:!!$('#aGfx')?.checked,gfxNote:v('aGfxNote').trim().slice(0,1000),order:+v('aOrder')||0,dates});
     if($('#aFile')) a.file=v('aFile').trim();
-    if(!TVE) S.broadcast.push(a); closeModal(); render(); toast(dates.length?`Saved · ${dates.length} date${dates.length===1?'':'s'}: ${dates.map(shortDate).join(', ')}`:'Announcement saved'); return true; }
-  if(d.tvanndup){ const src=tvById(d.tvanndup); if(!src) return true; const {id,who,status,file,doneAt,editedBy,...rest}=src; tvAnnModal(null,{...rest,title:(src.title||'Announcement')+' (copy)'}); return true; }
-  if(d.tvanndel){ if(!confirm('Delete this announcement?')) return true; S.broadcast=S.broadcast.filter(x=>x.id!==d.tvanndel); closeModal(); render(); return true; }
+    if(!TVE) S.broadcast.push(a); syncGfxRequest(a); closeModal(); render(); toast(dates.length?`Saved · ${dates.length} date${dates.length===1?'':'s'}: ${dates.map(shortDate).join(', ')}`:'Announcement saved'); return true; }
+  if(d.tvanndup){ const src=tvById(d.tvanndup); if(!src) return true; const {id,who,status,file,doneAt,editedBy,bankId,...rest}=src; tvAnnModal(null,{...rest,title:(src.title||'Announcement')+' (copy)'}); return true; }
+  if(d.tvanndel){ if(!confirm('Delete this announcement?')) return true; { const a=tvById(d.tvanndel); if(a){ a.needsGfx=false; syncGfxRequest(a); } } S.broadcast=S.broadcast.filter(x=>x.id!==d.tvanndel); closeModal(); render(); return true; }
   if(d.tvsegnew!==undefined){ tvSegModal(null); return true; }
   if(d.tvsegedit){ tvSegModal(d.tvsegedit); return true; }
   if(d.tvsegsave!==undefined){
