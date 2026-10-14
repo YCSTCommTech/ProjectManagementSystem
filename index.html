@@ -1005,6 +1005,11 @@ button.abtag{cursor:pointer}
 .scbox p{margin:0;font-size:clamp(17px,1.9vw,30px)}
 .scbig{font-size:clamp(48px,7vw,120px);font-weight:900;color:#095641;line-height:1}
 .schi{display:inline-block;background:#b42318;color:#fff;border-radius:6px;padding:.1em .45em;font-size:.55em;font-weight:800;vertical-align:middle;letter-spacing:.04em}
+.sctimer{display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.12);border-radius:16px;padding:8px 14px;margin-left:auto;margin-right:12px}
+.sctime{font-size:clamp(36px,5vw,84px);font-weight:900;font-variant-numeric:tabular-nums;line-height:1;min-width:2.6em;text-align:center;background:none;border:0;color:#fff;cursor:pointer;font-family:inherit;padding:0}
+.sctimer button.sctb{background:rgba(255,255,255,.16);border:0;color:#fff;border-radius:10px;min-width:44px;height:44px;font-size:18px;font-weight:800;cursor:pointer;padding:0 10px}
+.sctimer.warn{background:#B8862B}.sctimer.over{background:#b42318;animation:scpulse 1s infinite}
+@keyframes scpulse{50%{opacity:.6}}
 .scpanel{position:fixed;top:80px;right:4vw;background:#fff;color:#14231d;border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:6px;box-shadow:0 10px 30px rgba(0,0,0,.3);font-size:15px}
 body.scopen{overflow:hidden}
 
@@ -1071,7 +1076,7 @@ const CFG = window.JARVIS_CONFIG || {};
 const SUPABASE_URL = CFG.url || 'PASTE_YOUR_PROJECT_URL';
 const SUPABASE_ANON_KEY = CFG.anonKey || 'PASTE_YOUR_ANON_KEY';
 const LOGIN_DOMAIN = 'jarvis.local';
-const APP_VERSION = '1.4.13';
+const APP_VERSION = '1.4.14';
 const APP_DATE = 'Oct 14, 2026';
 
 /* ---------- Dates ---------- */
@@ -2158,7 +2163,7 @@ function startClassHTML(){
   const box=(k,title,body)=>scOn(k)&&body?`<section class="scbox sc-${k}"><h3>${title}</h3>${body}</section>`:'';
   const li=a=>a.length?`<ul>${a.join('')}</ul>`:'';
   let h=`<div class="schead"><div><div class="scdate">${esc(parseISO(t).toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'}))}</div>${ab?`<div class="scab">${ab} day</div>`:''}</div>
-    <div class="scbtns"><button class="scgear" data-scgear title="Choose what shows">⚙</button><button class="scx" data-scclose title="Close (Esc)">×</button></div></div>`;
+    ${scTimerHTML()}<div class="scbtns"><button class="scgear" data-scgear title="Choose what shows">⚙</button><button class="scx" data-scclose title="Close (Esc)">×</button></div></div>`;
   if(scOn('notes')) h+=`<div class="scnotes" contenteditable="true" data-scnotes spellcheck="true" data-ph="Click to add today’s notes…">${esc(D.notes)}</div>`;
   h+='<div class="scgrid">';
   const hid=new Set(S.prefs.scHide||[]), dueShown=D.due.filter(x=>!hid.has(x.id)), dueHidden=D.due.filter(x=>hid.has(x.id));
@@ -2176,6 +2181,22 @@ function startClassHTML(){
   if(UI.scGear) h+=`<div class="scpanel"><b>Show on this screen</b>${SC_SECTIONS.map(([k,l])=>`<label><input type="checkbox" data-sctoggle="${k}" ${scOn(k)?'checked':''}> ${l}</label>`).join('')}${D.due.length?`<b style="margin-top:8px">Assignments</b>${D.due.map(x=>`<label><input type="checkbox" data-scdue="${x.id}" ${hid.has(x.id)?'':'checked'}> ${esc(x.title)}</label>`).join('')}`:''}</div>`;
   return h;
 }
+/* 1.4.14: talk timer on the Start of class slide */
+const SCT={len:0,left:0,endAt:0,run:false,tick:null};
+const scLen=()=>Math.max(5,+(S.prefs.scTimer)||60);
+const mmss=n=>{ const neg=n<0; n=Math.abs(Math.ceil(n)); return (neg?'+':'')+Math.floor(n/60)+':'+String(n%60).padStart(2,'0'); };
+function scLeft(){ return SCT.run ? (SCT.endAt-Date.now())/1000 : SCT.left; }
+function scTimerHTML(){ if(!SCT.len){ SCT.len=scLen(); SCT.left=SCT.len; } const l=scLeft();
+  return `<div class="sctimer ${l<=0?'over':l<=10&&SCT.run?'warn':''}" id="sctimer"><button class="sctb" data-sct="-15" title="15 seconds less">−15</button><button class="sctime" id="sctime" data-sct="set" title="Click to set the time">${l<=0?'Time!':mmss(l)}</button><button class="sctb" data-sct="15" title="15 seconds more">+15</button><button class="sctb" data-sct="go" title="Start or pause (Space)">${SCT.run?'⏸':'▶'}</button><button class="sctb" data-sct="reset" title="Reset to ${mmss(SCT.len)}">↺</button></div>`; }
+function scPaint(){ const el=$('#sctimer'); if(!el) return; el.outerHTML=scTimerHTML(); }
+function scTimer(cmd){
+  if(cmd==='go'){ if(SCT.run){ SCT.left=scLeft(); SCT.run=false; } else { if(SCT.left<=0) SCT.left=SCT.len; SCT.endAt=Date.now()+SCT.left*1000; SCT.run=true; } }
+  else if(cmd==='reset'){ SCT.run=false; SCT.left=SCT.len; }
+  else if(cmd==='set'){ const v=prompt('How long? Seconds (90) or minutes:seconds (1:30)',mmss(SCT.len)); if(v===null) return; const m=String(v).trim().match(/^(\d+)(?::(\d{1,2}))?$/); if(!m){ toast('Try 90 or 1:30'); return; } const n=m[2]!=null?(+m[1])*60+(+m[2]):+m[1]; if(n<5){ toast('At least 5 seconds'); return; } SCT.len=n; SCT.left=n; SCT.run=false; S.prefs.scTimer=n; saveLocal(); }
+  else { const d=+cmd; if(SCT.run) SCT.endAt+=d*1000; else SCT.left=Math.max(0,SCT.left+d); }
+  clearInterval(SCT.tick); if(SCT.run) SCT.tick=setInterval(()=>{ if(!$('#startclass')||$('#startclass').hidden){ clearInterval(SCT.tick); return; } scPaint(); },250);
+  scPaint();
+}
 function openStartClass(){
   let o=$('#startclass'); if(!o){ o=document.createElement('div'); o.id='startclass'; document.body.appendChild(o); }
   o.innerHTML=startClassHTML(); o.hidden=false; document.body.classList.add('scopen');
@@ -2185,6 +2206,7 @@ function closeStartClass(){ const o=$('#startclass'); if(o){ o.hidden=true; } do
 let scNotesTimer=null;
 document.addEventListener('change',e=>{ const t=e.target; if(t&&t.dataset&&t.dataset.scdue){ const h=new Set(S.prefs.scHide||[]); t.checked?h.delete(t.dataset.scdue):h.add(t.dataset.scdue); S.prefs.scHide=[...h].slice(-200); saveLocal(); $('#startclass').innerHTML=startClassHTML(); return; } if(!t||!t.dataset||!t.dataset.sctoggle) return; S.prefs.sc={...(S.prefs.sc||{}),[t.dataset.sctoggle]:t.checked}; saveLocal(); $('#startclass').innerHTML=startClassHTML(); });
 document.addEventListener('input',e=>{ const t=e.target; if(!t||!t.dataset||t.dataset.scnotes===undefined) return; clearTimeout(scNotesTimer); scNotesTimer=setTimeout(()=>{ let r=scNotesRow(); if(!r){ r={id:'class_notes'}; S.settings.push(r); } r.text=String(t.innerText??t.textContent??"").trim().slice(0,1000); r.date=todayISO(); persist(); },600); });
+document.addEventListener('keydown',e=>{ if(e.key===' ' && $('#startclass') && !$('#startclass').hidden && !(e.target&&(e.target.isContentEditable||/INPUT|TEXTAREA|SELECT|BUTTON/.test(e.target.tagName)))){ e.preventDefault(); scTimer('go'); } });
 document.addEventListener('keydown',e=>{ if(e.key==='Escape' && $('#startclass') && !$('#startclass').hidden && !(e.target&&e.target.dataset&&e.target.dataset.scnotes!==undefined&&UI.scEditing)) closeStartClass(); });
 document.addEventListener('fullscreenchange',()=>{ if(!document.fullscreenElement && $('#startclass') && !$('#startclass').hidden) {/* stay open in window */} });
 function startClassClick(d,t){
@@ -2192,6 +2214,7 @@ function startClassClick(d,t){
   if(d.scclose!==undefined){ closeStartClass(); render(); return true; }
   if(d.schide){ S.prefs.scHide=[...new Set([...(S.prefs.scHide||[]),d.schide])].slice(-200); saveLocal(); $('#startclass').innerHTML=startClassHTML(); return true; }
   if(d.scunhideall!==undefined){ const ids=new Set(startClassData().due.map(x=>x.id)); S.prefs.scHide=(S.prefs.scHide||[]).filter(x=>!ids.has(x)); saveLocal(); $('#startclass').innerHTML=startClassHTML(); return true; }
+  if(d.sct){ scTimer(d.sct); return true; }
   if(d.scgear!==undefined){ UI.scGear=!UI.scGear; $('#startclass').innerHTML=startClassHTML(); return true; }
   return false;
 }
