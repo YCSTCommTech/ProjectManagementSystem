@@ -1071,8 +1071,8 @@ const CFG = window.JARVIS_CONFIG || {};
 const SUPABASE_URL = CFG.url || 'PASTE_YOUR_PROJECT_URL';
 const SUPABASE_ANON_KEY = CFG.anonKey || 'PASTE_YOUR_ANON_KEY';
 const LOGIN_DOMAIN = 'jarvis.local';
-const APP_VERSION = '1.4.11';
-const APP_DATE = 'Oct 13, 2026';
+const APP_VERSION = '1.4.12';
+const APP_DATE = 'Oct 14, 2026';
 
 /* ---------- Dates ---------- */
 const localISO = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -1502,7 +1502,15 @@ const askIncludes = (a,v) => a.kind==='feedback' ? (a.to==='all' || (Array.isArr
 const toName = to => to==='all' ? 'Everyone' : (Array.isArray(to)?to:[to]).map(first).join(', ');
 const openAsksFor = (target) => S.asks.filter(a=>a.kind==='feedback' && (target.itemId? a.itemId===target.itemId : (a.projectId===target.projectId && !a.itemId)));
 function canReplyAsk(a){ return isTeacher() || a.by===S.viewer || askIncludes(a,S.viewer); }
-const asksWaitingOnMe = () => S.asks.filter(a=>a.open && a.by!==S.viewer && ((a.kind==='feedback' && askIncludes(a,S.viewer)) || (a.kind==='help' && isTeacher()) || (a.kind==='merge' && askIncludes(a,S.viewer))));
+/* v1.4.12 “Done for me”: hides an ask from my waiting list until someone replies again. Teachers: saved on the ask (all devices); students: this device. */
+function askDoneCount(a){ const m = isTeacher() ? (a.doneFor||{}) : ((S.prefs.askDone)||{}); return m[S.viewer==null?'':(isTeacher()?S.viewer:a.id)]; }
+const askDoneForMe = a => { const n=askDoneCount(a); return n!=null && (a.replies||[]).length<=n; };
+function setAskDone(a,on){
+  const n=(a.replies||[]).length;
+  if(isTeacher()){ const m={...(a.doneFor||{})}; if(on) m[S.viewer]=n; else delete m[S.viewer]; a.doneFor=m; }
+  else { const m={...(S.prefs.askDone||{})}; if(on) m[a.id]=n; else delete m[a.id]; S.prefs.askDone=m; saveLocal(); }
+}
+const asksWaitingOnMe = () => S.asks.filter(a=>a.open && a.by!==S.viewer && !askDoneForMe(a) && ((a.kind==='feedback' && askIncludes(a,S.viewer)) || (a.kind==='help' && isTeacher()) || (a.kind==='merge' && askIncludes(a,S.viewer))));
 
 /* ---------- Notifications ---------- */
 function notifVisible(n,v){
@@ -1867,14 +1875,14 @@ function askCardHTML(a,o={}){
   const mergeNote = a.kind==='merge' ? `<div class="hint">${a.mode==='nest'?'Keeps everything as its own group inside the bigger project. Can be undone.':'Becomes one item; its items become subitems. Permanent.'}</div>` : '';
   const open = UI.sec['ask:'+a.id] ?? a.open;
   return `<details class="askcard ${a.open?'':'closed'} k-${a.kind}" data-sec="ask:${a.id}" ${open?'open':''}>
-    <summary><span class="st">${askTitle(a)}</span>${a.open?'':'<span class="tag">Closed</span>'}<span class="hint">${(a.replies||[]).length} repl${(a.replies||[]).length===1?'y':'ies'} · ${esc(a.at)}</span></summary>
+    <summary><span class="st">${askTitle(a)}</span>${a.open?'':'<span class="tag">Closed</span>'}${a.open&&a.by!==S.viewer&&askDoneForMe(a)?'<span class="tag ok">Done for you</span>':''}<span class="hint">${(a.replies||[]).length} repl${(a.replies||[]).length===1?'y':'ies'} · ${esc(a.at)}</span></summary>
     <div class="askbody">
       ${target?`<div class="hint">On ${target}</div>`:''}
       ${a.note?`<div class="asknote">“${esc(a.note)}” ${speakBtn(a.note)}</div>`:''}
       ${f?`<div class="hint">About <a href="${esc(fv?fv.url:latestUrl(f))}" target="_blank" rel="noopener">${esc(f.label)} v${fv?fv.v:f.versions.length}</a></div>`:''}
       ${replies?`<div class="thread">${replies}</div>`:''}
       ${a.open && canReplyAsk(a)?`<div class="replyrow"><input data-voice data-k="reply:${a.id}" placeholder="${a.kind==='lesson'?'Add a comment':a.by===S.viewer?'Add a reply':a.kind==='help'?'Reply to '+esc(first(a.by)):'Write your feedback'}"><button class="btn tiny" data-reply="${a.id}">Reply</button></div>`:''}
-      ${mergeNote}<div class="askacts">${mergeBtns}${plus}${sched}${remindBtn('k:'+a.id)}${canClose?`<button class="linkbtn" data-closeask="${a.id}">${a.open?'Close':'Reopen'}</button>`:''}</div>
+      ${mergeNote}<div class="askacts">${mergeBtns}${plus}${sched}${remindBtn('k:'+a.id)}${a.open && a.by!==S.viewer && a.kind!=='lesson' ? (askDoneForMe(a)?`<button class="btn tiny" data-askdone="${a.id}|0" title="Put it back in your waiting list">Undo done</button>`:`<button class="btn tiny primary" data-askdone="${a.id}|1" title="Hide it from your list. It stays open for everyone else and comes back if someone replies.">Done for me</button>`) : ''}${canClose?`<button class="linkbtn" data-closeask="${a.id}" title="${a.open?'Closes it for everyone':''}">${a.open?(a.by===S.viewer?'Close':'Close for everyone'):'Reopen'}</button>`:''}</div>
     </div></details>`;
 }
 function askFormHTML(targetKey,files,priv){
@@ -4462,6 +4470,7 @@ document.addEventListener('click',e=>{
   if(d.pwsave!==undefined){ const a=$('#pw1').value, b=$('#pw2').value; if(a.length<8){ toast('Use at least 8 characters'); return; } if(a!==b){ toast('The two passwords don’t match'); return; }
     t.disabled=true; sb.auth.updateUser({password:a}).then(({error})=>{ t.disabled=false; if(error){ toast(error.message); return; } $('#pw1').value=''; $('#pw2').value=''; toast('Password changed'); }); return; }
   if(remindClick(d,t,e)) return;
+  if(d.askdone){ const [id,on]=d.askdone.split('|'); const a=S.asks.find(x=>x.id===id); if(a){ setAskDone(a,on==='1'); render(); toast(on==='1'?'Done for you. It stays open for everyone else.':'Back in your list'); } return; }
   if(projClick(d,t,e)) return;
   if(tvClick(d,t,e)) return;
   if(startClassClick(d,t)) return;
