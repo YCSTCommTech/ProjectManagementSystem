@@ -1010,6 +1010,7 @@ button.abtag{cursor:pointer}
 .sctimer button.sctb{background:rgba(255,255,255,.16);border:0;color:#fff;border-radius:10px;min-width:44px;height:44px;font-size:18px;font-weight:800;cursor:pointer;padding:0 10px}
 .sctimer.warn{background:#B8862B}.sctimer.over{background:#b42318;animation:scpulse 1s infinite}
 @keyframes scpulse{50%{opacity:.6}}
+.tdage{font-size:12px;color:var(--muted,#7a8580);white-space:nowrap;flex:none}
 .scpanel{position:fixed;top:80px;right:4vw;background:#fff;color:#14231d;border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:6px;box-shadow:0 10px 30px rgba(0,0,0,.3);font-size:15px}
 body.scopen{overflow:hidden}
 
@@ -1076,7 +1077,7 @@ const CFG = window.JARVIS_CONFIG || {};
 const SUPABASE_URL = CFG.url || 'PASTE_YOUR_PROJECT_URL';
 const SUPABASE_ANON_KEY = CFG.anonKey || 'PASTE_YOUR_ANON_KEY';
 const LOGIN_DOMAIN = 'jarvis.local';
-const APP_VERSION = '1.4.14';
+const APP_VERSION = '1.4.15';
 const APP_DATE = 'Oct 14, 2026';
 
 /* ---------- Dates ---------- */
@@ -4164,6 +4165,8 @@ async function copyList(lists){
   try{ const ta=document.createElement('textarea'); ta.value=text; ta.style.cssText='position:fixed;left:-9999px'; document.body.appendChild(ta); ta.select(); const ok=document.execCommand('copy'); ta.remove(); if(ok){ toast('List copied'); return; } }catch(e){}
   toast('Couldn’t copy automatically');
 }
+function tdAge(ts){ const a=new Date(ts); a.setHours(0,0,0,0); const b=new Date(); b.setHours(0,0,0,0); const d=Math.round((b-a)/864e5);
+  return d<=0?'today':d===1?'yesterday':d<14?d+'d ago':d<60?Math.floor(d/7)+'w ago':Math.floor(d/30)+'mo ago'; }
 function todoRowHTML(t,depth){
   const kids=todoKids(t.id), open=!UI.todoClosed.has(t.id), link=t.link&&targetInfo(t.link);
   const overdue=t.due && !t.done && t.due<todayISO();
@@ -4175,6 +4178,7 @@ function todoRowHTML(t,depth){
     ${t.due?`<span class="tddue ${overdue?'overdue':''}">${esc(t.due===todayISO()?'Today':fmt(t.due))}</span>`:''}
     ${link?`<button class="tdlink" data-tdlinkopen="${t.id}" title="Open ${esc(link.label)}">${ICON.link} ${esc(link.label)}</button>`:''}
     ${kids.length?`<span class="hint">${kids.filter(k=>k.done).length}/${kids.length}</span>`:''}
+    ${t.ts?`<span class="tdage" title="Made ${esc(new Date(t.ts).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}))}">${tdAge(t.ts)}</span>`:''}
     <span class="tdarrows"><button data-tdmove="${t.id}|-1" aria-label="Move up">▲</button><button data-tdmove="${t.id}|1" aria-label="Move down">▼</button></span>${remindBtn('t:'+t.id,'mini')}<button class="tdmore" data-tdmore="${t.id}" aria-label="More options">⋯</button></div>`;
   if(open) h+=kids.map(k=>todoRowHTML(k,depth+1)).join('');
   return h;
