@@ -1077,8 +1077,8 @@ const CFG = window.JARVIS_CONFIG || {};
 const SUPABASE_URL = CFG.url || 'PASTE_YOUR_PROJECT_URL';
 const SUPABASE_ANON_KEY = CFG.anonKey || 'PASTE_YOUR_ANON_KEY';
 const LOGIN_DOMAIN = 'jarvis.local';
-const APP_VERSION = '1.4.15';
-const APP_DATE = 'Oct 14, 2026';
+const APP_VERSION = '1.4.16';
+const APP_DATE = 'Oct 15, 2026';
 
 /* ---------- Dates ---------- */
 const localISO = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -1582,6 +1582,8 @@ function ensureWeeklyReport(){
 
 /* ---------- Projects inside projects + combining ---------- */
 const childrenOf = id => S.projects.filter(p=>p.parentId===id);
+/* 1.4.16: teacher can remove or demote a project's owner; ownership passes to another admin, else the teacher */
+function moveOwner(p){ const r=p.roles||{}; const next=Object.keys(r).find(k=>k!==p.owner&&r[k]==='admin'&&PEOPLE[k]&&!isTeacherId(k)) || S.viewer; p.owner=next; r[next]='admin'; p.roles=r; }
 const adminsOf = p => [...new Set([p.owner, ...Object.entries(p.roles||{}).filter(([,r])=>r==='admin').map(([k])=>k)])].filter(k=>k && PEOPLE[k]);
 function orderTree(list){ const ids=new Set(list.map(p=>p.id)); const out=[]; list.filter(p=>!p.parentId||!ids.has(p.parentId)).forEach(p=>{ out.push(p); list.filter(c=>c.parentId===p.id).forEach(c=>out.push(c)); }); return out; }
 const inView = pid => !!UI.project && !!pid && (pid===UI.project || proj(pid)?.parentId===UI.project);
@@ -2028,7 +2030,7 @@ function projectBody(p){
   const pev=p.eventId&&eventById(p.eventId);
   h += `<div class="privrow"><span class="lbl">Part of event</span>${ed?`<select data-pf="eventId">${eventOptions(p.eventId||'')}</select>`:(pev?`<b>${esc(pev.title)}</b>`:'<span class="hint">None</span>')}${pev?`<button class="linkbtn" data-event="${pev.id}">${esc(fmt(pev.date))}</button>`:''}</div>`;
   h += sec('pdesc','Description', ed?`<textarea class="descbox" data-pf="description" placeholder="What is this project? Goals, deliverables, deadlines…">${esc(p.description||'')}</textarea>`:(p.description?`<div class="desc">${esc(p.description)}</div>`:'<div class="hint">No description.</div>'), true);
-  h += sec('proles','People & permissions', `${ad?'<div class="hint">Check people to add them, then pick Viewer (can see), Editor (can work), or Admin (can do anything, including privacy and people).</div>':''}${ppHTML('roles:'+p.id, allPeople(), membersOf(p), {roles:p.roles, disabled:!ad, locked:[p.owner], shortcuts: ad?gradShortcuts():[]})}`, true, `<span class="hint">${membersOf(p).length}</span>`);
+  h += sec('proles','People & permissions', `${ad?'<div class="hint">Check people to add them, then pick Viewer (can see), Editor (can work), or Admin (can do anything, including privacy and people).</div>':''}${ppHTML('roles:'+p.id, allPeople(), membersOf(p), {roles:p.roles, disabled:!ad, locked:isTeacher()?[]:[p.owner], shortcuts: ad?gradShortcuts():[]})}`, true, `<span class="hint">${membersOf(p).length}</span>`);
   h += sec('pfiles','Files', filesHTML('p:'+p.id, p.files, ed), true, `<span class="hint">${(p.files||[]).length}</span>`);
   const asks = openAsksFor({projectId:p.id}).sort((x,y)=>tsOf(y)-tsOf(x));
   const askBtn = ed && !isTeacher() ? (UI.askForm==='p:'+p.id ? askFormHTML('p:'+p.id, p.files||[], p.private) : `<button class="btn" data-askform="p:${p.id}">Ask for feedback</button>`) : '';
@@ -4781,10 +4783,10 @@ document.addEventListener('change',e=>{
   if(d.pf && UI.panel && UI.panel.startsWith('p:')){ const p=proj(UI.panel.slice(2)); if(!p) return; const v=d.pf==='name'?(t.value.trim()||'Untitled project'):t.value; p[d.pf]=v; render(); return; }
   if(d.pp){ const [k,id]=d.pp.split(':'); t.closest('.ck')?.classList.toggle('on',t.checked);
     if(k==='assign'){ const i=item(id); setTimeout(()=>{ const it=item(id); if(it) UI.lastAssign=[...it.assignees]; },0); if(t.checked){ if(!i.assignees.includes(t.value)){ i.assignees.push(t.value); if(t.value!==S.viewer) notify(t.value,'assigned',{itemId:i.id}); } } else i.assignees=i.assignees.filter(x=>x!==t.value); logEvent(i,{kind:'assignees'}); render(); }
-    else if(k==='roles'){ const p=proj(id); if(t.checked){ if(!p.roles[t.value]){ p.roles[t.value]='editor'; if(t.value!==S.viewer) notify(t.value,'added',{projectId:p.id}); } } else if(t.value!==p.owner) delete p.roles[t.value]; render(); }
+    else if(k==='roles'){ const p=proj(id); if(t.checked){ if(!p.roles[t.value]){ p.roles[t.value]='editor'; if(t.value!==S.viewer) notify(t.value,'added',{projectId:p.id}); } } else if(t.value!==p.owner || isTeacher()){ delete p.roles[t.value]; if(t.value===p.owner) moveOwner(p); } render(); }
     else if(k==='aud'){ if(t.checked){ const all=$('#audAll'); all.checked=false; all.closest('.ck').classList.remove('on'); } updAudCount(); }
     return; }
-  if(d.pprole){ const p=proj(d.pprole.split(':')[1]); if(p && d.pid!==p.owner){ p.roles[d.pid]=t.value; render(); } return; }
+  if(d.pprole){ const p=proj(d.pprole.split(':')[1]); if(p && (d.pid!==p.owner || isTeacher())){ p.roles[d.pid]=t.value; if(d.pid===p.owner && t.value!=='admin') moveOwner(p); render(); } return; }
   if(d.sdays){ const pid=UI.wkStudent||(STUDENTS[0]&&STUDENTS[0].id); if(!pid) return; const w=ensureWeek(pid,UI.wkStart); let days=weekDays(pid,UI.wkStart); days = t.checked?[...new Set([...days,d.sdays])]:days.filter(x=>x!==d.sdays); w.days=days.sort(); if(!w.days.length){ toast('Keep at least one day'); w.days=[d.sdays]; } syncWeeklyDue(UI.wkStart); render(); return; }
   if(d.cdays){ const id='week_'+UI.wkStart; let c=S.settings.find(x=>x.id===id); const all=[0,1,2,3,4].map(k=>addDays(UI.wkStart,k)); if(!c){ c={id,days:all}; S.settings.push(c); } c.days = t.checked?[...new Set([...(c.days||all),d.cdays])].sort():(c.days||all).filter(x=>x!==d.cdays); if(!c.days.length){ c.days=[d.cdays]; toast('Keep at least one day'); } syncWeeklyDue(UI.wkStart); render(); toast('Class week updated · report due '+dow(classLastDay(UI.wkStart))); return; }
   if(d.block){ const c=ensureCheckin(S.viewer,todayISO()); if(d.block.startsWith('c:')){ const x=c.custom.find(y=>'c:'+y.id===d.block); if(x) x[d.edge]=t.value; } else { c.blocks[d.block]={...(c.blocks[d.block]||{}),[d.edge]:t.value}; } render(); return; }
