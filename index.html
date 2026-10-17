@@ -1011,6 +1011,21 @@ button.abtag{cursor:pointer}
 .sctimer.warn{background:#B8862B}.sctimer.over{background:#b42318;animation:scpulse 1s infinite}
 @keyframes scpulse{50%{opacity:.6}}
 .tdage{font-size:12px;color:var(--muted,#7a8580);white-space:nowrap;flex:none}
+.ipost{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px;margin-top:16px}
+.ipost.draft{border-style:dashed;opacity:.85}
+.iphead{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.iphead h3{margin:2px 0 0;font-size:22px}
+.ipintro{margin:8px 0 0}
+.icgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(260px,100%),1fr));gap:14px;margin-top:14px}
+.iccard{border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;background:var(--bg,#fff)}
+.icimg{aspect-ratio:16/9;background:#eef2f0;overflow:hidden}.icimg img{width:100%;height:100%;object-fit:cover;display:block}
+.icbody{padding:12px 14px;display:flex;flex-direction:column;gap:8px;align-items:flex-start}
+.ictitle{font-weight:800;font-size:16px;color:inherit;text-decoration:none}.ictitle:hover{text-decoration:underline}
+.icwhy{margin:0;font-size:14px;line-height:1.45}
+.ipchal{margin-top:14px;background:#e8f4ee;border-left:5px solid #00954C;border-radius:10px;padding:10px 14px}.ipchal p{margin:4px 0 0}
+.ipfoot{margin-top:12px;display:flex;gap:10px;align-items:center}
+.inspohome{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:linear-gradient(90deg,#095641,#00954C);color:#fff;border-radius:var(--radius);padding:12px 16px;margin-top:12px;cursor:pointer}
+.inspohome .hint{color:rgba(255,255,255,.8)}.ihtag{background:rgba(255,255,255,.2);border-radius:999px;padding:2px 10px;font-size:12px;font-weight:800}
+.pcrow{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:10px 0}.pchead{display:flex;justify-content:space-between;margin-bottom:6px}
 .scpanel{position:fixed;top:80px;right:4vw;background:#fff;color:#14231d;border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:6px;box-shadow:0 10px 30px rgba(0,0,0,.3);font-size:15px}
 body.scopen{overflow:hidden}
 
@@ -1077,8 +1092,8 @@ const CFG = window.JARVIS_CONFIG || {};
 const SUPABASE_URL = CFG.url || 'PASTE_YOUR_PROJECT_URL';
 const SUPABASE_ANON_KEY = CFG.anonKey || 'PASTE_YOUR_ANON_KEY';
 const LOGIN_DOMAIN = 'jarvis.local';
-const APP_VERSION = '1.4.16';
-const APP_DATE = 'Oct 15, 2026';
+const APP_VERSION = '1.4.17';
+const APP_DATE = 'Oct 17, 2026';
 
 /* ---------- Dates ---------- */
 const localISO = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -2138,7 +2153,7 @@ function renderHomeStudent(){
   return h+'</div>';
 }
 /* ---------- Start-of-class slide (v1.4.8) ---------- */
-const SC_SECTIONS=[['notes','My notes',1],['due','Assignments',1],['new','New & high priority',1],['lessons','Lessons',1],['mp','Marking period',1],['tv','Spartan TV needs',1],['weekly','Weekly report',0],['events','Coming up',0],['bank','Project bank',0],['polls','Polls',0],['shout','Shout-outs',0]];
+const SC_SECTIONS=[['notes','My notes',1],['due','Assignments',1],['new','New & high priority',1],['lessons','Lessons',1],['mp','Marking period',1],['tv','Spartan TV needs',1],['inspo','Inspiration (week’s first day)',1],['weekly','Weekly report',0],['events','Coming up',0],['bank','Project bank',0],['polls','Polls',0],['shout','Shout-outs',0]];
 function scOn(k){ const p=(S.prefs.sc||{}); return k in p ? !!p[k] : !!(SC_SECTIONS.find(x=>x[0]===k)||[])[2]; }
 const scNotesRow = () => S.settings.find(x=>x.id==='class_notes');
 function startClassData(){
@@ -2175,6 +2190,8 @@ function startClassHTML(){
   h+=box('lessons','Lessons',li(D.lessons.map(x=>`<li><b>${esc(x.title)}</b><span>${esc(scDay(x.date))} ${esc(fmtTime(x.start))} · ${x.open?x.open+' seat'+(x.open===1?'':'s')+' open':'full'}</span></li>`)));
   h+=box('mp','Marking period',D.mp?`<div class="scbig">${D.mp.left}</div><p>class day${D.mp.left===1?'':'s'} left in MP${D.mp.num} (ends ${esc(fmt(D.mp.end))})${D.mp.left<=7?'<br><b>Submit your work for credit!</b>':''}</p>`:'');
   h+=box('tv','Spartan TV needs',li(D.tv.map(x=>`<li><b>${esc(x.name)}</b><span>${esc(scDay(x.date))}</span></li>`)));
+  { const ip=latestPost(); const firstDay=ip&&postFresh(ip)&&(()=>{ let x=ip.week; for(let k=0;k<7;k++){ if(tvSchoolDay(x)) return x; x=addDays(x,1); } return ip.week; })()===t;
+    h+=box('inspo','✨ This week’s inspiration',firstDay?`<p><b>${esc(ip.title||'This week in Comm Tech')}</b></p>${li((ip.cards||[]).map(c=>`<li><b>${esc(c.title||urlHost(c.url||''))}</b>${c.why?`<span>${esc(c.why)}</span>`:''}</li>`))}${ip.challenge?`<p><b>Challenge:</b> ${esc(ip.challenge)}</p>`:''}`:''); }
   h+=box('weekly','Weekly report',D.weekly?`<p><b>${esc(D.weekly)}</b> is due today in JARVIS.</p>`:'');
   h+=box('events','Coming up',li(D.events.map(x=>`<li><b>${esc(x.title)}</b><span>${esc(scDay(x.date))==='Today'?'Today':esc(parseISO(x.date).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}))}</span></li>`)));
   h+=box('bank','Project bank',li(D.bank.map(x=>`<li>${x.req?'<span class="schi">REQUEST</span> ':''}<b>${esc(x.title)}</b></li>`)));
@@ -4316,14 +4333,90 @@ function myListCard(){
   return card('My list', list.length?list.map(t=>`<div class="mrow"><input type="checkbox" class="tdcheck" data-tdcheck="${t.id}" aria-label="Done"><button class="title" data-page="mylist">${esc(t.title||'(untitled)')}</button>${t.due?`<span class="${t.due<todayISO()?'overdue':'hint'}">${esc(fmt(t.due))}</span>`:''}</div>`).join('')+(total>5?`<button class="linkbtn" data-page="mylist">${total-5} more</button>`:'') : '<div class="hint">Nothing on your list.</div>', '<button class="linkbtn" data-page="mylist">Open</button>');
 }
 
+
+/* ---------- 1.4.17: Inspiration — weekly teacher post ---------- */
+const posts = () => S.settings.filter(x=>x.id.startsWith('post_') && (isTeacher()||x.published)).sort((a,b)=>(b.week||'').localeCompare(a.week||'')||(b.ts||0)-(a.ts||0));
+const latestPost = () => S.settings.filter(x=>x.id.startsWith('post_') && x.published).sort((a,b)=>(b.week||'').localeCompare(a.week||'')||(b.ts||0)-(a.ts||0))[0];
+const postFresh = p => p && p.week && addDays(p.week,7) > todayISO();
+let PE=null;
+function postCardHTML(c){
+  const img=c.image?`<div class="icimg"><img src="${esc(c.image)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.remove()"></div>`:'';
+  const b=c.bankId&&bankById(c.bankId);
+  return `<article class="iccard">${img}<div class="icbody">${c.url?`<a class="ictitle" href="${esc(c.url)}" target="_blank" rel="noopener">${esc(c.title||urlHost(c.url))} ↗</a>`:`<b class="ictitle">${esc(c.title||'')}</b>`}
+    ${c.why?`<p class="icwhy"><span class="hint">Why it matters:</span> ${esc(c.why)}</p>`:''}
+    ${b&&b.status!=='retired'?`<button class="btn tiny" data-bankopen="${b.id}">💡 Try it: ${esc(b.title)}</button>`:''}</div></article>`;
+}
+function postHTML(p,full){
+  const likes=p.likes||[], mine=likes.includes(S.viewer);
+  return `<section class="ipost ${p.published?'':'draft'}"><div class="iphead"><div><div class="hint">Week of ${esc(fmt(p.week))}${p.published?'':' · <b>Draft — students can’t see this</b>'}</div><h3>${esc(p.title||'This week in Comm Tech')}</h3></div>
+    ${isTeacher()?`<button class="btn tiny" data-postedit="${p.id}">Edit</button>`:''}</div>
+    ${p.intro?`<p class="ipintro">${esc(p.intro)}</p>`:''}
+    <div class="icgrid">${(p.cards||[]).map(postCardHTML).join('')}</div>
+    ${p.challenge?`<div class="ipchal"><b>This week’s challenge</b><p>${esc(p.challenge)}</p></div>`:''}
+    ${p.published?`<div class="ipfoot"><button class="btn tiny ${mine?'primary':''}" data-postlike="${p.id}" ${isTeacher()?'disabled':''}>🔥 ${likes.length||''}</button>${isTeacher()&&likes.length?`<span class="hint">${esc(likes.filter(x=>PEOPLE[x]).map(first).join(', '))}</span>`:''}</div>`:''}</section>`;
+}
+function renderInspo(){
+  const list=posts();
+  let h=`<div class="hello"><h2>Inspiration</h2><span class="grow"></span>${isTeacher()?'<button class="btn primary" data-postnew>+ New post</button>':''}</div>
+    <p class="hint" style="margin-top:0">Great work from the industry, picked by Mr. P. Look closely, steal the idea, make it yours.</p>`;
+  h+= list.length ? list.map(p=>postHTML(p,true)).join('') : `<div class="empty">${isTeacher()?'No posts yet. Click + New post to write this week’s.':'Nothing posted yet. Check back Monday!'}</div>`;
+  return h;
+}
+function inspoHomeCard(){
+  const p=latestPost(); if(!postFresh(p)) return '';
+  const n=(p.cards||[]).length;
+  return `<div class="inspohome" data-page="inspo"><span class="ihtag">✨ New this week</span><b>${esc(p.title||'This week in Comm Tech')}</b><span class="hint">${n} pick${n===1?'':'s'}${p.challenge?' + a challenge':''} · tap to read</span></div>`;
+}
+function postCardRow(c,k){
+  const bankOpts=S.bank.filter(b=>b.status==='ready'||b.id===c.bankId).map(b=>`<option value="${b.id}" ${c.bankId===b.id?'selected':''}>${esc(b.title)}</option>`).join('');
+  return `<div class="pcrow" data-pcrow="${k}"><div class="pchead"><b>Pick ${k+1}</b><button class="linkbtn" data-pcdel="${k}">Remove</button></div>
+    <div class="fields"><label>Link</label><input data-pc="url" value="${esc(c.url||'')}" placeholder="https://… (video, ad, portfolio, article)">
+    <label>Title</label><input data-pc="title" value="${esc(c.title||'')}" placeholder="e.g. Apple “Shot on iPhone” — Underwater">
+    <label>Image link</label><input data-pc="image" value="${esc(c.image||'')}" placeholder="Optional thumbnail (right-click an image → Copy image address)">
+    <label>Why it matters</label><textarea data-pc="why" rows="2" placeholder="What should they notice? The technique, not your opinion.">${esc(c.why||'')}</textarea>
+    <label>Bank idea</label><select data-pc="bankId"><option value="">None</option>${bankOpts}</select></div></div>`;
+}
+function readPostForm(){
+  const cards=$$('#modal [data-pcrow]').map(r=>{ const g=k=>(r.querySelector(`[data-pc="${k}"]`)||{}).value||''; return {url:normUrl(g('url').trim()).slice(0,800),title:g('title').trim().slice(0,140),image:normUrl(g('image').trim()).slice(0,800),why:g('why').trim().slice(0,600),bankId:g('bankId')}; });
+  return {week:$('#poWeek').value||weekStartOf(todayISO()),title:$('#poTitle').value.trim().slice(0,120),intro:$('#poIntro').value.trim().slice(0,1200),challenge:$('#poChal').value.trim().slice(0,800),cards};
+}
+function postModal(p){
+  PE=p;
+  openModal(`<div class="mhead wide"><h2>${p.id?'Edit post':'New inspiration post'}</h2><button class="x" data-closemodal>×</button></div>
+    <div class="fields"><label>Week of</label><input type="date" id="poWeek" value="${esc(p.week||weekStartOf(todayISO()))}">
+      <label>Title</label><input id="poTitle" value="${esc(p.title||'')}" placeholder="This week in Comm Tech">
+      <label>Intro</label><textarea id="poIntro" rows="2" placeholder="Optional: one or two lines to set it up">${esc(p.intro||'')}</textarea></div>
+    <div id="pcList">${(p.cards||[]).map(postCardRow).join('')}</div>
+    <button class="btn" data-pcadd>+ Add a pick</button>
+    <div class="fields" style="margin-top:12px"><label>Challenge</label><textarea id="poChal" rows="2" placeholder="Optional: “Recreate this transition in 10 seconds of your own footage.”">${esc(p.challenge||'')}</textarea></div>
+    <p class="hint">Tip: talk about the work, not yourself. Students can react with 🔥 but can’t comment.</p>
+    <div class="mfoot">${p.id?'<button class="btn danger" data-postdel>Delete</button>':''}<span class="grow"></span><button class="btn" data-postsave="draft">${p.published?'Unpublish':'Save draft'}</button><button class="btn primary" data-postsave="pub">${p.published?'Save':'Publish'}</button></div>`);
+}
+function postClick(d){
+  if(d.postnew!==undefined){ postModal({week:weekStartOf(todayISO()),title:'This week in Comm Tech',cards:[{},{},{}]}); return true; }
+  if(d.postedit){ const p=S.settings.find(x=>x.id===d.postedit); if(p) postModal(JSON.parse(JSON.stringify(p))); return true; }
+  if(d.pcadd!==undefined){ const f=readPostForm(); PE={...PE,...f,cards:[...f.cards,{}]}; $('#pcList').innerHTML=PE.cards.map(postCardRow).join(''); return true; }
+  if(d.pcdel!==undefined){ const f=readPostForm(); f.cards.splice(+d.pcdel,1); PE={...PE,...f}; $('#pcList').innerHTML=PE.cards.map(postCardRow).join(''); return true; }
+  if(d.postsave){ const f=readPostForm(); f.cards=f.cards.filter(c=>c.url||c.title||c.why);
+    if(!f.cards.length && !f.challenge){ toast('Add at least one pick'); return true; }
+    let p=PE.id&&S.settings.find(x=>x.id===PE.id); const first=!p||!p.published;
+    if(!p){ p={id:rid('post_'),likes:[],...nowStamp()}; S.settings.push(p); }
+    Object.assign(p,f,{published:d.postsave==='pub'});
+    if(p.published && first && !p.notified){ p.notified=true; STUDENTS.forEach(s=>notify(s.id,'inspo',{text:p.title||'This week in Comm Tech'})); }
+    closeModal(); UI.page='inspo'; render(); toast(p.published?'Posted for students':'Saved as a draft'); return true; }
+  if(d.postdel!==undefined){ if(!confirm('Delete this post?')) return true; S.settings=S.settings.filter(x=>x.id!==PE.id); closeModal(); render(); return true; }
+  if(d.postlike){ const p=S.settings.find(x=>x.id===d.postlike); if(!p||isTeacher()) return true; const l=p.likes||[]; p.likes=l.includes(S.viewer)?l.filter(x=>x!==S.viewer):[...l,S.viewer]; render(); return true; }
+  return false;
+}
 /* ---------- Render ---------- */
 const PAGES = () => isTeacher()
-  ? [['home','Class today'],['mylist','My list'],['board','Board'],['tv','Spartan TV'],['cal','Calendar'],['bank','Project bank'],['past','Past projects'],['week','Weekly reports'],['lessons','Lessons & polls'],['asks','Asks'],['sync','Schoology sync'],['roster','Roster'],['help','Help']]
-  : [['home','Home'],['board','Board'],['tv','Spartan TV'],['cal','Calendar'],...(lowerMe()?[]:[['week','My week']]),['bank','Project bank'],['past','Past projects'],['lessons','Lessons & polls'],['asks','Asks'],['help','Help']];
+  ? [['home','Class today'],['mylist','My list'],['board','Board'],['tv','Spartan TV'],['cal','Calendar'],['bank','Project bank'],['inspo','Inspiration'],['past','Past projects'],['week','Weekly reports'],['lessons','Lessons & polls'],['asks','Asks'],['sync','Schoology sync'],['roster','Roster'],['help','Help']]
+  : [['home','Home'],['board','Board'],['tv','Spartan TV'],['cal','Calendar'],...(lowerMe()?[]:[['week','My week']]),['bank','Project bank'],['inspo','Inspiration'],['past','Past projects'],['lessons','Lessons & polls'],['asks','Asks'],['help','Help']];
 function pageHTML(){
   if(SIMPLE() && !UI.more && !['home','board','week'].includes(UI.page)) UI.page='home';
   switch(UI.page){
-    case 'home': return isTeacher()?renderHomeTeacher():renderHomeStudent();
+    case 'home': return (isTeacher()?'':inspoHomeCard())+(isTeacher()?renderHomeTeacher():renderHomeStudent());
+    case 'inspo': return renderInspo();
     case 'board': return renderBoardPage();
     case 'today': return renderToday();
     case 'week': return renderWeek();
@@ -4422,7 +4515,7 @@ function openMenu(target,kind,id){
   if(kind==='pri') m.innerHTML = PRI.map(s=>`<button class="pill" style="background:${s.color}" data-set="priority" data-id="${id}" data-val="${s.id}">${s.label}</button>`).join('');
   if(kind==='notifs'){
     const ns = notifsFor(S.viewer);
-    const verb = n => ({return:'returned for revisions',done:'marked done',feedback:n.to==='all'?'asked everyone for feedback on':'asked you for feedback on',reply:'replied on',help:'sent you an ask',lesson:'scheduled a lesson:',lessonreq:'requested a lesson:',poll:'posted a poll:',added:'added you to',assigned:'assigned you',post:'posted on',banksuggest:'suggested a bank idea:',bankhand:'asked for the request:',bankactivated:'gave you the project:',banktaken:'gave this request to someone else:',bankready:'added your idea to the bank:',eventreq:'suggested an event:',eventok:'approved your event:',eventno:'declined your event:',credit:'submitted work for credit:',creditok:'counted your',creditback:'sent back your',avatar:'sent a picture to approve',avatarok:'approved your picture',avatarno:'declined your picture',merge:'asked to combine projects',merged:'combined projects:',mergeno:'declined combining',projdone:'finished the project — write your reflection on'})[n.kind]||'updated';
+    const verb = n => ({return:'returned for revisions',done:'marked done',feedback:n.to==='all'?'asked everyone for feedback on':'asked you for feedback on',reply:'replied on',help:'sent you an ask',lesson:'scheduled a lesson:',lessonreq:'requested a lesson:',poll:'posted a poll:',added:'added you to',assigned:'assigned you',post:'posted on',banksuggest:'suggested a bank idea:',bankhand:'asked for the request:',bankactivated:'gave you the project:',inspo:'posted new inspiration:',banktaken:'gave this request to someone else:',bankready:'added your idea to the bank:',eventreq:'suggested an event:',eventok:'approved your event:',eventno:'declined your event:',credit:'submitted work for credit:',creditok:'counted your',creditback:'sent back your',avatar:'sent a picture to approve',avatarok:'approved your picture',avatarno:'declined your picture',merge:'asked to combine projects',merged:'combined projects:',mergeno:'declined combining',projdone:'finished the project — write your reflection on'})[n.kind]||'updated';
     const tgt = n => { const i=n.itemId&&item(n.itemId); if(i) return i.title; const p=n.projectId&&proj(n.projectId); if(p) return p.name; const a=n.askId&&askById(n.askId); if(a&&a.kind==='feedback'){ const ai=a.itemId&&item(a.itemId); return ai?ai.title:(proj(a.projectId)?.name||''); } return ''; };
     const due=myDue();
     m.innerHTML = (due.length?`<div class="nhead"><span>Reminders</span><button class="linkbtn" data-remlist>All reminders</button></div>${due.slice(0,6).map(r=>remRowHTML(r)).join('')}`:'') + `<div class="nhead"><span>Notifications</span><button class="linkbtn" data-remlist>Reminders</button>${ns.length?'<button class="linkbtn" data-readall>Mark all read</button>':''}</div>` + (ns.length ? ns.map(n=>{ const u=!n.readBy.includes(S.viewer);
@@ -4523,6 +4616,7 @@ document.addEventListener('click',e=>{
   if(d.askdone){ const [id,on]=d.askdone.split('|'); const a=S.asks.find(x=>x.id===id); if(a){ setAskDone(a,on==='1'); render(); toast(on==='1'?'Done for you. It stays open for everyone else.':'Back in your list'); } return; }
   if(projClick(d,t,e)) return;
   if(tvClick(d,t,e)) return;
+  if(postClick(d)) return;
   if(startClassClick(d,t)) return;
   if(d.emaillater!==undefined){ closeModal(); toast('No problem. You can add it anytime under Edit my profile.'); return; }
   if(d.emailsave){ const v=($('#myEmail')||{}).value; saveEmail(d.emailsave,v).then(ok=>{ if(ok){ toast(v.trim()?'Email saved':'Email removed'); if($('#modal').textContent.includes('What’s your school email')) closeModal(); else render(); } }); return; }
@@ -4592,6 +4686,7 @@ document.addEventListener('click',e=>{
   if(d.notif){ const n=S.notifs.find(x=>x.id===d.notif); if(!n) return; if(!n.readBy.includes(S.viewer)) n.readBy.push(S.viewer); closeMenu();
     if(n.itemId && item(n.itemId)) openPanel('i:'+n.itemId); else if(n.projectId && proj(n.projectId)) openPanel('p:'+n.projectId);
     else if(['lesson','lessonreq','poll'].includes(n.kind)) UI.page='lessons';
+    else if(n.kind==='inspo'){ UI.page='inspo'; }
     else if(['banksuggest','bankhand','banktaken','bankready'].includes(n.kind)){ UI.page='bank'; UI.bankTab = n.kind==='banksuggest'?'raw':n.kind==='bankhand'?'requests':'ideas'; }
     else if(['eventreq','eventok','eventno'].includes(n.kind)){ UI.page='cal'; UI.calView='week'; resetCalFilters(); }
     else if(n.kind==='avatar' && isTeacher()){ render(); picApproveModal(); return; }
