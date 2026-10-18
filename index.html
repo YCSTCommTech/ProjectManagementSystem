@@ -1092,7 +1092,7 @@ const CFG = window.JARVIS_CONFIG || {};
 const SUPABASE_URL = CFG.url || 'PASTE_YOUR_PROJECT_URL';
 const SUPABASE_ANON_KEY = CFG.anonKey || 'PASTE_YOUR_ANON_KEY';
 const LOGIN_DOMAIN = 'jarvis.local';
-const APP_VERSION = '1.4.18';
+const APP_VERSION = '1.4.19';
 const APP_DATE = 'Oct 18, 2026';
 
 /* ---------- Dates ---------- */
@@ -2349,7 +2349,7 @@ function renderWeek(){
   }
   h += dayStrip(pid,ws,!isTeacher() && ws===weekStartOf(t));
   const wi=weeklyItem(pid,ws);
-  if(isTeacher() && wi) h += `<div class="note">Weekly report status: <b>${stat(wi.status).label}</b>. <button class="btn tiny" data-open="i:${wi.id}">Open to review</button></div>`;
+  if(isTeacher() && wi) h += `<div class="note">Weekly report status: <b>${stat(wi.status).label}</b>. <button class="btn tiny" data-open="i:${wi.id}">Open to review</button>${wi.status!=='done'?`<button class="btn tiny done" data-review="done" data-id="${wi.id}">Mark done</button>`:''}</div>`;
   const due=stageDue(pid,ws), stagesShown = simple ? STAGES.filter(s=>s.id===due) : STAGES;
   h += `<div class="weekgrid"><div>${stagesShown.length?stagesShown.map(s=>stageForm(pid,ws,s,!isTeacher())).join(''):'<div class="empty">You’re all caught up on this week’s questions.</div>'}</div><aside class="weekside"><h3>${isTeacher()?'Their':'Your'} week at a glance</h3>${logisticsHTML(pid,ws)}</aside></div>`;
   return h;
@@ -4792,7 +4792,7 @@ document.addEventListener('click',e=>{
   if(d.review){ const i=item(d.id); const inp=$('#revNote'); const note=(inp?.value||'').trim();
     if(d.review==='work' && !note){ inp.focus(); inp.classList.add('need'); toast('Add a note so they know what to fix'); return; }
     changeStatus(i,d.review,note||undefined); if(note) (i.thread=i.thread||[]).push({id:rid('u'),by:S.viewer,text:note,...nowStamp()});
-    inp.value=''; toast(d.review==='done'?'Marked done':'Returned for revisions'); render(); return; }
+    if(inp) inp.value=''; toast(d.review==='done'?'Marked done':'Returned for revisions'); render(); return; }
   if(d.ppall){ const ids=d.ids.split(',').filter(Boolean); const [k,id]=d.ppall.split(':');
     if(k==='assign'){ const i=item(id); ids.forEach(x=>{ if(!i.assignees.includes(x)){ i.assignees.push(x); notify(x,'assigned',{itemId:i.id}); } }); logEvent(i,{kind:'assignees'}); render(); }
     else if(k==='roles'){ const p=proj(id); ids.forEach(x=>{ if(!p.roles[x]){ p.roles[x]='editor'; notify(x,'added',{projectId:p.id}); } }); render(); toast('Added '+ids.length+' people as editors'); }
