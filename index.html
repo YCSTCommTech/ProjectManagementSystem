@@ -932,6 +932,7 @@ tr.row:hover .rowsel,.rowsel:checked,#board.selecting .rowsel{opacity:1}
 .abtag.B{background:var(--surface-2);color:var(--ink-2);outline:1px solid var(--line)}
 button.abtag{cursor:pointer}
 .tvrows{display:flex;flex-direction:column;gap:2px}
+.tvrow.dragging{opacity:.4}.tvrow.tvdropb{box-shadow:inset 0 3px 0 #00954C}.tvrow.tvdropa{box-shadow:inset 0 -3px 0 #00954C}.tvrow[draggable="true"]{cursor:grab}
 .tvrow{display:flex;align-items:center;gap:6px;border:0;background:transparent;text-align:left;padding:6px;border-radius:8px;font:inherit;font-size:13px;color:var(--ink);cursor:pointer;min-height:32px}
 .tvrow:hover{background:var(--hover)}.tvrow.ann{background:var(--surface-2)}
 .tvname{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -1095,8 +1096,8 @@ const CFG = window.JARVIS_CONFIG || {};
 const SUPABASE_URL = CFG.url || 'PASTE_YOUR_PROJECT_URL';
 const SUPABASE_ANON_KEY = CFG.anonKey || 'PASTE_YOUR_ANON_KEY';
 const LOGIN_DOMAIN = 'jarvis.local';
-const APP_VERSION = '1.4.20';
-const APP_DATE = 'Oct 18, 2026';
+const APP_VERSION = '1.4.21';
+const APP_DATE = 'Oct 20, 2026';
 
 /* ---------- Dates ---------- */
 const localISO = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -3844,7 +3845,8 @@ const shortDate = iso => { const x=parseISO(iso); return `${WDN[x.getDay()][0].t
 function tvRundown(d){
   const out=S.broadcast.filter(b=>b.kind==='block'&&b.date===d).map(b=>({t:'b',b,i:tvInfo(b),pos:tvInfo(b).pos||0}));
   const ap=tvCfg().annPos??40;
-  tvAnnsFor(d).forEach((a,k)=>out.push({t:'a',a,pos:ap+k/100}));
+  const at=(tvDay(d)||{}).annAt||{};
+  tvAnnsFor(d).forEach((a,k)=>out.push({t:'a',a,pos:at[a.id]??(ap+k/100)}));
   return out.sort((x,y)=>x.pos-y.pos);
 }
 function tvLinkInfo(b){ if(!b.link) return null; const i=item(b.link.replace(/^i:/,'')); return i?{i,label:i.title,st:stat(i.status)}:null; }
@@ -3933,9 +3935,9 @@ function tvDayCard(d){
   if(!school) return h+'</section>';
   if(!day){ return h+(T?`<button class="btn tiny" data-tvbuild="${d}">Set up this day</button>`:'<p class="hint">Not set up yet.</p>')+'</section>'; }
   h+='<div class="tvrows">'+tvRundown(d).map(e=>{
-    if(e.t==='a') return `<button class="tvrow ann" data-tvann="${e.a.id}" data-tvdate="${d}"><span class="tvst ${e.a.needsGfx?(e.a.status||'not'):'done'}"></span><span class="tvname">📣 ${esc(e.a.title||'Announcement')}</span>${e.a.needsGfx?'<span class="tvneed graphic">GFX</span>':''}${e.a.needsGfx?tvWhoHTML(e.a,true):''}</button>`;
+    if(e.t==='a') return `<button class="tvrow ann" ${T?`draggable="true" data-tvdrag="${d}|a|${e.a.id}"`:''} data-tvann="${e.a.id}" data-tvdate="${d}"><span class="tvst ${e.a.needsGfx?(e.a.status||'not'):'done'}"></span><span class="tvname">📣 ${esc(e.a.title||'Announcement')}</span>${e.a.needsGfx?'<span class="tvneed graphic">GFX</span>':''}${e.a.needsGfx?tvWhoHTML(e.a,true):''}</button>`;
     const i=e.i, cl=tvClaimable(i);
-    return `<button class="tvrow" data-tvblock="${e.b.id}">${tvStDot(cl||e.b.link?tvStatus(e.b):'done')}<span class="tvname">${esc(i.name)}${e.b.text&&i.videoOnly?` · <span class="hint">${esc(e.b.text)}</span>`:''}</span>${e.b.link?`<span class="hint">${ICON.link||'🔗'}</span>`:''}${tvNeedTag(i)}${tvWhoHTML(e.b,cl)}</button>`;
+    return `<button class="tvrow" ${T?`draggable="true" data-tvdrag="${d}|b|${e.b.id}"`:''} data-tvblock="${e.b.id}">${tvStDot(cl||e.b.link?tvStatus(e.b):'done')}<span class="tvname">${esc(i.name)}${e.b.text&&i.videoOnly?` · <span class="hint">${esc(e.b.text)}</span>`:''}</span>${e.b.link?`<span class="hint">${ICON.link||'🔗'}</span>`:''}${tvNeedTag(i)}${tvWhoHTML(e.b,cl)}</button>`;
   }).join('')+'</div>';
   h+=`<footer>${T?`<select data-tvadd="${d}" aria-label="Add a segment"><option value="">+ Add segment…</option>${tvSegs().filter(s=>s.active!==false).map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('')}<option value="custom">One-time custom segment…</option></select>`:''}
     <button class="btn tiny primary" data-tvscript="${d}">Script starter</button></footer>`;
@@ -4094,8 +4096,7 @@ function tvClick(d,t,e){
   if(d.tvsaveann){ const a=tvById(d.tvsaveann); if(!a) return true; if($('#tvStatus')) a.status=$('#tvStatus').value; if($('#tvFile')) a.file=$('#tvFile').value.trim().slice(0,500); a.editedBy=S.viewer; closeModal(); render(); toast('Saved'); return true; }
   if(d.tvskip){ const [id,dd]=d.tvskip.split('|'); const day=tvDay(dd); if(day){ day.skipAnn=[...new Set([...(day.skipAnn||[]),id])]; } closeModal(); render(); toast('Skipped for that day'); return true; }
   if(d.tvmove){ const [id,dir]=d.tvmove.split('|'); const b=tvById(id); if(!b) return true; const list=tvRundown(b.date); const k=list.findIndex(x=>x.t==='b'&&x.b.id===id), j=k+(+dir); if(j<0||j>=list.length) return true;
-    const other=list[j]; const np = other.t==='b' ? (tvInfo(other.b).pos||0) : other.pos; const op=tvInfo(b).pos||0;
-    b.pos = np + (+dir>0?0.5:-0.5); if(other.t==='b' && other.b.pos===undefined) other.b.pos=tvInfo(other.b).pos; void op; render(); tvBlockModal(id); return true; }
+    const o=list[j]; tvReorder(b.date,'b|'+id,o.t==='a'?'a|'+o.a.id:'b|'+o.b.id,+dir>0); render(); tvBlockModal(id); return true; }
   if(d.tvcustom){ const b=tvById(d.tvcustom); if(!b) return true; Object.assign(b,tvInfo(b),{custom:true}); render(); tvBlockModal(b.id); setTimeout(()=>{ const det=$('#modal details'); if(det) det.open=true; },30); return true; }
   if(d.tvdelblock){ if(!confirm('Remove this segment from this day?')) return true; S.broadcast=S.broadcast.filter(x=>x.id!==d.tvdelblock); closeModal(); render(); return true; }
   if(d.tvannnew!==undefined){ tvAnnModal(null); return true; }
@@ -4936,6 +4937,22 @@ document.addEventListener('input',e=>{
 let dragId=null;
 let rowDrag=null;
 let tdDrag=null, bDrag=null;
+/* 1.4.21: drag to reorder a Spartan TV day */
+let tvDrag=null;
+function tvReorder(d,fromKey,toKey,after){
+  const list=tvRundown(d), key=e=>e.t==='a'?'a|'+e.a.id:'b|'+e.b.id;
+  const a=list.find(e=>key(e)===fromKey); if(!a||fromKey===toKey) return false;
+  const rest=list.filter(e=>e!==a), k=rest.findIndex(e=>key(e)===toKey); if(k<0) return false;
+  rest.splice(after?k+1:k,0,a);
+  const day=tvDay(d); if(!day) return false; day.annAt={...(day.annAt||{})};
+  rest.forEach((e,n)=>{ const pos=(n+1)*10; if(e.t==='a') day.annAt[e.a.id]=pos; else e.b.pos=pos; });
+  return true;
+}
+document.addEventListener('dragstart',e=>{ const c=e.target.closest&&e.target.closest('[data-tvdrag]'); if(!c) return; tvDrag=c.dataset.tvdrag; c.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; try{ e.dataTransfer.setData('text/plain',tvDrag); }catch(x){} },true);
+document.addEventListener('dragover',e=>{ if(!tvDrag) return; const c=e.target.closest&&e.target.closest('[data-tvdrag]'); $$('.tvdropb,.tvdropa').forEach(x=>x.classList.remove('tvdropb','tvdropa')); if(!c||c.dataset.tvdrag===tvDrag||c.dataset.tvdrag.split('|')[0]!==tvDrag.split('|')[0]) return; e.preventDefault(); const r=c.getBoundingClientRect(); c.classList.add(e.clientY>r.top+r.height/2?'tvdropa':'tvdropb'); },true);
+document.addEventListener('drop',e=>{ if(!tvDrag) return; const c=e.target.closest&&e.target.closest('[data-tvdrag]'); const from=tvDrag; tvDrag=null; if(!c) return; e.preventDefault(); e.stopPropagation();
+  const after=c.classList.contains('tvdropa'); const [d,...fk]=from.split('|'), [d2,...tk]=c.dataset.tvdrag.split('|'); if(d!==d2) return; if(tvReorder(d,fk.join('|'),tk.join('|'),after)) render(); },true);
+document.addEventListener('dragend',()=>{ tvDrag=null; $$('.tvdropb,.tvdropa,.tvrow.dragging').forEach(x=>x.classList.remove('tvdropb','tvdropa','dragging')); },true);
 document.addEventListener('dragstart',e=>{ const c=e.target.closest&&e.target.closest('[data-bdrag]'); if(!c) return; bDrag=c.dataset.bdrag; c.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; try{ e.dataTransfer.setData('text/plain',bDrag); }catch(x){} },true);
 document.addEventListener('dragover',e=>{ if(!bDrag) return; const c=e.target.closest&&e.target.closest('[data-bdrag]'); $$('.bdropb,.bdropa').forEach(x=>x.classList.remove('bdropb','bdropa')); if(!c||c.dataset.bdrag===bDrag) return; e.preventDefault(); const r=c.getBoundingClientRect(); c.classList.add(e.clientX>r.left+r.width/2?'bdropa':'bdropb'); },true);
 document.addEventListener('drop',e=>{ if(!bDrag) return; const c=e.target.closest&&e.target.closest('[data-bdrag]'); const a=bankById(bDrag); bDrag=null; if(!c) return; e.preventDefault(); e.stopPropagation(); const after=c.classList.contains('bdropa'); if(placeRequest(a,bankById(c.dataset.bdrag),after)) render(); },true);
