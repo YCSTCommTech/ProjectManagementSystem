@@ -932,6 +932,7 @@ tr.row:hover .rowsel,.rowsel:checked,#board.selecting .rowsel{opacity:1}
 .abtag.B{background:var(--surface-2);color:var(--ink-2);outline:1px solid var(--line)}
 button.abtag{cursor:pointer}
 .tvrows{display:flex;flex-direction:column;gap:2px}
+.tag.late{background:#fde8e6;color:#b42318;border-color:#f3b4ad}.tag.subat{background:#eef2f0;color:#3c4a44}
 .tvrow.dragging{opacity:.4}.tvrow.tvdropb{box-shadow:inset 0 3px 0 #00954C}.tvrow.tvdropa{box-shadow:inset 0 -3px 0 #00954C}.tvrow[draggable="true"]{cursor:grab}
 .tvrow{display:flex;align-items:center;gap:6px;border:0;background:transparent;text-align:left;padding:6px;border-radius:8px;font:inherit;font-size:13px;color:var(--ink);cursor:pointer;min-height:32px}
 .tvrow:hover{background:var(--hover)}.tvrow.ann{background:var(--surface-2)}
@@ -1096,8 +1097,8 @@ const CFG = window.JARVIS_CONFIG || {};
 const SUPABASE_URL = CFG.url || 'PASTE_YOUR_PROJECT_URL';
 const SUPABASE_ANON_KEY = CFG.anonKey || 'PASTE_YOUR_ANON_KEY';
 const LOGIN_DOMAIN = 'jarvis.local';
-const APP_VERSION = '1.4.21';
-const APP_DATE = 'Oct 20, 2026';
+const APP_VERSION = '1.4.22';
+const APP_DATE = 'Oct 21, 2026';
 
 /* ---------- Dates ---------- */
 const localISO = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -1717,6 +1718,15 @@ const dueMoves = i => (i.history||[]).filter(e=>e.kind==='due' && e.from && e.to
 function statusPill(i){ const s=stat(i.status); return `<button class="pill" style="background:${s.color}" data-status="${i.id}" ${canStatus(i)?'':'disabled'} aria-label="Status: ${s.label}">${s.label}</button>`; }
 const openFeedback = i => S.asks.some(a=>a.open && a.kind==='feedback' && a.itemId===i.id);
 const latestUrl = f => f && f.versions && f.versions.length ? f.versions[f.versions.length-1].url : '';
+/* 1.4.22: when was it submitted */
+function lastSubmit(i){ const e=[...(i.history||[])].reverse().find(e=>e.kind==='status'&&e.to==='sub'); return e&&e.ts?e.ts:null; }
+function submitTag(i){
+  if(!isTeacher() || i.source!=='assignment' || !['sub','done','work'].includes(i.status)) return '';
+  const ts=lastSubmit(i); if(!ts) return '';
+  const due=i.due||(asn(i.assignmentId)||{}).due, late=due && ts>new Date(due+'T23:59:59').getTime();
+  const when=new Date(ts).toLocaleString('en-US',{weekday:'short',month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'});
+  return `<span class="tag ${late?'late':'subat'}" title="${late?'Submitted after the due date':'Submitted on time'}">Submitted ${esc(when)}${late?' · late':''}</span>`;
+}
 function rowHTML(i,isSub,showProj,asStudent,depth){
   depth = depth || (isSub?1:0);
   const subs = subsOf(i.id), open = UI.openSubs.has(i.id), doneSubs = subs.filter(complete).length, p = pri(i.priority);
@@ -1730,7 +1740,7 @@ function rowHTML(i,isSub,showProj,asStudent,depth){
       ${asStudent?av(i.assignees[0]):''}<button class="title" data-open="i:${i.id}">${esc(asStudent?pname(i.assignees[0]):i.title)}</button>
       ${i.source==='assignment'&&!asStudent?`<span class="lock" title="Set by Mr. P">${ICON.lock}</span>`:''}
       ${submitCount(i)>1?`<span class="tag" title="Returned ${returnCount(i)}×">Round ${submitCount(i)}</span>`:''}
-      ${needsChanges(i)?'<span class="tag chg">Needs changes</span>':''}
+      ${needsChanges(i)?'<span class="tag chg">Needs changes</span>':''}${submitTag(i)}
       ${isTeacher()&&dueMoves(i)?`<span class="tag" title="Due date was pushed later ${dueMoves(i)}×">Due moved ${dueMoves(i)}×</span>`:''}
       ${openFeedback(i)?'<span class="tag fb">Feedback asked</span>':''}
       ${subs.length?`<span class="tag">${doneSubs}/${subs.length}</span>`:''}
@@ -2005,7 +2015,7 @@ function itemBody(i){
   let h='';
   if(i.source==='assignment' && !isTeacher()) h+=`<div class="note">Assigned by Mr. P. You can update the status, add files, and ask for feedback. Mr. P marks it Done after review.</div>`;
   if(!isTeacher() && !cs) h+=`<div class="note">You’re viewing ${esc(p?pname(p.owner):'a classmate')}’s ${p?'project':'work'}. Only its team can make changes.</div>`;
-  if(isTeacher() && i.source==='assignment' && i.status==='sub') h+=`<div class="review"><strong>Review this submission</strong>
+  if(isTeacher() && i.source==='assignment' && i.status==='sub') h+=`<div class="review"><strong>Review this submission</strong> ${submitTag(i)}
       <input id="revNote" data-k="rev:${i.id}" placeholder="What needs to change? (required to return; optional when marking done)">
       <div class="rowbtns"><button class="btn done" data-review="done" data-id="${i.id}">Mark done</button><button class="btn" data-review="work" data-id="${i.id}">Return for revisions</button></div>
       ${submitCount(i)>1?`<span class="hint">Submission round ${submitCount(i)} — returned ${returnCount(i)}× so far.</span>`:''}</div>`;
