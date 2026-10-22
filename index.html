@@ -932,6 +932,7 @@ tr.row:hover .rowsel,.rowsel:checked,#board.selecting .rowsel{opacity:1}
 .abtag.B{background:var(--surface-2);color:var(--ink-2);outline:1px solid var(--line)}
 button.abtag{cursor:pointer}
 .tvrows{display:flex;flex-direction:column;gap:2px}
+.hidedone{border:1px solid var(--line);background:transparent;border-radius:999px;padding:2px 10px;font:inherit;font-size:12px;color:var(--ink-3);cursor:pointer}.hidedone.on{background:#e8f4ee;color:#095641;border-color:#9fd3b8}
 .tag.late{background:#fde8e6;color:#b42318;border-color:#f3b4ad}.tag.subat{background:#eef2f0;color:#3c4a44}
 .tvrow.dragging{opacity:.4}.tvrow.tvdropb{box-shadow:inset 0 3px 0 #00954C}.tvrow.tvdropa{box-shadow:inset 0 -3px 0 #00954C}.tvrow[draggable="true"]{cursor:grab}
 .tvrow{display:flex;align-items:center;gap:6px;border:0;background:transparent;text-align:left;padding:6px;border-radius:8px;font:inherit;font-size:13px;color:var(--ink);cursor:pointer;min-height:32px}
@@ -1097,7 +1098,7 @@ const CFG = window.JARVIS_CONFIG || {};
 const SUPABASE_URL = CFG.url || 'PASTE_YOUR_PROJECT_URL';
 const SUPABASE_ANON_KEY = CFG.anonKey || 'PASTE_YOUR_ANON_KEY';
 const LOGIN_DOMAIN = 'jarvis.local';
-const APP_VERSION = '1.4.23';
+const APP_VERSION = '1.4.24';
 const APP_DATE = 'Oct 22, 2026';
 
 /* ---------- Dates ---------- */
@@ -1658,11 +1659,15 @@ function asnHidden(i){
   if(a.weekly) return addDays(a.weekStart,6)<t && (insts.every(done)||addDays(a.weekStart,20)<t);
   return insts.every(done);
 }
+/* 1.4.24: per-person "Hide done items" for a project */
+const hideDoneOn = pid => !!(pid && (S.prefs.hideDone||{})[pid]);
+const doneHidden = i => i.source==='task' && i.status==='done' && hideDoneOn(i.projectId);
 function visibleTop(){
   const v = S.viewer;
   let list = S.items.filter(i=>!i.parentId && !inDoneProj(i));
   UI.hiddenFinished = new Set(list.filter(asnHidden).map(i=>i.assignmentId)).size;
   if(!UI.showFinished) list = list.filter(i=>!asnHidden(i));
+  list = list.filter(i=>!doneHidden(i));
   if(!isTeacher()){
     const peek = UI.scope==='wholeclass';
     list = list.filter(i=> i.assignees.includes(v) || (i.projectId && (proj(i.projectId)?.roles||{})[v])
@@ -1755,7 +1760,7 @@ function rowHTML(i,isSub,showProj,asStudent,depth){
     ${showProj?`<td class="c-proj" title="${esc(projName)}">${esc(projName)}</td>`:''}
     <td class="c-link">${link?`<a href="${esc(link)}" target="_blank" rel="noopener" aria-label="Open latest file">${ICON.link}</a>`:''}</td>
   </tr>`;
-  if(open && !asStudent && depth<40) h += subs.map(s=>rowHTML(s,true,showProj,false,depth+1)).join('');
+  if(open && !asStudent && depth<40) h += subs.filter(s=>!doneHidden(s)).map(s=>rowHTML(s,true,showProj,false,depth+1)).join('');
   return h;
 }
 function rollupHTML(aid,insts,showProj){
@@ -1816,6 +1821,7 @@ function renderBoardPage0(){
     return `<section class="group ${col?'collapsed':''} ${g.nested?'nested':''}" style="--g:${g.color}">
       <div class="ghead"><button class="caret" data-collapse="${g.key}" aria-label="Collapse group">${ICON.caret}</button>
         ${g.kind==='project'?`<button class="gname linklike" data-open="p:${g.project.id}">${esc(g.name)}</button>`:`<span class="gname">${esc(g.name)}</span>`}
+        ${g.kind==='project'?(()=>{ const pid=g.project.id, on=hideDoneOn(pid), n=on?S.items.filter(i=>i.projectId===pid&&doneHidden(i)).length:0; return `<button class="hidedone ${on?'on':''}" data-hidedone="${pid}" title="Just for you. Others still see everything.">${on?`✓ Hiding done${n?` (${n})`:''}`:'Hide done'}</button>`; })():''}
         <span class="gcount">${rollup ? new Set(g.items.map(i=>i.assignmentId)).size+' assignments' : g.items.length+' item'+(g.items.length===1?'':'s')}${g.sub?' · '+esc(g.sub):''}</span>${extra}</div>
       <div class="tablewrap"><table>
         <thead><tr><th class="c-item">Item</th><th class="c-people">People</th><th class="c-status">Status</th><th class="c-due">Due</th><th class="c-pri">Priority</th>${showProj?'<th class="c-proj">Project</th>':''}<th class="c-link">File</th></tr></thead>
@@ -4760,6 +4766,7 @@ document.addEventListener('click',e=>{
     if(on==='1'){ const waiting=S.items.filter(i=>i.assignmentId===id&&i.status==='sub').length; if(!confirm(`Close “${a.title}”?\n\nIt disappears from every board, Start of class, and the Schoology missing list. Nobody is marked done, and nothing is deleted.${waiting?`\n\n${waiting} submission${waiting===1?' is':'s are'} still waiting for your review.`:''}`)) return; a.closed=true; a.closedAt=Date.now(); }
     else { delete a.closed; delete a.closedAt; }
     render(); toast(on==='1'?'Closed. Turn on “Show finished” to find it again.':'Reopened'); return; }
+  if(d.hidedone){ const m={...(S.prefs.hideDone||{})}; if(m[d.hidedone]) delete m[d.hidedone]; else m[d.hidedone]=true; S.prefs.hideDone=m; saveLocal(); render(); toast(m[d.hidedone]?'Done items hidden in this project (just for you)':'Showing done items'); return; }
   if(d.gotoreview!==undefined){ resetFilters(); UI.page='board'; UI.project=''; UI.scope='review'; render(); return; }
   if(d.resetdays){ const w=weekDoc(d.resetdays,UI.wkStart); if(w){ delete w.days; } syncWeeklyDue(UI.wkStart); render(); toast('Back to the class days'); return; }
   if(d.submove){ const [id,dir]=d.submove.split('|'); const i=item(id); if(!i) return; const sib=siblingsOf(i); const k=sib.findIndex(x=>x.id===id), j=k+(+dir); if(j<0||j>=sib.length) return; moveInOrder(i,sib[j],+dir>0); render(); return; }
