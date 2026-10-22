@@ -1097,8 +1097,8 @@ const CFG = window.JARVIS_CONFIG || {};
 const SUPABASE_URL = CFG.url || 'PASTE_YOUR_PROJECT_URL';
 const SUPABASE_ANON_KEY = CFG.anonKey || 'PASTE_YOUR_ANON_KEY';
 const LOGIN_DOMAIN = 'jarvis.local';
-const APP_VERSION = '1.4.22';
-const APP_DATE = 'Oct 21, 2026';
+const APP_VERSION = '1.4.23';
+const APP_DATE = 'Oct 22, 2026';
 
 /* ---------- Dates ---------- */
 const localISO = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -1467,7 +1467,8 @@ function moveInOrder(i,target,after){
 const stat = id => STATUSES.find(s=>s.id===id) || STATUSES[0];
 const pri = id => PRI.find(p=>p.id===id) || PRI[1];
 const initials = n => n.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
-const complete = i => i.status==='done'||i.status==='sub';
+const asnClosed = i => !!(i && i.assignmentId && asn(i.assignmentId)?.closed);
+const complete = i => i.status==='done'||i.status==='sub'||asnClosed(i);
 const isOverdue = i => !!i.due && new Date(i.due+'T23:59:00') < new Date() && !complete(i);
 function avLabel(pid){ const pr=profile(pid); if(pr.mode==='text' && pr.text) return pr.text; return initials(pname(pid)); }
 function av(pid,cls=''){ const p=PEOPLE[pid]; if(!p) return ''; const pr=profile(pid);
@@ -1649,6 +1650,7 @@ function moveItem(i,T){
 /* Finished assignments leave the board (v1.4.1). Nothing is deleted. */
 function asnHidden(i){
   const a=i.source==='assignment' && i.assignmentId && asn(i.assignmentId); if(!a) return false;
+  if(a.closed) return true;
   const t=todayISO(), done=x=>x.status==='done';
   if(!isTeacher()){ if(needsChanges(i)) return false; if(a.weekly) return addDays(a.weekStart,6)<t && (done(i)||addDays(a.weekStart,20)<t); return done(i); }
   const insts=S.items.filter(x=>x.assignmentId===a.id); if(!insts.length) return false;
@@ -1767,6 +1769,7 @@ function rollupHTML(aid,insts,showProj){
       <button class="title" data-subs="${key}">${esc(a.title)}</button><span class="lock">${ICON.lock}</span>
       ${a.weekly?'<span class="tag">Weekly</span>':''}${over?`<span class="tag chg">${over} overdue</span>`:''}
       <button class="convo" data-editassign="${a.id}" aria-label="Edit assignment">Edit</button>
+      ${a.closed?`<span class="tag">Closed</span><button class="convo" data-asnclose="${a.id}|0" title="Put it back on everyone’s board">Reopen</button>`:`<button class="convo" data-asnclose="${a.id}|1" title="Hide it everywhere without marking anyone done">Close</button>`}
     </div></td>
     <td class="c-people">${avatars(insts.map(i=>i.assignees[0]))}</td>
     <td class="c-status"><div class="prog"><div class="bar">${seg}</div><b>${fin}/${n}</b></div></td>
@@ -2407,7 +2410,7 @@ function renderAsks(){
 /* ---------- Schoology sync ---------- */
 function syncReady(){ return S.items.filter(i=>i.source==='assignment' && i.status==='done' && !i.syncId); }
 const pastDue = a => a && a.due && new Date(a.due+'T23:59:00') < new Date();
-function syncMissing(){ return S.items.filter(i=> i.source==='assignment' && i.status!=='done' && !i.missingId && pastDue(asn(i.assignmentId))); }
+function syncMissing(){ return S.items.filter(i=> i.source==='assignment' && i.status!=='done' && !asnClosed(i) && !i.missingId && pastDue(asn(i.assignmentId))); }
 const syncPending = ()=> syncReady().length + syncMissing().length;
 function doneAt(i){ const e=[...(i.history||[])].reverse().find(e=>e.kind==='status'&&e.to==='done'); return e?e.at:''; }
 function renderSync(){
@@ -4753,6 +4756,10 @@ document.addEventListener('click',e=>{
   if(d.clearfilters!==undefined){ resetFilters(); render(); return; }
   if(d.view){ UI.view=d.view; render(); return; }
   if(d.homegrade!==undefined){ UI.homeGrade=d.homegrade; render(); return; }
+  if(d.asnclose){ const [id,on]=d.asnclose.split('|'); const a=asn(id); if(!a) return;
+    if(on==='1'){ const waiting=S.items.filter(i=>i.assignmentId===id&&i.status==='sub').length; if(!confirm(`Close “${a.title}”?\n\nIt disappears from every board, Start of class, and the Schoology missing list. Nobody is marked done, and nothing is deleted.${waiting?`\n\n${waiting} submission${waiting===1?' is':'s are'} still waiting for your review.`:''}`)) return; a.closed=true; a.closedAt=Date.now(); }
+    else { delete a.closed; delete a.closedAt; }
+    render(); toast(on==='1'?'Closed. Turn on “Show finished” to find it again.':'Reopened'); return; }
   if(d.gotoreview!==undefined){ resetFilters(); UI.page='board'; UI.project=''; UI.scope='review'; render(); return; }
   if(d.resetdays){ const w=weekDoc(d.resetdays,UI.wkStart); if(w){ delete w.days; } syncWeeklyDue(UI.wkStart); render(); toast('Back to the class days'); return; }
   if(d.submove){ const [id,dir]=d.submove.split('|'); const i=item(id); if(!i) return; const sib=siblingsOf(i); const k=sib.findIndex(x=>x.id===id), j=k+(+dir); if(j<0||j>=sib.length) return; moveInOrder(i,sib[j],+dir>0); render(); return; }
