@@ -1098,7 +1098,7 @@ const CFG = window.JARVIS_CONFIG || {};
 const SUPABASE_URL = CFG.url || 'PASTE_YOUR_PROJECT_URL';
 const SUPABASE_ANON_KEY = CFG.anonKey || 'PASTE_YOUR_ANON_KEY';
 const LOGIN_DOMAIN = 'jarvis.local';
-const APP_VERSION = '1.4.25';
+const APP_VERSION = '1.4.26';
 const APP_DATE = 'Oct 23, 2026';
 
 /* ---------- Dates ---------- */
@@ -1166,13 +1166,19 @@ const WEEKLY_Q = {
   q7:'What is one thing you made or tried this week that you are genuinely proud of or curious about?',
   q8:'What did not get done that you planned to do and why?',
   q9:'Did any lesson or conversation this week connect to your goals? If so, how?',
-  q10:'What is your first priority when you walk in on Monday?'
+  q10:'What is your first priority when you walk in on Monday?',
+  q11:'How did the week go? What got done? What didn’t get done and why?',
+  q12:'Any concerns inside or outside school?'
 };
 const STAGES = [
-  {id:'monday',label:'Monday game plan',qs:['q1','q2','q3']},
-  {id:'mid',label:'Midweek check-in',qs:['q4','q5']},
-  {id:'friday',label:'Friday reflection',qs:['q6','q7','q8','q9','q10']}
+  {id:'monday',label:'Monday game plan',qs:['q1','q2','q3'],legacy:true},
+  {id:'mid',label:'Midweek check-in',qs:['q4','q5'],legacy:true},
+  {id:'friday',label:'Friday reflection',qs:['q11','q12']}
 ];
+/* 1.4.26: the daily check-in covers planning; only the Friday reflection is asked. Older weeks keep showing what was answered. */
+const OLD_FRI=['q6','q7','q8','q9','q10'];
+function stageQs(stg,w){ const a=(w&&w.answers)||{}; if(stg.id==='friday' && !a.q11 && !a.q12 && OLD_FRI.some(q=>a[q])) return OLD_FRI; return stg.qs; }
+function stagesFor(w){ return STAGES.filter(s=>!s.legacy || (w && ((w.stages||{})[s.id] || s.qs.some(q=>(w.answers||{})[q])))); }
 
 /* ---------- Audience helpers ---------- */
 function studentsFor(aud){
@@ -1568,8 +1574,6 @@ function lastDayOf(pid,ws){ const w=weekDoc(pid,ws); if(w && w.lastDay) return w
 function midDayOf(pid,ws){ const d=weekDays(pid,ws); return d[Math.floor((d.length-1)/2)]; }
 function stageDue(pid,ws,today=todayISO()){
   const w=weekDoc(pid,ws)||{stages:{}};
-  if(!w.stages.monday) return 'monday';
-  if(!w.stages.mid && today>=midDayOf(pid,ws) && today<lastDayOf(pid,ws)) return 'mid';
   if(!w.stages.friday && today>=lastDayOf(pid,ws)) return 'friday';
   return null;
 }
@@ -2191,7 +2195,7 @@ function startClassData(){
   out.lessons = S.lessons.filter(l=>l.date>=t && l.date<=horizon).sort((a,b)=>(a.date+a.start).localeCompare(b.date+b.start)).map(l=>({title:l.title,date:l.date,start:l.start,open:Math.max(0,(l.seats||0)-(l.signups||[]).length)}));
   try{ const mp=currentMp(); const left=mp.days.filter(x=>x>=t).length; out.mp={num:mp.num,end:mp.end,left}; }catch(e){ out.mp=null; }
   try{ out.tv = tvNeeds().filter(x=>!(x.o.who||[]).length && x.date<=soon[1]).map(x=>({name:x.k==='a'?(x.o.title||'Announcement')+' graphic':x.i.name,date:x.date})); }catch(e){ out.tv=[]; }
-  const st=STAGES.find(x=>x.id===({1:'monday',3:'mid',5:'friday'})[parseISO(t).getDay()]); out.weekly = st ? st.label : '';
+  const st=STAGES.find(x=>x.id===({5:'friday'})[parseISO(t).getDay()]); out.weekly = st ? st.label : '';
   out.events = S.events.filter(e=>e.status==='approved' && e.date>=t && e.date<=addDays(t,7)).sort((a,b)=>a.date.localeCompare(b.date)).map(e=>({title:e.title,date:e.date}));
   out.bank = S.bank.filter(b=>b.status==='ready' && (b.type==='request' || tsOf(b)>=since-6*86400e3)).sort(bankReqOrder).slice(0,4).map(b=>({title:b.title,req:b.type==='request'}));
   out.polls = S.polls.filter(q=>q.open).map(q=>q.question);
@@ -2342,7 +2346,7 @@ function stageForm(pid,ws,stg,editable){
   const canType = editable && !locked && !final;
   let body = '';
   if(stg.id==='monday'){ const prev=weekDoc(pid,addDays(ws,-7)); if(prev&&prev.answers&&prev.answers.q10) body+=`<div class="hint">Last week you said your first priority would be: “${esc(prev.answers.q10)}”</div>`; }
-  body += stg.qs.map(q=>`<label class="wq"><span>${esc(WEEKLY_Q[q])} ${speakBtn(WEEKLY_Q[q])}</span>${canType?`<textarea data-wq="${q}" data-ws="${ws}" rows="2">${esc(w.answers[q]||'')}</textarea>`:`<div class="wa">${w.answers[q]?esc(w.answers[q]):'<span class="hint">—</span>'}</div>`}</label>`).join('');
+  body += stageQs(stg,w).map(q=>`<label class="wq"><span>${esc(WEEKLY_Q[q])} ${speakBtn(WEEKLY_Q[q])}</span>${canType?`<textarea data-wq="${q}" data-ws="${ws}" rows="2">${esc(w.answers[q]||'')}</textarea>`:`<div class="wa">${w.answers[q]?esc(w.answers[q]):'<span class="hint">—</span>'}</div>`}</label>`).join('');
   if(stg.id==='monday' && canType && w.answers.q3) body+=`<button class="btn tiny" data-q3ask="${ws}">Send my Q3 to Mr. P as an Ask</button>`;
   if(stg.id==='friday' && w.stages.friday && wi && wi.status==='work' && editable) body=`<div class="note">Mr. P sent your weekly report back. Check his note on the report item, update your answers, and resubmit.</div>`+body;
   if(canType) body+=`<button class="btn primary" data-stage="${stg.id}" data-ws="${ws}">${stg.id==='friday'?(doneAt?'Resubmit my weekly report':'Save and submit my weekly report'):(doneAt?'Update ':'Save ')+stg.label}</button>`;
@@ -2373,7 +2377,7 @@ function renderWeek(){
   h += dayStrip(pid,ws,!isTeacher() && ws===weekStartOf(t));
   const wi=weeklyItem(pid,ws);
   if(isTeacher() && wi) h += `<div class="note">Weekly report status: <b>${stat(wi.status).label}</b>. <button class="btn tiny" data-open="i:${wi.id}">Open to review</button>${wi.status!=='done'?`<button class="btn tiny done" data-review="done" data-id="${wi.id}">Mark done</button>`:''}</div>`;
-  const due=stageDue(pid,ws), stagesShown = simple ? STAGES.filter(s=>s.id===due) : STAGES;
+  const due=stageDue(pid,ws), stagesShown = simple ? STAGES.filter(s=>s.id===due) : stagesFor(w);
   h += `<div class="weekgrid"><div>${stagesShown.length?stagesShown.map(s=>stageForm(pid,ws,s,!isTeacher())).join(''):'<div class="empty">You’re all caught up on this week’s questions.</div>'}</div><aside class="weekside"><h3>${isTeacher()?'Their':'Your'} week at a glance</h3>${logisticsHTML(pid,ws)}</aside></div>`;
   return h;
 }
@@ -2564,8 +2568,8 @@ function maybeCheckin(){
   if(!ready || !S.viewer || isTeacher() || lowerMe()) return;
   const v=S.viewer, t=todayISO(), ci=checkin(v,t);
   if(!isClassDay(v,t)) return;
-  const needLine = !(ci && ci.line), needPlan = !weekDoc(v,weekStartOf(t))?.stages?.monday;
-  if(needLine || needPlan) openCheckin(true, needLine?1:2);
+  const needLine = !(ci && ci.line);
+  if(needLine) openCheckin(true, 1);
 }
 function openCheckin(required, step){
   const v=S.viewer, t=todayISO(), ci=checkin(v,t), prev=lastCheckinBefore(v,t);
@@ -2580,8 +2584,8 @@ function drawCheckin(){
       <p class="hint">${esc(fmtDay(t))} · Daily check-in ${helpDot('checkin')}</p>
       <h3 class="sech small">What are you working on today? <span class="hint">Tap all that apply</span></h3>
       <div class="checks">${opts.length?opts.map(([k,l])=>`<button class="chip ${CI.active.has(k)?'on':''}" data-ciact="${k}">${esc(l)}</button>`).join(''):'<span class="hint">You’re not on any projects yet — that’s okay. Write what you’re doing below.</span>'}</div>
-      <h3 class="sech small">One line: what’s happening today?</h3>
-      <input id="ciLine" data-voice maxlength="200" placeholder="e.g. Color grading the pep rally cut, stuck on skin tones" value="${esc(ci&&ci.line||'')}">
+      <h3 class="sech small">Add details: what are you doing on it today?</h3>
+      <textarea id="ciLine" data-voice maxlength="600" rows="3" placeholder="e.g. Color grading the pep rally cut, stuck on skin tones">${esc(ci&&ci.line||'')}</textarea>
       <div class="mfoot"><button class="btn primary" data-cisave>Check in</button></div></div>`;
   } else {
     const w=weekDoc(v,ws)||{answers:{}}; const prev=weekDoc(v,addDays(ws,-7));
@@ -4776,7 +4780,7 @@ document.addEventListener('click',e=>{
   if(d.absent){ const c=ensureCheckin(S.viewer,d.absent); c.absent=!c.absent; render(); toast(c.absent?`${dow(d.absent)} marked absent`:'Absent removed'); return; }
   if(d.stage){ const w=ensureWeek(S.viewer,d.ws); const stg=STAGES.find(s=>s.id===d.stage);
     $$(`textarea[data-wq][data-ws="${d.ws}"]`).forEach(x=>{ w.answers[x.dataset.wq]=x.value; });
-    const missing=stg.qs.filter(q=>!(w.answers[q]||'').trim()); if(missing.length){ toast('Answer every question first'); $(`textarea[data-wq="${missing[0]}"]`)?.focus(); return; }
+    const missing=stageQs(stg,w).filter(q=>!(w.answers[q]||'').trim()); if(missing.length){ toast('Answer every question first'); $(`textarea[data-wq="${missing[0]}"]`)?.focus(); return; }
     w.stages[stg.id]=Date.now(); UI.sec['stage:'+stg.id]=false;
     if(stg.id==='friday'){ const wi=weeklyItem(S.viewer,d.ws); if(wi && wi.status!=='sub' && wi.status!=='done') changeStatus(wi,'sub'); toast('Weekly report submitted'); } else toast(stg.label+' saved');
     render(); return; }
@@ -4787,10 +4791,9 @@ document.addEventListener('click',e=>{
   if(d.cifocus){ CI.focus.has(d.cifocus)?CI.focus.delete(d.cifocus):CI.focus.add(d.cifocus); const vals=['ciq1','ciq2','ciq3'].map(x=>$('#'+x).value); const chk=$('#ciq3ask').checked;
     if(CI.focus.has(d.cifocus)){ const lab=activeLabel(d.cifocus).replace(/^Assignment: /,''); if(!vals[0].includes(lab)) vals[0]=(vals[0]?vals[0].replace(/\s*$/,'')+'\n':'')+lab+' — '; }
     drawCheckin(); ['ciq1','ciq2','ciq3'].forEach((x,k)=>$('#'+x).value=vals[k]); $('#ciq3ask').checked=chk; $('#ciq1').focus(); return; }
-  if(d.cisave!==undefined){ const line=$('#ciLine').value.trim(); if(!line){ $('#ciLine').focus(); toast('Write one line about today'); return; }
+  if(d.cisave!==undefined){ const line=$('#ciLine').value.trim(); if(!line){ $('#ciLine').focus(); toast('Add a few details about today'); return; }
     const c=ensureCheckin(S.viewer,todayISO()); c.active=[...CI.active]; c.line=line; c.absent=false; Object.assign(c,nowStamp());
-    const needPlan=!weekDoc(S.viewer,weekStartOf(todayISO()))?.stages?.monday && isClassDay(S.viewer,todayISO());
-    if(needPlan){ CI.step=2; drawCheckin(); } else { closeCheckin(); toast('Checked in'); }
+    closeCheckin(); toast('Checked in');
     render(); return; }
   if(d.ciplan!==undefined){ const q=['ciq1','ciq2','ciq3'].map(x=>$('#'+x).value.trim()); if(!q[0]||!q[1]||!q[2]){ toast('Answer all three questions'); return; }
     const w=ensureWeek(S.viewer,weekStartOf(todayISO())); w.answers.q1=q[0]; w.answers.q2=q[1]; w.answers.q3=q[2]; w.focus=[...CI.focus]; w.stages.monday=Date.now();
@@ -4886,7 +4889,7 @@ document.addEventListener('keydown',e=>{
       t.value=''; UI.openSubs.add(par.id); render(); const n=$(`[data-addsub="${par.id}"]`); if(n) n.focus(); }
     else if(t.dataset.k && t.dataset.k.startsWith('reply:')){ e.preventDefault(); replyAsk(t.dataset.k.slice(6)); }
     else if(t.id==='bankQuick'){ e.preventDefault(); quickCapture(); }
-    else if(t.id==='ciLine'){ e.preventDefault(); $('[data-cisave]')?.click(); }
+    else if(t.id==='ciLine' && !e.shiftKey){ e.preventDefault(); $('[data-cisave]')?.click(); }
     else if(t.dataset.open && t.classList.contains('card')) openPanel(t.dataset.open);
     else if(t.id==='postText' && (e.metaKey||e.ctrlKey)){ e.preventDefault(); $('[data-post]')?.click(); }
   }
