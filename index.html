@@ -1098,7 +1098,7 @@ const CFG = window.JARVIS_CONFIG || {};
 const SUPABASE_URL = CFG.url || 'PASTE_YOUR_PROJECT_URL';
 const SUPABASE_ANON_KEY = CFG.anonKey || 'PASTE_YOUR_ANON_KEY';
 const LOGIN_DOMAIN = 'jarvis.local';
-const APP_VERSION = '1.4.26';
+const APP_VERSION = '1.4.27';
 const APP_DATE = 'Oct 23, 2026';
 
 /* ---------- Dates ---------- */
@@ -1168,16 +1168,17 @@ const WEEKLY_Q = {
   q9:'Did any lesson or conversation this week connect to your goals? If so, how?',
   q10:'What is your first priority when you walk in on Monday?',
   q11:'How did the week go? What got done? What didn’t get done and why?',
-  q12:'Any concerns inside or outside school?'
+  q12:'Any concerns inside or outside school?',
+  q13:'What will you start on Monday?'
 };
 const STAGES = [
   {id:'monday',label:'Monday game plan',qs:['q1','q2','q3'],legacy:true},
   {id:'mid',label:'Midweek check-in',qs:['q4','q5'],legacy:true},
-  {id:'friday',label:'Friday reflection',qs:['q11','q12']}
+  {id:'friday',label:'Friday reflection',qs:['q11','q12','q13']}
 ];
 /* 1.4.26: the daily check-in covers planning; only the Friday reflection is asked. Older weeks keep showing what was answered. */
 const OLD_FRI=['q6','q7','q8','q9','q10'];
-function stageQs(stg,w){ const a=(w&&w.answers)||{}; if(stg.id==='friday' && !a.q11 && !a.q12 && OLD_FRI.some(q=>a[q])) return OLD_FRI; return stg.qs; }
+function stageQs(stg,w){ const a=(w&&w.answers)||{}; if(stg.id==='friday' && !a.q11 && !a.q12 && OLD_FRI.some(q=>a[q])) return OLD_FRI; if(stg.id==='friday' && w && (w.stages||{}).friday && !a.q13) return ['q11','q12']; return stg.qs; }
 function stagesFor(w){ return STAGES.filter(s=>!s.legacy || (w && ((w.stages||{})[s.id] || s.qs.some(q=>(w.answers||{})[q])))); }
 
 /* ---------- Audience helpers ---------- */
@@ -2582,6 +2583,9 @@ function drawCheckin(){
     const opts=todayOptions(v);
     el.innerHTML=`<div class="modalbox cibox"><div class="mhead"><h2>Morning, ${esc(first(v))}</h2>${CI.required?'':'<button class="x" data-cicancel>×</button>'}</div>
       <p class="hint">${esc(fmtDay(t))} · Daily check-in ${helpDot('checkin')}</p>
+      ${(()=>{ const ws=weekStartOf(t), first=weekDays(v,ws)[0], pw=weekDoc(v,addDays(ws,-7)), plan=pw&&pw.answers&&(pw.answers.q13||pw.answers.q10);
+        return t===first && plan ? `<div class="note">📌 On Friday you said you’d start on: <b>“${esc(plan)}”</b></div>` : ''; })()}
+      ${parseISO(t).getDay()===3 ? `<div class="note">🙋 Need any help from Mr. P? Don’t hesitate to ask! <button class="btn tiny" data-cihelp>Ask Mr. P</button></div>` : ''}
       <h3 class="sech small">What are you working on today? <span class="hint">Tap all that apply</span></h3>
       <div class="checks">${opts.length?opts.map(([k,l])=>`<button class="chip ${CI.active.has(k)?'on':''}" data-ciact="${k}">${esc(l)}</button>`).join(''):'<span class="hint">You’re not on any projects yet — that’s okay. Write what you’re doing below.</span>'}</div>
       <h3 class="sech small">Add details: what are you doing on it today?</h3>
@@ -4787,13 +4791,14 @@ document.addEventListener('click',e=>{
   if(d.q3ask){ const w=weekDoc(S.viewer,d.q3ask); const note=(w&&w.answers.q3||'').trim(); if(!note) return; const a={id:rid('k'),kind:'help',helpType:'help',by:S.viewer,to:teacherIds(),projectId:null,note,open:true,replies:[],...nowStamp()}; S.asks.push(a); notifyTeachers('help',{askId:a.id,text:note}); render(); toast('Sent to Mr. P'); return; }
   if(d.editcheckin!==undefined){ openCheckin(false,1); return; }
   if(d.cicancel!==undefined){ closeCheckin(); return; }
+  if(d.cihelp!==undefined){ if(!CI) return; CI.help=!CI.help; t.textContent=CI.help?'✓ Opens after you check in':'Ask Mr. P'; t.classList.toggle('primary',CI.help); return; }
   if(d.ciact){ CI.active.has(d.ciact)?CI.active.delete(d.ciact):CI.active.add(d.ciact); const l=$('#ciLine').value; drawCheckin(); $('#ciLine').value=l; return; }
   if(d.cifocus){ CI.focus.has(d.cifocus)?CI.focus.delete(d.cifocus):CI.focus.add(d.cifocus); const vals=['ciq1','ciq2','ciq3'].map(x=>$('#'+x).value); const chk=$('#ciq3ask').checked;
     if(CI.focus.has(d.cifocus)){ const lab=activeLabel(d.cifocus).replace(/^Assignment: /,''); if(!vals[0].includes(lab)) vals[0]=(vals[0]?vals[0].replace(/\s*$/,'')+'\n':'')+lab+' — '; }
     drawCheckin(); ['ciq1','ciq2','ciq3'].forEach((x,k)=>$('#'+x).value=vals[k]); $('#ciq3ask').checked=chk; $('#ciq1').focus(); return; }
   if(d.cisave!==undefined){ const line=$('#ciLine').value.trim(); if(!line){ $('#ciLine').focus(); toast('Add a few details about today'); return; }
     const c=ensureCheckin(S.viewer,todayISO()); c.active=[...CI.active]; c.line=line; c.absent=false; Object.assign(c,nowStamp());
-    closeCheckin(); toast('Checked in');
+    const wantHelp=CI&&CI.help; closeCheckin(); toast('Checked in'); if(wantHelp) setTimeout(()=>openModal(askModal('help')),50);
     render(); return; }
   if(d.ciplan!==undefined){ const q=['ciq1','ciq2','ciq3'].map(x=>$('#'+x).value.trim()); if(!q[0]||!q[1]||!q[2]){ toast('Answer all three questions'); return; }
     const w=ensureWeek(S.viewer,weekStartOf(todayISO())); w.answers.q1=q[0]; w.answers.q2=q[1]; w.answers.q3=q[2]; w.focus=[...CI.focus]; w.stages.monday=Date.now();
