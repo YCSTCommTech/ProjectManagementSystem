@@ -939,14 +939,16 @@ button.abtag{cursor:pointer}
 .wgroups{display:flex;gap:8px;flex-wrap:wrap}.wgroups button{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);color:#cfe0d7;border-radius:999px;padding:.35em 1em;font:inherit;font-size:clamp(13px,1.1vw,18px);cursor:pointer}.wgroups button.on{background:#00954C;border-color:#00954C;color:#fff}
 .wclock{margin-left:auto;color:#9fb5aa;font-size:clamp(14px,1.4vw,24px);white-space:nowrap}
 .wbody{flex:1;display:grid;grid-template-columns:1fr minmax(240px,24vw);gap:2vw;min-height:0}
-.wmain{display:flex;flex-direction:column;gap:.9vh;min-height:0;position:relative}
-.wrow{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1.6fr) minmax(0,1.6fr);gap:1.6vw;align-items:center;background:rgba(255,255,255,.05);border-left:6px solid #095641;border-radius:12px;padding:1.1vh 1.4vw;font-size:clamp(16px,1.9vw,34px);line-height:1.2;min-height:6.5vh}
-.wrow.n2{grid-template-columns:minmax(0,1fr) minmax(0,2fr)}.wrow.whdr{background:none;border:0;min-height:0;padding:0 1.4vw;font-size:clamp(12px,1vw,17px);color:#807F83;text-transform:uppercase;letter-spacing:.08em;font-weight:800}
+.wmain{display:flex;flex-direction:column;gap:.5vh;min-height:0;position:relative}
+.wrow{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1.6fr) minmax(0,1.6fr);gap:1.6vw;align-items:center;background:rgba(255,255,255,.05);border-left:6px solid #095641;border-radius:10px;padding:0 1.4vw;font-size:min(calc(var(--wrh) * .42),1.9vw);line-height:1.15;height:calc(var(--wrh) - .5vh);overflow:hidden}
+.wrow>*{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.wname{flex-direction:row!important;align-items:center;gap:.5em!important}.wnext{flex-direction:row!important;align-items:baseline;gap:.6em}.wnext em{margin-top:0!important}
+.wrow.n2{grid-template-columns:minmax(0,1fr) minmax(0,2fr)}.wrow.whdr{background:none;border:0;height:auto;padding:0 1.4vw;font-size:clamp(12px,1vw,17px);color:#807F83;text-transform:uppercase;letter-spacing:.08em;font-weight:800}
 .wname{font-weight:800;color:#fff;display:flex;flex-direction:column;gap:.25em}.wdemo{font-size:.55em;font-weight:700;color:#07130e;background:#7CC9A0;border-radius:999px;padding:.15em .7em;align-self:flex-start}
 .wblurb{color:#d6e4dc}.wnext{color:#fff;display:flex;flex-direction:column}.wnext em{font-style:normal;font-size:.62em;color:#7CC9A0;font-weight:800;margin-top:.2em}.wrow i{color:#807F83;font-style:normal}
 .wpage{position:absolute;right:0;bottom:-.2vh;color:#807F83;font-size:clamp(12px,1vw,16px)}.wempty{margin:auto;color:#807F83;font-size:2.4vh}
 .wside{background:rgba(0,149,76,.10);border:1px solid rgba(0,149,76,.35);border-radius:16px;padding:1.6vh 1.2vw;overflow:hidden;display:flex;flex-direction:column;gap:.8vh}
 .wside h3{margin:.4vh 0 .2vh;font-size:clamp(15px,1.5vw,26px)}.wside div{display:flex;flex-direction:column;font-size:clamp(14px,1.3vw,22px);padding:.4vh 0;border-bottom:1px solid rgba(255,255,255,.08)}.wside div span{color:#b9cdc2;font-size:.85em}.wquiet{color:#807F83;margin:0}
+.wper{color:#cfe0d7;font-size:13px}.wper select{margin-left:4px}
 .wfoot{display:flex;gap:8px;align-items:center;opacity:.35;transition:opacity .2s}.wfoot:hover{opacity:1}.wfoot button{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);color:#cfe0d7;border-radius:8px;padding:6px 12px;font:inherit;font-size:13px;cursor:pointer}.werr{color:#f3b4ad;font-size:13px}
 .wgear{position:fixed;right:3vw;bottom:8vh;background:#fff;color:#14231d;border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:6px;box-shadow:0 10px 30px rgba(0,0,0,.4);font-size:15px;max-width:360px}
 .walltv{margin-top:14px;width:100%}.nxflag{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
@@ -1117,7 +1119,7 @@ const CFG = window.JARVIS_CONFIG || {};
 const SUPABASE_URL = CFG.url || 'PASTE_YOUR_PROJECT_URL';
 const SUPABASE_ANON_KEY = CFG.anonKey || 'PASTE_YOUR_ANON_KEY';
 const LOGIN_DOMAIN = 'jarvis.local';
-const APP_VERSION = '1.4.29';
+const APP_VERSION = '1.4.30';
 const APP_DATE = 'Oct 24, 2026';
 
 /* ---------- Dates ---------- */
@@ -4524,11 +4526,12 @@ function openWall(teacher){
 function closeWall(){ clearInterval(WALL.timer); clearInterval(WALL.pager); const o=$('#wall'); if(o){ o.hidden=true; o.innerHTML=''; } document.body.classList.remove('scopen'); try{ if(document.fullscreenElement) document.exitFullscreen(); }catch(e){} }
 function wallDraw(){
   const o=$('#wall'); if(!o||o.hidden||!WALL.data) return;
-  const all=WALL.data.rows||[], groups=wallGroups(all), sel=wallPref().group||'all';
+  const WALL_HIDE=['root'];
+  const all=(WALL.data.rows||[]).filter(r=>!WALL_HIDE.includes(String(r.name||'').toLowerCase())), groups=wallGroups(all), sel=wallPref().group||'all';
   let gkey=sel;
   if(sel==='cycle' && groups.length){ gkey=groups[Math.floor(WALL.page/2)%groups.length][0]; }
   const rows=gkey==='all'||gkey==='cycle'?all:all.filter(r=>String(r.grad)===gkey);
-  const per=Math.max(4,Math.floor((window.innerHeight*0.70)/Math.max(54,window.innerHeight*0.085)));
+  const per=+(wallPref().per||20);
   const pages=Math.max(1,Math.ceil(rows.length/per)), pg=(sel==='cycle'?WALL.page%2:WALL.page)%pages, show=rows.slice(pg*per,pg*per+per);
   const nextOnly=WALL.data.mode==='next';
   const day = d => { if(!d) return ''; try{ const x=parseISO(d), t=todayISO(); return d===t?'Today':d===addDays(t,1)?'Tomorrow':x.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}); }catch(e){ return d; } };
@@ -4537,12 +4540,12 @@ function wallDraw(){
   o.innerHTML=`<div class="whead"><div class="wtitle"><span class="brand-mark"><i style="background:#00954C"></i><i style="background:#FFFFFF"></i><i style="background:#807F83"></i><i style="background:#7CC9A0"></i></span>Class Wall</div>
       <div class="wgroups">${[['all','Everyone'],...groups,...(groups.length>1?[['cycle','Cycle']]:[])].map(([k,l])=>`<button class="${sel===k?'on':''}" data-wallgroup="${k}">${esc(l)}</button>`).join('')}</div>
       <div class="wclock">${esc(now.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'}))} · ${esc(now.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}))}</div></div>
-    <div class="wbody"><div class="wmain"><div class="wrow whdr"><span>Name</span>${nextOnly?'':'<span>Working on</span>'}<span>Next step</span></div>
+    <div class="wbody" style="--wrh:calc((100vh - 15vh) / ${per + 1})"><div class="wmain"><div class="wrow whdr"><span>Name</span>${nextOnly?'':'<span>Working on</span>'}<span>Next step</span></div>
       ${show.length?show.map(r=>`<div class="wrow ${nextOnly?'n2':''}"><b class="wname">${esc(r.name)}${r.demo&&!nextOnly?`<span class="wdemo">🙋 Demo: ${esc(r.demo)}</span>`:''}</b>${nextOnly?'':`<span class="wblurb">${r.blurb?esc(r.blurb):'<i>—</i>'}</span>`}<span class="wnext">${r.next?esc(r.next):'<i>—</i>'}${r.nextDate?`<em>${esc(day(r.nextDate))}</em>`:''}</span></div>`).join(''):'<div class="wempty">Nothing to show yet.</div>'}
       ${pages>1?`<div class="wpage">${pg+1} / ${pages}</div>`:''}</div>
       ${nextOnly?'':`<aside class="wside"><h3>✅ Just finished</h3>${fin.length?fin.slice(0,8).map(r=>`<div><b>${esc(r.name)}</b><span>${esc(r.finished)}</span></div>`).join(''):'<p class="wquiet">—</p>'}
         ${demos.length?`<h3>🙋 Want a demo</h3>${demos.slice(0,8).map(r=>`<div><b>${esc(r.name)}</b><span>${esc(r.demo)}</span></div>`).join('')}`:''}</aside>`}</div>
-    <div class="wfoot">${WALL.err?`<span class="werr">${esc(WALL.err)}</span>`:''}<span class="grow"></span>${WALL.teacher?'<button data-wallgear>⚙ Wall settings</button>':''}<button data-wallfs>⛶ Full screen</button>${WALL.teacher?'<button data-wallclose>× Close</button>':'<button data-wallsignout>Sign out</button>'}</div>
+    <div class="wfoot">${WALL.err?`<span class="werr">${esc(WALL.err)}</span>`:''}<span class="grow"></span><label class="wper">Rows <select data-wallper>${[10,15,20,25].map(n=>`<option ${n===per?'selected':''}>${n}</option>`).join('')}</select></label>${WALL.teacher?'<button data-wallgear>⚙ Wall settings</button>':''}<button data-wallfs>⛶ Full screen</button>${WALL.teacher?'<button data-wallclose>× Close</button>':'<button data-wallsignout>Sign out</button>'}</div>
     ${WALL.teacher&&UI.wallGear?wallGearHTML(groups):''}`;
 }
 function wallGearHTML(groups){
@@ -4558,6 +4561,7 @@ document.addEventListener('change',e=>{ const t=e.target; if(!t||!t.dataset||!t.
   const f=t.dataset.pwall; p[f] = f==='onWall' ? t.checked : t.value.trim().slice(0,f==='wallBlurb'?70:90); if(f==='onWall'&&t.checked&&!p.wallBlurb) toast('Add a wall blurb so the TV has something to say'); render(); });
 document.addEventListener('change',e=>{ const t=e.target; if(!t||!t.dataset) return;
   if(t.dataset.walloff){ const c=wallCfgW(), off=new Set((c.off||[]).map(String)); t.checked?off.delete(t.dataset.walloff):off.add(t.dataset.walloff); c.off=[...off]; persist(); setTimeout(wallFetch,900); return; }
+  if(t.dataset.wallper!==undefined){ wallSet({per:+t.value}); WALL.page=0; wallDraw(); return; }
   if(t.dataset.wallopt){ const c=wallCfgW(); c[t.dataset.wallopt]=t.checked; persist(); setTimeout(wallFetch,900); return; }
   if(t.dataset.wallmode){ const c=wallCfgW(); c.mode=t.dataset.wallmode; persist(); setTimeout(wallFetch,900); return; }
 });
