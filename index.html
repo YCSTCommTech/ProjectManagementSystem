@@ -933,6 +933,25 @@ tr.row:hover .rowsel,.rowsel:checked,#board.selecting .rowsel{opacity:1}
 button.abtag{cursor:pointer}
 .tvrows{display:flex;flex-direction:column;gap:2px}
 .hidedone{border:1px solid var(--line);background:transparent;border-radius:999px;padding:2px 10px;font:inherit;font-size:12px;color:var(--ink-3);cursor:pointer}.hidedone.on{background:#e8f4ee;color:#095641;border-color:#9fd3b8}
+#wall{position:fixed;inset:0;z-index:210;background:#07130e;color:#eef5f1;display:flex;flex-direction:column;padding:2.4vh 2.6vw;gap:1.6vh;font-family:inherit;overflow:hidden}
+#wall[hidden]{display:none}.wloading{margin:auto;font-size:3vh;color:#9fb5aa}
+.whead{display:flex;align-items:center;gap:2vw}.wtitle{display:flex;align-items:center;gap:.6em;font-weight:900;font-size:clamp(24px,3.4vw,56px);letter-spacing:-.01em}.wtitle .brand-mark{transform:scale(1.4)}
+.wgroups{display:flex;gap:8px;flex-wrap:wrap}.wgroups button{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);color:#cfe0d7;border-radius:999px;padding:.35em 1em;font:inherit;font-size:clamp(13px,1.1vw,18px);cursor:pointer}.wgroups button.on{background:#00954C;border-color:#00954C;color:#fff}
+.wclock{margin-left:auto;color:#9fb5aa;font-size:clamp(14px,1.4vw,24px);white-space:nowrap}
+.wbody{flex:1;display:grid;grid-template-columns:1fr minmax(240px,24vw);gap:2vw;min-height:0}
+.wmain{display:flex;flex-direction:column;gap:.9vh;min-height:0;position:relative}
+.wrow{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1.6fr) minmax(0,1.6fr);gap:1.6vw;align-items:center;background:rgba(255,255,255,.05);border-left:6px solid #095641;border-radius:12px;padding:1.1vh 1.4vw;font-size:clamp(16px,1.9vw,34px);line-height:1.2;min-height:6.5vh}
+.wrow.n2{grid-template-columns:minmax(0,1fr) minmax(0,2fr)}.wrow.whdr{background:none;border:0;min-height:0;padding:0 1.4vw;font-size:clamp(12px,1vw,17px);color:#807F83;text-transform:uppercase;letter-spacing:.08em;font-weight:800}
+.wname{font-weight:800;color:#fff;display:flex;flex-direction:column;gap:.25em}.wdemo{font-size:.55em;font-weight:700;color:#07130e;background:#7CC9A0;border-radius:999px;padding:.15em .7em;align-self:flex-start}
+.wblurb{color:#d6e4dc}.wnext{color:#fff;display:flex;flex-direction:column}.wnext em{font-style:normal;font-size:.62em;color:#7CC9A0;font-weight:800;margin-top:.2em}.wrow i{color:#807F83;font-style:normal}
+.wpage{position:absolute;right:0;bottom:-.2vh;color:#807F83;font-size:clamp(12px,1vw,16px)}.wempty{margin:auto;color:#807F83;font-size:2.4vh}
+.wside{background:rgba(0,149,76,.10);border:1px solid rgba(0,149,76,.35);border-radius:16px;padding:1.6vh 1.2vw;overflow:hidden;display:flex;flex-direction:column;gap:.8vh}
+.wside h3{margin:.4vh 0 .2vh;font-size:clamp(15px,1.5vw,26px)}.wside div{display:flex;flex-direction:column;font-size:clamp(14px,1.3vw,22px);padding:.4vh 0;border-bottom:1px solid rgba(255,255,255,.08)}.wside div span{color:#b9cdc2;font-size:.85em}.wquiet{color:#807F83;margin:0}
+.wfoot{display:flex;gap:8px;align-items:center;opacity:.35;transition:opacity .2s}.wfoot:hover{opacity:1}.wfoot button{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);color:#cfe0d7;border-radius:8px;padding:6px 12px;font:inherit;font-size:13px;cursor:pointer}.werr{color:#f3b4ad;font-size:13px}
+.wgear{position:fixed;right:3vw;bottom:8vh;background:#fff;color:#14231d;border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:6px;box-shadow:0 10px 30px rgba(0,0,0,.4);font-size:15px;max-width:360px}
+.walltv{margin-top:14px;width:100%}.nxflag{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.nxrow{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:10px 0;display:flex;flex-direction:column;gap:6px}.nxhead{display:flex;justify-content:space-between;gap:8px}.nxf{display:grid;grid-template-columns:1fr auto auto;gap:6px;align-items:center}.nxrow input:not([type=checkbox]){width:100%;box-sizing:border-box}
+.ciwall{display:grid;grid-template-columns:1fr auto;gap:6px}.ciwall select{grid-column:1/-1}
 .tag.late{background:#fde8e6;color:#b42318;border-color:#f3b4ad}.tag.subat{background:#eef2f0;color:#3c4a44}
 .tvrow.dragging{opacity:.4}.tvrow.tvdropb{box-shadow:inset 0 3px 0 #00954C}.tvrow.tvdropa{box-shadow:inset 0 -3px 0 #00954C}.tvrow[draggable="true"]{cursor:grab}
 .tvrow{display:flex;align-items:center;gap:6px;border:0;background:transparent;text-align:left;padding:6px;border-radius:8px;font:inherit;font-size:13px;color:var(--ink);cursor:pointer;min-height:32px}
@@ -1098,8 +1117,8 @@ const CFG = window.JARVIS_CONFIG || {};
 const SUPABASE_URL = CFG.url || 'PASTE_YOUR_PROJECT_URL';
 const SUPABASE_ANON_KEY = CFG.anonKey || 'PASTE_YOUR_ANON_KEY';
 const LOGIN_DOMAIN = 'jarvis.local';
-const APP_VERSION = '1.4.27';
-const APP_DATE = 'Oct 23, 2026';
+const APP_VERSION = '1.4.28';
+const APP_DATE = 'Oct 24, 2026';
 
 /* ---------- Dates ---------- */
 const localISO = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -1147,7 +1166,7 @@ const lowerMe = () => !isTeacher() && isLowerGrad(me()?.grad);
 function hashColor(pid){ let h=0; for(const c of String(pid)) h=(h*31+c.charCodeAt(0))>>>0; return AVCOL[h%AVCOL.length]; }
 function setPeople(rows){
   for(const k of Object.keys(PEOPLE)) delete PEOPLE[k];
-  for(const r of rows) PEOPLE[r.pid] = {id:r.pid, uid:r.id, username:r.username, name:r.name, role:r.role, grad:r.grad, major:r.major||'', active:r.active, color: r.role==='teacher'?'#095641':hashColor(r.pid)};
+  for(const r of rows.filter(r=>r.role!=='wall')) PEOPLE[r.pid] = {id:r.pid, uid:r.id, username:r.username, name:r.name, role:r.role, grad:r.grad, major:r.major||'', active:r.active, color: r.role==='teacher'?'#095641':hashColor(r.pid)};
   STUDENTS = Object.values(PEOPLE).filter(p=>p.role==='student' && p.active).sort((a,b)=>a.name.localeCompare(b.name));
   SENIORS = STUDENTS.filter(s=>s.grad===SENIOR_YEAR); JUNIORS = STUDENTS.filter(s=>s.grad===JUNIOR_YEAR); SOPHS = STUDENTS.filter(s=>s.grad===SOPH_YEAR); FRESHMEN = STUDENTS.filter(s=>s.grad===FRESH_YEAR); UPPER = STUDENTS.filter(s=>!isLowerGrad(s.grad));
 }
@@ -1362,7 +1381,7 @@ function showGate(msg){
       <label>Password<input id="siPass" name="password" type="password" autocomplete="current-password" required></label>
       <button class="btn primary" type="submit" id="siBtn">Sign in</button>
       <p class="hint" id="siMsg">Forgot your password? Ask Mr. P to reset it.</p>
-    </form></div>`;
+    </form><button class="btn walltv" id="btnWallGate" type="button">📺 Class Wall</button></div>`;
   setTimeout(()=>$('#siUser')?.focus(),30);
 }
 function hideGate(){ const g=$('#gate'); g.hidden=true; g.innerHTML=''; }
@@ -1385,6 +1404,7 @@ async function signOut(){
 async function startSession(){
   const {data:{session}}=await sb.auth.getSession();
   if(!session){ showGate(); return; }
+  try{ const {data:isWall}=await sb.rpc('jarvis_am_wall'); if(isWall){ hideGate(); openWall(false); return; } }catch(e){}
   try{ await loadAll(); }catch(e){ console.error(e); showGate('Couldn’t load JARVIS: <b>'+esc(e.message||String(e))+'</b>. If it mentions a missing table or function, run the v3 setup SQL.'); return; }
   const mine=Object.values(PEOPLE).find(p=>p.uid===session.user.id);
   if(!mine){ showGate('You’re signed in, but your account isn’t on the class roster yet. Ask Mr. P to add you.'); return; }
@@ -1402,7 +1422,7 @@ async function boot(){
   sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {auth:{persistSession:true, autoRefreshToken:true}});
   sb.auth.onAuthStateChange((ev)=>{ if(ev==='SIGNED_OUT' && S.viewer){ S.viewer=null; ready=false; showGate(); } });
   document.addEventListener('submit',e=>{ if(e.target.id==='signinForm'){ e.preventDefault(); signIn(); } });
-  document.addEventListener('click',e=>{ if(e.target.id==='btnSignOutGate') signOut(); });
+  document.addEventListener('click',e=>{ if(e.target.id==='btnSignOutGate') signOut(); if(e.target.id==='btnWallGate'){ $('#siUser').value='wall'; $('#siPass').value=''; $('#siPass').focus(); $('#siMsg').textContent='Type the Class Wall password. The TV stays signed in after this.'; } });
   await startSession();
 }
 
@@ -2073,6 +2093,12 @@ function projectBody(p){
   const pev=p.eventId&&eventById(p.eventId);
   h += `<div class="privrow"><span class="lbl">Part of event</span>${ed?`<select data-pf="eventId">${eventOptions(p.eventId||'')}</select>`:(pev?`<b>${esc(pev.title)}</b>`:'<span class="hint">None</span>')}${pev?`<button class="linkbtn" data-event="${pev.id}">${esc(fmt(pev.date))}</button>`:''}</div>`;
   h += sec('pdesc','Description', ed?`<textarea class="descbox" data-pf="description" placeholder="What is this project? Goals, deliverables, deadlines…">${esc(p.description||'')}</textarea>`:(p.description?`<div class="desc">${esc(p.description)}</div>`:'<div class="hint">No description.</div>'), true);
+  h += sec('pwall','Next step & Class Wall', ed?`<div class="fields"><label>Next step</label><input data-pwall="nextStep" maxlength="90" value="${esc(p.nextStep||'')}" placeholder="e.g. Rough cut to Mr. P">
+      <label>By</label><input type="date" data-pwall="nextDate" value="${esc(p.nextDate||'')}">
+      <label>Class Wall</label><label class="fopt"><input type="checkbox" data-pwall="onWall" ${p.onWall?'checked':''}> Show on the Class Wall</label>
+      <label>Wall blurb</label><input data-pwall="wallBlurb" maxlength="70" value="${esc(p.wallBlurb||'')}" placeholder="What the TV says, e.g. Dog food commercial (no real names)"></div>
+      <p class="hint">The TV only ever shows your wall name, this blurb, and the next step. Never the project name or anything else.</p>`
+    :`<div class="hint">${p.nextStep?`Next: <b>${esc(p.nextStep)}</b>${p.nextDate?' · '+esc(fmt(p.nextDate)):''}`:'No next step yet.'}${p.onWall?' · On the Class Wall':''}</div>`, !p.nextStep||!p.nextDate);
   h += sec('proles','People & permissions', `${ad?'<div class="hint">Check people to add them, then pick Viewer (can see), Editor (can work), or Admin (can do anything, including privacy and people).</div>':''}${ppHTML('roles:'+p.id, allPeople(), membersOf(p), {roles:p.roles, disabled:!ad, locked:isTeacher()?[]:[p.owner], shortcuts: ad?gradShortcuts():[]})}`, true, `<span class="hint">${membersOf(p).length}</span>`);
   h += sec('pfiles','Files', filesHTML('p:'+p.id, p.files, ed), true, `<span class="hint">${(p.files||[]).length}</span>`);
   const asks = openAsksFor({projectId:p.id}).sort((x,y)=>tsOf(y)-tsOf(x));
@@ -2272,12 +2298,13 @@ function renderHomeTeacher(){
   const roster = UI.homeGrade ? STUDENTS.filter(s=>s.grad===+UI.homeGrade) : UPPER;
   const rows = roster.map(s=>{ const ci=checkin(s.id,t); const classDay=isClassDay(s.id,t);
     const status = ci&&ci.absent ? '<span class="tag">Absent</span>' : ci&&ci.line ? `<span class="tag ok">${esc(new Date(ci.ts).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}))}</span>` : (classDay?'<span class="tag chg">Not yet</span>':'<span class="hint">No class</span>');
-    return `<tr class="row" data-openweek="${s.id}|${weekStartOf(t)}"><td class="c-item"><div class="cell-item">${av(s.id)}<b>${nameTag(s.id)}</b>${remindBtn('s:'+s.id,'mini')}<button class="linkbtn small" data-editprofile="${s.id}" title="Edit profile">Profile</button></div></td><td class="small">${gradLabel(s.grad)} · ${esc(s.major)}</td><td>${status}</td><td class="small wrap">${ci&&ci.active?(ci.active.map(k=>esc(activeLabel(k))).join(', ')):''}</td><td class="small wrap">${ci&&ci.line?esc(ci.line):''}</td></tr>`; }).join('');
+    return `<tr class="row" data-openweek="${s.id}|${weekStartOf(t)}"><td class="c-item"><div class="cell-item">${av(s.id)}<b>${nameTag(s.id)}</b>${remindBtn('s:'+s.id,'mini')}<button class="linkbtn small" data-editprofile="${s.id}" title="Edit profile">Profile</button><button class="linkbtn small" data-nextedit="${s.id}" title="Next step for their projects">Next step</button></div></td><td class="small">${gradLabel(s.grad)} · ${esc(s.major)}</td><td>${status}</td><td class="small wrap">${ci&&ci.active?(ci.active.map(k=>esc(activeLabel(k))).join(', ')):''}</td><td class="small wrap">${ci&&ci.line?esc(ci.line):''}</td></tr>`; }).join('');
   const inN = roster.filter(s=>{const c=checkin(s.id,t); return c&&c.line;}).length, absN=roster.filter(s=>checkin(s.id,t)?.absent).length;
   const review = S.items.filter(i=>i.source==='assignment'&&i.status==='sub').length;
   const help = S.asks.filter(a=>a.open&&a.kind==='help').length, lreq = S.asks.filter(a=>a.open&&a.kind==='lesson').length;
   const lessons = S.lessons.filter(l=>l.date===t);
-  let h = `<div class="hello"><h2>Class today</h2><span class="hint">${esc(fmtDay(t))}</span><span class="grow"></span><button class="btn primary" data-startclass>▶ Start of class</button></div>
+  let h = `<div class="hello"><h2>Class today</h2><span class="hint">${esc(fmtDay(t))}</span><span class="grow"></span><button class="btn" data-wallopen>📺 Class Wall</button><button class="btn primary" data-startclass>▶ Start of class</button></div>
+    ${(()=>{ const n=S.projects.filter(p=>liveProj(p)&&!p.completed&&Object.keys(p.roles||{}).some(k=>PEOPLE[k]&&PEOPLE[k].role==='student'&&PEOPLE[k].active)&&needsNext(p)).length; return n?`<div class="note nxflag">⚑ <b>${n} project${n===1?'':'s'}</b> ${n===1?'has':'have'} no next step with a date. <button class="btn tiny" data-nextmissing>Fix them</button></div>`:''; })()}
     <div class="stats"><div><b>${inN}/${roster.length}</b><span>checked in</span></div><div><b>${absN}</b><span>absent</span></div>
       <button data-gotoreview><b>${review}</b><span>to review</span></button><button data-page="asks"><b>${help}</b><span>open asks</span></button><button data-page="lessons"><b>${lreq}</b><span>lesson requests</span></button><button data-page="mp"><b>${S.settings.filter(x=>x.id.startsWith('claim_')&&x.status==='submitted').length}</b><span>credit requests</span></button></div>
     <div class="hgrid" style="margin-top:12px">${remindersCard()}${myListCard()}</div>
@@ -2590,6 +2617,8 @@ function drawCheckin(){
       <div class="checks">${opts.length?opts.map(([k,l])=>`<button class="chip ${CI.active.has(k)?'on':''}" data-ciact="${k}">${esc(l)}</button>`).join(''):'<span class="hint">You’re not on any projects yet — that’s okay. Write what you’re doing below.</span>'}</div>
       <h3 class="sech small">Add details: what are you doing on it today?</h3>
       <textarea id="ciLine" data-voice maxlength="600" rows="3" placeholder="e.g. Color grading the pep rally cut, stuck on skin tones">${esc(ci&&ci.line||'')}</textarea>
+      ${(()=>{ const wp=myLiveProjects(v).filter(p=>p.onWall); if(!wp.length) return ''; const p0=wp.find(p=>p.id===CI.wallProj)||wp[0];
+        return `<h3 class="sech small">Next step for the Class Wall <span class="hint">optional</span></h3><div class="ciwall">${wp.length>1?`<select id="ciWallProj">${wp.map(p=>`<option value="${p.id}" ${p.id===p0.id?'selected':''}>${esc(p.name)}</option>`).join('')}</select>`:`<input type="hidden" id="ciWallProj" value="${p0.id}">`}<input id="ciNext" maxlength="90" placeholder="${esc(p0.nextStep||'e.g. Finish the storyboard')}"><input id="ciNextDate" type="date" value="${esc(p0.nextDate||'')}"></div>`; })()}
       <div class="mfoot"><button class="btn primary" data-cisave>Check in</button></div></div>`;
   } else {
     const w=weekDoc(v,ws)||{answers:{}}; const prev=weekDoc(v,addDays(ws,-7));
@@ -2619,6 +2648,9 @@ function openProfile(pid){
     <h3 class="sech small">Inside the icon</h3>
     <div class="checks">${[['initials','Initials'],['text','Letters or emoji'],['img','Picture']].map(([k,l])=>`<button class="chip small ${k===PR.mode?'on':''}" data-prmode="${k}">${l}</button>`).join('')}</div>
     <div id="prModeBox"></div>
+    ${!isTeacherId(pid)?`<h3 class="sech small">Class Wall</h3><div class="fields"><label>Wall name</label><input id="prWall" maxlength="24" value="${esc(profile(pid).wallName||'')}" placeholder="A nickname or emoji tag — not your real name">
+      <label>Want a demo?</label><input id="prDemo" maxlength="50" value="${esc((profile(pid).wantDemoAt||0)>Date.now()-5*864e5?profile(pid).wantDemo||'':'')}" placeholder="A skill you’d like Mr. P to show you, e.g. keyframes in AE"></div>
+      <p class="hint">The classroom TV shows your wall name. A demo request shows for 5 days.</p>`:''}
     <div class="mfoot"><button class="btn primary" data-prsave>Save profile</button></div>
     ${!isTeacherId(pid) && (self||isTeacher()) ? `<details class="psec" ${emailOf(pid)?'':'open'}><summary><span class="st">School email</span><span class="hint">${esc(emailOf(pid)||'not set')}</span></summary><div class="psec-body"><div class="fields"><label>School email</label><input id="myEmail" type="email" value="${esc(emailOf(pid))}" placeholder="name@ytech.edu"></div><button class="btn" data-emailsave="${pid}" style="align-self:flex-start">Save email</button></div></details>`:''}
     ${self?`<details class="psec"><summary><span class="st">Change my password</span></summary><div class="psec-body"><div class="fields"><label>New password</label><input type="password" id="pw1" autocomplete="new-password"><label>Again</label><input type="password" id="pw2" autocomplete="new-password"></div><button class="btn tiny" data-pwsave>Change password</button></div></details>`:''}`);
@@ -2639,6 +2671,8 @@ function drawPrPrev(){
 function shrinkImage(file){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>{ const im=new Image(); im.onload=()=>{ const c=document.createElement('canvas'); c.width=c.height=96; const g=c.getContext('2d'); const s=Math.min(im.width,im.height); g.drawImage(im,(im.width-s)/2,(im.height-s)/2,s,s,0,0,96,96); let u=c.toDataURL('image/webp',.82); if(!u.startsWith('data:image/webp')) u=c.toDataURL('image/jpeg',.82); res(u); }; im.onerror=rej; im.src=r.result; }; r.onerror=rej; r.readAsDataURL(file); }); }
 function saveProfile(){
   const doc=ensureProfile(PR.pid); delete doc.nick;
+  if($('#prWall')){ const w=$('#prWall').value.trim().slice(0,24); const lasts=Object.values(PEOPLE).filter(x=>x.role==='student').map(x=>(x.name.split(' ').slice(1).join(' ')||'').replace(/[^a-z]/gi,'')).filter(x=>x.length>2); if(w && lasts.some(l=>new RegExp('\\b'+l+'\\b','i').test(w))){ toast('Pick a wall name that isn’t a real last name'); return; } if((doc.wallName||'')!==w) doc.wallName=w; }
+  if($('#prDemo')){ const dm=$('#prDemo').value.trim().slice(0,50); if(dm!==(doc.wantDemo||'') || (dm && (doc.wantDemoAt||0)<Date.now()-5*864e5)){ doc.wantDemo=dm; doc.wantDemoAt=dm?Date.now():0; } }
   doc.color=PR.color; doc.shape=PR.shape; doc.mode=PR.mode;
   if(PR.mode==='text'){ const t=($('#prText')?.value||'').trim(); if(!t){ toast('Type a letter or emoji, or pick Initials'); return; } doc.text=[...t].slice(0,2).join(''); }
   if(PR.clearImg){ delete doc.img; delete doc.imgPending; }
@@ -4468,6 +4502,99 @@ function postClick(d){
   if(d.postlike){ const p=S.settings.find(x=>x.id===d.postlike); if(!p||isTeacher()) return true; const l=p.likes||[]; p.likes=l.includes(S.viewer)?l.filter(x=>x!==S.viewer):[...l,S.viewer]; render(); return true; }
   return false;
 }
+
+/* ---------- 1.4.28: Class Wall (classroom TV) ---------- */
+const WALL={timer:null,pager:null,data:null,page:0,teacher:false,gi:0};
+const wallPref = () => { try{ return JSON.parse(localStorage.getItem('jarvis-wall')||'{}'); }catch(e){ return {}; } };
+const wallSet = o => { try{ localStorage.setItem('jarvis-wall', JSON.stringify({...wallPref(),...o})); }catch(e){} };
+const wallCfg = () => S.settings.find(x=>x.id==='wall_cfg') || {id:'wall_cfg',mode:'full',off:[]};
+function wallGroups(rows){ const g=[...new Set(rows.map(r=>r.grad).filter(x=>x!=null))].sort(); return g.map(x=>[String(x),gradLabel(x)+'s']); }
+async function wallFetch(){
+  try{ const {data,error}=await sb.rpc('jarvis_wall'); if(error) throw error; WALL.data=data; }
+  catch(e){ WALL.data=WALL.data||{rows:[],mode:'full'}; WALL.err=e.message||String(e); }
+  wallDraw();
+}
+function openWall(teacher){
+  WALL.teacher=!!teacher; WALL.page=0;
+  let o=$('#wall'); if(!o){ o=document.createElement('div'); o.id='wall'; document.body.appendChild(o); }
+  o.hidden=false; document.body.classList.add('scopen'); o.innerHTML='<div class="wloading">Loading the Class Wall…</div>';
+  clearInterval(WALL.timer); WALL.timer=setInterval(wallFetch,60000); wallFetch();
+  clearInterval(WALL.pager); WALL.pager=setInterval(()=>{ WALL.page++; wallDraw(); },12000);
+}
+function closeWall(){ clearInterval(WALL.timer); clearInterval(WALL.pager); const o=$('#wall'); if(o){ o.hidden=true; o.innerHTML=''; } document.body.classList.remove('scopen'); try{ if(document.fullscreenElement) document.exitFullscreen(); }catch(e){} }
+function wallDraw(){
+  const o=$('#wall'); if(!o||o.hidden||!WALL.data) return;
+  const all=WALL.data.rows||[], groups=wallGroups(all), sel=wallPref().group||'all';
+  let gkey=sel;
+  if(sel==='cycle' && groups.length){ gkey=groups[Math.floor(WALL.page/2)%groups.length][0]; }
+  const rows=gkey==='all'||gkey==='cycle'?all:all.filter(r=>String(r.grad)===gkey);
+  const per=Math.max(4,Math.floor((window.innerHeight*0.70)/Math.max(54,window.innerHeight*0.085)));
+  const pages=Math.max(1,Math.ceil(rows.length/per)), pg=(sel==='cycle'?WALL.page%2:WALL.page)%pages, show=rows.slice(pg*per,pg*per+per);
+  const nextOnly=WALL.data.mode==='next';
+  const day = d => { if(!d) return ''; try{ const x=parseISO(d), t=todayISO(); return d===t?'Today':d===addDays(t,1)?'Tomorrow':x.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}); }catch(e){ return d; } };
+  const fin=all.filter(r=>r.finished), demos=all.filter(r=>r.demo);
+  const now=new Date();
+  o.innerHTML=`<div class="whead"><div class="wtitle"><span class="brand-mark"><i style="background:#00954C"></i><i style="background:#FFFFFF"></i><i style="background:#807F83"></i><i style="background:#7CC9A0"></i></span>Class Wall</div>
+      <div class="wgroups">${[['all','Everyone'],...groups,...(groups.length>1?[['cycle','Cycle']]:[])].map(([k,l])=>`<button class="${sel===k?'on':''}" data-wallgroup="${k}">${esc(l)}</button>`).join('')}</div>
+      <div class="wclock">${esc(now.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'}))} · ${esc(now.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}))}</div></div>
+    <div class="wbody"><div class="wmain"><div class="wrow whdr"><span>Name</span>${nextOnly?'':'<span>Working on</span>'}<span>Next step</span></div>
+      ${show.length?show.map(r=>`<div class="wrow ${nextOnly?'n2':''}"><b class="wname">${esc(r.name)}${r.demo&&!nextOnly?`<span class="wdemo">🙋 Demo: ${esc(r.demo)}</span>`:''}</b>${nextOnly?'':`<span class="wblurb">${r.blurb?esc(r.blurb):'<i>—</i>'}</span>`}<span class="wnext">${r.next?esc(r.next):'<i>—</i>'}${r.nextDate?`<em>${esc(day(r.nextDate))}</em>`:''}</span></div>`).join(''):'<div class="wempty">Nothing to show yet.</div>'}
+      ${pages>1?`<div class="wpage">${pg+1} / ${pages}</div>`:''}</div>
+      ${nextOnly?'':`<aside class="wside"><h3>✅ Just finished</h3>${fin.length?fin.slice(0,8).map(r=>`<div><b>${esc(r.name)}</b><span>${esc(r.finished)}</span></div>`).join(''):'<p class="wquiet">—</p>'}
+        ${demos.length?`<h3>🙋 Want a demo</h3>${demos.slice(0,8).map(r=>`<div><b>${esc(r.name)}</b><span>${esc(r.demo)}</span></div>`).join('')}`:''}</aside>`}</div>
+    <div class="wfoot">${WALL.err?`<span class="werr">${esc(WALL.err)}</span>`:''}<span class="grow"></span>${WALL.teacher?'<button data-wallgear>⚙ Wall settings</button>':''}<button data-wallfs>⛶ Full screen</button>${WALL.teacher?'<button data-wallclose>× Close</button>':'<button data-wallsignout>Sign out</button>'}</div>
+    ${WALL.teacher&&UI.wallGear?wallGearHTML(groups):''}`;
+}
+function wallGearHTML(groups){
+  const c=wallCfg(), off=new Set((c.off||[]).map(String));
+  const gs = groups.length?groups:[...new Set(STUDENTS.map(s=>s.grad))].sort().map(g=>[String(g),gradLabel(g)+'s']);
+  return `<div class="wgear"><b>Show these groups</b>${gs.map(([k,l])=>`<label><input type="checkbox" data-walloff="${k}" ${off.has(k)?'':'checked'}> ${esc(l)}</label>`).join('')}
+    <b style="margin-top:8px">Mode</b><label><input type="radio" name="wmode" data-wallmode="full" ${c.mode!=='next'?'checked':''}> Full (working on, just finished, demos)</label><label><input type="radio" name="wmode" data-wallmode="next" ${c.mode==='next'?'checked':''}> Next step only</label>
+    <p class="hint">Saved for the TV too. Turned-off groups never leave the database.</p></div>`;
+}
+function wallCfgW(){ let c=S.settings.find(x=>x.id==='wall_cfg'); if(!c){ c={id:'wall_cfg',mode:'full',off:[]}; S.settings.push(c); } return c; }
+document.addEventListener('change',e=>{ const t=e.target; if(!t||!t.dataset||!t.dataset.pwall||!UI.panel||!UI.panel.startsWith('p:')) return; const p=proj(UI.panel.slice(2)); if(!p) return;
+  const f=t.dataset.pwall; p[f] = f==='onWall' ? t.checked : t.value.trim().slice(0,f==='wallBlurb'?70:90); if(f==='onWall'&&t.checked&&!p.wallBlurb) toast('Add a wall blurb so the TV has something to say'); render(); });
+document.addEventListener('change',e=>{ const t=e.target; if(!t||!t.dataset) return;
+  if(t.dataset.walloff){ const c=wallCfgW(), off=new Set((c.off||[]).map(String)); t.checked?off.delete(t.dataset.walloff):off.add(t.dataset.walloff); c.off=[...off]; persist(); setTimeout(wallFetch,900); return; }
+  if(t.dataset.wallmode){ const c=wallCfgW(); c.mode=t.dataset.wallmode; persist(); setTimeout(wallFetch,900); return; }
+});
+window.addEventListener('resize',()=>{ if($('#wall')&&!$('#wall').hidden) wallDraw(); });
+function wallClick(d){
+  if(d.wallopen!==undefined){ openWall(true); return true; }
+  if(d.wallgroup){ wallSet({group:d.wallgroup}); WALL.page=0; wallDraw(); return true; }
+  if(d.wallfs!==undefined){ const o=$('#wall'); try{ if(document.fullscreenElement) document.exitFullscreen(); else o.requestFullscreen(); }catch(e){} return true; }
+  if(d.wallclose!==undefined){ UI.wallGear=false; closeWall(); render(); return true; }
+  if(d.wallgear!==undefined){ UI.wallGear=!UI.wallGear; wallDraw(); return true; }
+  if(d.wallsignout!==undefined){ if(!confirm('Sign the TV out of the Class Wall?')) return true; closeWall(); sb.auth.signOut().then(()=>showGate()); return true; }
+  return false;
+}
+/* Next steps: every project has a next step with a date */
+const myLiveProjects = pid => S.projects.filter(p=>liveProj(p) && !p.completed && (p.roles||{})[pid]);
+const needsNext = p => !(String(p.nextStep||'').trim() && p.nextDate);
+function nextRowsHTML(list){
+  return list.map(p=>`<div class="nxrow" data-nxrow="${p.id}"><div class="nxhead"><b>${esc(p.name)}</b><span class="hint">${esc(Object.keys(p.roles||{}).filter(k=>PEOPLE[k]&&!isTeacherId(k)).map(first).join(', '))}</span></div>
+    <div class="nxf"><input data-nx="nextStep" maxlength="90" value="${esc(p.nextStep||'')}" placeholder="Next step, e.g. Rough cut to Mr. P"><input type="date" data-nx="nextDate" value="${esc(p.nextDate||'')}">
+    <label class="fopt"><input type="checkbox" data-nx="onWall" ${p.onWall?'checked':''}> On wall</label></div>
+    <input data-nx="wallBlurb" maxlength="70" value="${esc(p.wallBlurb||'')}" placeholder="Wall blurb (no real names), e.g. Dog food commercial"></div>`).join('')||'<p class="hint">No live projects.</p>';
+}
+function nextModal(title,list){
+  openModal(`<div class="mhead wide"><h2>${esc(title)}</h2><button class="x" data-closemodal>×</button></div>
+    <p class="hint" style="margin:0">Every project gets a next step with a date. Only projects with <b>On wall</b> checked show on the Class Wall, using the blurb, never the project name.</p>
+    ${nextRowsHTML(list)}<div class="mfoot"><button class="btn primary" data-nxsave>Save</button></div>`);
+}
+function saveNextModal(){
+  $$('#modal [data-nxrow]').forEach(r=>{ const p=proj(r.dataset.nxrow); if(!p) return; const g=k=>r.querySelector(`[data-nx="${k}"]`);
+    const ns=g('nextStep').value.trim().slice(0,90), nd=g('nextDate').value, on=g('onWall').checked, bl=g('wallBlurb').value.trim().slice(0,70);
+    if((p.nextStep||'')!==ns) p.nextStep=ns; if((p.nextDate||'')!==nd && dateOk(nd)) p.nextDate=nd; if(!!p.onWall!==on) p.onWall=on; if((p.wallBlurb||'')!==bl) p.wallBlurb=bl; });
+  closeModal(); render(); toast('Next steps saved');
+}
+function nextClick(d){
+  if(d.nextedit){ const s=PEOPLE[d.nextedit]; nextModal(`Next steps · ${s?s.name:''}`, myLiveProjects(d.nextedit)); return true; }
+  if(d.nextmissing!==undefined){ const list=S.projects.filter(p=>liveProj(p)&&!p.completed&&Object.keys(p.roles||{}).some(k=>PEOPLE[k]&&PEOPLE[k].role==='student'&&PEOPLE[k].active)&&needsNext(p)); nextModal('Projects missing a next step', list); return true; }
+  if(d.nxsave!==undefined){ saveNextModal(); return true; }
+  return false;
+}
 /* ---------- Render ---------- */
 const PAGES = () => isTeacher()
   ? [['home','Class today'],['mylist','My list'],['board','Board'],['tv','Spartan TV'],['cal','Calendar'],['bank','Project bank'],['inspo','Inspiration'],['past','Past projects'],['week','Weekly reports'],['lessons','Lessons & polls'],['asks','Asks'],['sync','Schoology sync'],['roster','Roster'],['help','Help']]
@@ -4677,6 +4804,8 @@ document.addEventListener('click',e=>{
   if(projClick(d,t,e)) return;
   if(tvClick(d,t,e)) return;
   if(postClick(d)) return;
+  if(wallClick(d)) return;
+  if(nextClick(d)) return;
   if(startClassClick(d,t)) return;
   if(d.emaillater!==undefined){ closeModal(); toast('No problem. You can add it anytime under Edit my profile.'); return; }
   if(d.emailsave){ const v=($('#myEmail')||{}).value; saveEmail(d.emailsave,v).then(ok=>{ if(ok){ toast(v.trim()?'Email saved':'Email removed'); if($('#modal').textContent.includes('What’s your school email')) closeModal(); else render(); } }); return; }
@@ -4798,6 +4927,7 @@ document.addEventListener('click',e=>{
     drawCheckin(); ['ciq1','ciq2','ciq3'].forEach((x,k)=>$('#'+x).value=vals[k]); $('#ciq3ask').checked=chk; $('#ciq1').focus(); return; }
   if(d.cisave!==undefined){ const line=$('#ciLine').value.trim(); if(!line){ $('#ciLine').focus(); toast('Add a few details about today'); return; }
     const c=ensureCheckin(S.viewer,todayISO()); c.active=[...CI.active]; c.line=line; c.absent=false; Object.assign(c,nowStamp());
+    { const wp=$('#ciWallProj')&&proj($('#ciWallProj').value), ns=($('#ciNext')?.value||'').trim(), nd=$('#ciNextDate')?.value||''; if(wp){ if(ns) wp.nextStep=ns.slice(0,90); if(nd && dateOk(nd) && nd!==wp.nextDate) wp.nextDate=nd; } }
     const wantHelp=CI&&CI.help; closeCheckin(); toast('Checked in'); if(wantHelp) setTimeout(()=>openModal(askModal('help')),50);
     render(); return; }
   if(d.ciplan!==undefined){ const q=['ciq1','ciq2','ciq3'].map(x=>$('#'+x).value.trim()); if(!q[0]||!q[1]||!q[2]){ toast('Answer all three questions'); return; }
