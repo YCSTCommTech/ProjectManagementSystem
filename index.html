@@ -1117,7 +1117,7 @@ const CFG = window.JARVIS_CONFIG || {};
 const SUPABASE_URL = CFG.url || 'PASTE_YOUR_PROJECT_URL';
 const SUPABASE_ANON_KEY = CFG.anonKey || 'PASTE_YOUR_ANON_KEY';
 const LOGIN_DOMAIN = 'jarvis.local';
-const APP_VERSION = '1.4.28';
+const APP_VERSION = '1.4.29';
 const APP_DATE = 'Oct 24, 2026';
 
 /* ---------- Dates ---------- */
@@ -4550,6 +4550,7 @@ function wallGearHTML(groups){
   const gs = groups.length?groups:[...new Set(STUDENTS.map(s=>s.grad))].sort().map(g=>[String(g),gradLabel(g)+'s']);
   return `<div class="wgear"><b>Show these groups</b>${gs.map(([k,l])=>`<label><input type="checkbox" data-walloff="${k}" ${off.has(k)?'':'checked'}> ${esc(l)}</label>`).join('')}
     <b style="margin-top:8px">Mode</b><label><input type="radio" name="wmode" data-wallmode="full" ${c.mode!=='next'?'checked':''}> Full (working on, just finished, demos)</label><label><input type="radio" name="wmode" data-wallmode="next" ${c.mode==='next'?'checked':''}> Next step only</label>
+    <b style="margin-top:8px">Fill-ins</b><label><input type="checkbox" data-wallopt="useUser" ${c.useUser!==false?'checked':''}> Show username if no wall name</label><label><input type="checkbox" data-wallopt="useCheckin" ${c.useCheckin!==false?'checked':''}> “Working on” from today’s check-in when there’s no blurb</label>
     <p class="hint">Saved for the TV too. Turned-off groups never leave the database.</p></div>`;
 }
 function wallCfgW(){ let c=S.settings.find(x=>x.id==='wall_cfg'); if(!c){ c={id:'wall_cfg',mode:'full',off:[]}; S.settings.push(c); } return c; }
@@ -4557,6 +4558,7 @@ document.addEventListener('change',e=>{ const t=e.target; if(!t||!t.dataset||!t.
   const f=t.dataset.pwall; p[f] = f==='onWall' ? t.checked : t.value.trim().slice(0,f==='wallBlurb'?70:90); if(f==='onWall'&&t.checked&&!p.wallBlurb) toast('Add a wall blurb so the TV has something to say'); render(); });
 document.addEventListener('change',e=>{ const t=e.target; if(!t||!t.dataset) return;
   if(t.dataset.walloff){ const c=wallCfgW(), off=new Set((c.off||[]).map(String)); t.checked?off.delete(t.dataset.walloff):off.add(t.dataset.walloff); c.off=[...off]; persist(); setTimeout(wallFetch,900); return; }
+  if(t.dataset.wallopt){ const c=wallCfgW(); c[t.dataset.wallopt]=t.checked; persist(); setTimeout(wallFetch,900); return; }
   if(t.dataset.wallmode){ const c=wallCfgW(); c.mode=t.dataset.wallmode; persist(); setTimeout(wallFetch,900); return; }
 });
 window.addEventListener('resize',()=>{ if($('#wall')&&!$('#wall').hidden) wallDraw(); });
