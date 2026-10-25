@@ -1120,7 +1120,7 @@ const CFG = window.JARVIS_CONFIG || {};
 const SUPABASE_URL = CFG.url || 'PASTE_YOUR_PROJECT_URL';
 const SUPABASE_ANON_KEY = CFG.anonKey || 'PASTE_YOUR_ANON_KEY';
 const LOGIN_DOMAIN = 'jarvis.local';
-const APP_VERSION = '1.4.32';
+const APP_VERSION = '1.4.33';
 const APP_DATE = 'Oct 25, 2026';
 
 /* ---------- Dates ---------- */
@@ -2610,9 +2610,9 @@ function drawCheckin(){
       ${(()=>{ const ws=weekStartOf(t), first=weekDays(v,ws)[0], pw=weekDoc(v,addDays(ws,-7)), plan=pw&&pw.answers&&(pw.answers.q13||pw.answers.q10);
         return t===first && plan ? `<div class="note">📌 On Friday you said you’d start on: <b>“${esc(plan)}”</b></div>` : ''; })()}
       ${parseISO(t).getDay()===3 ? `<div class="note">🙋 Need any help from Mr. P? Don’t hesitate to ask! <button class="btn tiny" data-cihelp>Ask Mr. P</button></div>` : ''}
-      <h3 class="sech small">What are you working on today? <span class="hint">Tap all that apply</span></h3>
+      <h3 class="sech small">What are you working on today? <span class="hint">Tap all that apply · 📺 shows on the Class Wall</span></h3>
       <div class="checks">${opts.length?opts.map(([k,l])=>`<button class="chip ${CI.active.has(k)?'on':''}" data-ciact="${k}">${esc(l)}</button>`).join(''):'<span class="hint">You’re not on any projects yet — that’s okay. Write what you’re doing below.</span>'}</div>
-      <h3 class="sech small">Add details: what are you doing on it today? <span class="hint">📺 This shows on the Class Wall</span></h3>
+      <h3 class="sech small">Next step: what are you doing on it today? <span class="hint">📺 shows on the Class Wall</span></h3>
       <textarea id="ciLine" data-voice maxlength="600" rows="3" placeholder="e.g. Color grading the pep rally cut, stuck on skin tones">${esc(ci&&ci.line||'')}</textarea>
       <div class="mfoot"><button class="btn primary" data-cisave>Check in</button></div></div>`;
   } else {
@@ -4547,7 +4547,7 @@ function wallGearHTML(groups){
   return `<div class="wgear"><b>Show these groups</b>${gs.map(([k,l])=>`<label><input type="checkbox" data-walloff="${k}" ${off.has(k)?'':'checked'}> ${esc(l)}</label>`).join('')}
     <b style="margin-top:8px">Mode</b><label><input type="radio" name="wmode" data-wallmode="full" ${c.mode!=='next'?'checked':''}> Full (working on, just finished, demos)</label><label><input type="radio" name="wmode" data-wallmode="next" ${c.mode==='next'?'checked':''}> Next step only</label>
     <b style="margin-top:8px">Hide these students</b><div class="wgearlist">${STUDENTS.map(st=>`<label><input type="checkbox" data-wallhide="${st.id}" ${(c.hide||[]).includes(st.id)?'checked':''}> ${esc(st.name)}</label>`).join('')}</div>
-    <b style="margin-top:8px">Fill-ins</b><label><input type="checkbox" data-wallopt="useUser" ${c.useUser!==false?'checked':''}> Show username if no wall name</label><label><input type="checkbox" data-wallopt="useCheckin" ${c.useCheckin!==false?'checked':''}> “Working on” from today’s check-in</label>
+    <b style="margin-top:8px">Fill-ins</b><label><input type="checkbox" data-wallopt="useUser" ${c.useUser!==false?'checked':''}> Show username if no wall name</label><label><input type="checkbox" data-wallopt="useCheckin" ${c.useCheckin!==false?'checked':''}> Use today’s check-in (projects + next step)</label>
     <p class="hint">Saved for the TV too. Turned-off groups never leave the database.</p></div>`;
 }
 function wallCfgW(){ let c=S.settings.find(x=>x.id==='wall_cfg'); if(!c){ c={id:'wall_cfg',mode:'full',off:[]}; S.settings.push(c); } return c; }
