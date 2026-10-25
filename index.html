@@ -953,7 +953,7 @@ button.abtag{cursor:pointer}
 .wfoot{display:flex;gap:8px;align-items:center;opacity:.35;transition:opacity .2s}.wfoot:hover{opacity:1}.wfoot button{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);color:#cfe0d7;border-radius:8px;padding:6px 12px;font:inherit;font-size:13px;cursor:pointer}.werr{color:#f3b4ad;font-size:13px}
 .wgear{position:fixed;right:3vw;bottom:8vh;background:#fff;color:#14231d;border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:6px;box-shadow:0 10px 30px rgba(0,0,0,.4);font-size:15px;max-width:360px}
 .walltv{margin-top:14px;width:100%}.nxflag{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.nxrow{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:10px 0;display:flex;flex-direction:column;gap:6px}.nxhead{display:flex;justify-content:space-between;gap:8px}.nxf{display:grid;grid-template-columns:1fr auto auto;gap:6px;align-items:center}.nxrow input:not([type=checkbox]){width:100%;box-sizing:border-box}
+.nxrow{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:10px 0;display:flex;flex-direction:column;gap:6px}.nxhead{display:flex;justify-content:space-between;gap:8px}.nxf{display:grid;grid-template-columns:1fr auto;gap:6px;align-items:center}.nxrow input:not([type=checkbox]){width:100%;box-sizing:border-box}
 .ciwall{display:grid;grid-template-columns:1fr auto;gap:6px}.ciwall select{grid-column:1/-1}
 .tag.late{background:#fde8e6;color:#b42318;border-color:#f3b4ad}.tag.subat{background:#eef2f0;color:#3c4a44}
 .tvrow.dragging{opacity:.4}.tvrow.tvdropb{box-shadow:inset 0 3px 0 #00954C}.tvrow.tvdropa{box-shadow:inset 0 -3px 0 #00954C}.tvrow[draggable="true"]{cursor:grab}
@@ -1120,8 +1120,8 @@ const CFG = window.JARVIS_CONFIG || {};
 const SUPABASE_URL = CFG.url || 'PASTE_YOUR_PROJECT_URL';
 const SUPABASE_ANON_KEY = CFG.anonKey || 'PASTE_YOUR_ANON_KEY';
 const LOGIN_DOMAIN = 'jarvis.local';
-const APP_VERSION = '1.4.31';
-const APP_DATE = 'Oct 24, 2026';
+const APP_VERSION = '1.4.32';
+const APP_DATE = 'Oct 25, 2026';
 
 /* ---------- Dates ---------- */
 const localISO = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -2096,12 +2096,6 @@ function projectBody(p){
   const pev=p.eventId&&eventById(p.eventId);
   h += `<div class="privrow"><span class="lbl">Part of event</span>${ed?`<select data-pf="eventId">${eventOptions(p.eventId||'')}</select>`:(pev?`<b>${esc(pev.title)}</b>`:'<span class="hint">None</span>')}${pev?`<button class="linkbtn" data-event="${pev.id}">${esc(fmt(pev.date))}</button>`:''}</div>`;
   h += sec('pdesc','Description', ed?`<textarea class="descbox" data-pf="description" placeholder="What is this project? Goals, deliverables, deadlines…">${esc(p.description||'')}</textarea>`:(p.description?`<div class="desc">${esc(p.description)}</div>`:'<div class="hint">No description.</div>'), true);
-  h += sec('pwall','Next step & Class Wall', ed?`<div class="fields"><label>Next step</label><input data-pwall="nextStep" maxlength="90" value="${esc(p.nextStep||'')}" placeholder="e.g. Rough cut to Mr. P">
-      <label>By</label><input type="date" data-pwall="nextDate" value="${esc(p.nextDate||'')}">
-      <label>Class Wall</label><label class="fopt"><input type="checkbox" data-pwall="onWall" ${p.onWall?'checked':''}> Show on the Class Wall</label>
-      <label>Wall blurb</label><input data-pwall="wallBlurb" maxlength="70" value="${esc(p.wallBlurb||'')}" placeholder="What the TV says, e.g. Dog food commercial (no real names)"></div>
-      <p class="hint">The TV only ever shows your wall name, this blurb, and the next step. Never the project name or anything else.</p>`
-    :`<div class="hint">${p.nextStep?`Next: <b>${esc(p.nextStep)}</b>${p.nextDate?' · '+esc(fmt(p.nextDate)):''}`:'No next step yet.'}${p.onWall?' · On the Class Wall':''}</div>`, !p.nextStep||!p.nextDate);
   h += sec('proles','People & permissions', `${ad?'<div class="hint">Check people to add them, then pick Viewer (can see), Editor (can work), or Admin (can do anything, including privacy and people).</div>':''}${ppHTML('roles:'+p.id, allPeople(), membersOf(p), {roles:p.roles, disabled:!ad, locked:isTeacher()?[]:[p.owner], shortcuts: ad?gradShortcuts():[]})}`, true, `<span class="hint">${membersOf(p).length}</span>`);
   h += sec('pfiles','Files', filesHTML('p:'+p.id, p.files, ed), true, `<span class="hint">${(p.files||[]).length}</span>`);
   const asks = openAsksFor({projectId:p.id}).sort((x,y)=>tsOf(y)-tsOf(x));
@@ -2618,10 +2612,8 @@ function drawCheckin(){
       ${parseISO(t).getDay()===3 ? `<div class="note">🙋 Need any help from Mr. P? Don’t hesitate to ask! <button class="btn tiny" data-cihelp>Ask Mr. P</button></div>` : ''}
       <h3 class="sech small">What are you working on today? <span class="hint">Tap all that apply</span></h3>
       <div class="checks">${opts.length?opts.map(([k,l])=>`<button class="chip ${CI.active.has(k)?'on':''}" data-ciact="${k}">${esc(l)}</button>`).join(''):'<span class="hint">You’re not on any projects yet — that’s okay. Write what you’re doing below.</span>'}</div>
-      <h3 class="sech small">Add details: what are you doing on it today?</h3>
+      <h3 class="sech small">Add details: what are you doing on it today? <span class="hint">📺 This shows on the Class Wall</span></h3>
       <textarea id="ciLine" data-voice maxlength="600" rows="3" placeholder="e.g. Color grading the pep rally cut, stuck on skin tones">${esc(ci&&ci.line||'')}</textarea>
-      ${(()=>{ const wp=myLiveProjects(v).filter(p=>p.onWall); if(!wp.length) return ''; const p0=wp.find(p=>p.id===CI.wallProj)||wp[0];
-        return `<h3 class="sech small">Next step for the Class Wall <span class="hint">optional</span></h3><div class="ciwall">${wp.length>1?`<select id="ciWallProj">${wp.map(p=>`<option value="${p.id}" ${p.id===p0.id?'selected':''}>${esc(p.name)}</option>`).join('')}</select>`:`<input type="hidden" id="ciWallProj" value="${p0.id}">`}<input id="ciNext" maxlength="90" placeholder="${esc(p0.nextStep||'e.g. Finish the storyboard')}"><input id="ciNextDate" type="date" value="${esc(p0.nextDate||'')}"></div>`; })()}
       <div class="mfoot"><button class="btn primary" data-cisave>Check in</button></div></div>`;
   } else {
     const w=weekDoc(v,ws)||{answers:{}}; const prev=weekDoc(v,addDays(ws,-7));
@@ -4555,7 +4547,7 @@ function wallGearHTML(groups){
   return `<div class="wgear"><b>Show these groups</b>${gs.map(([k,l])=>`<label><input type="checkbox" data-walloff="${k}" ${off.has(k)?'':'checked'}> ${esc(l)}</label>`).join('')}
     <b style="margin-top:8px">Mode</b><label><input type="radio" name="wmode" data-wallmode="full" ${c.mode!=='next'?'checked':''}> Full (working on, just finished, demos)</label><label><input type="radio" name="wmode" data-wallmode="next" ${c.mode==='next'?'checked':''}> Next step only</label>
     <b style="margin-top:8px">Hide these students</b><div class="wgearlist">${STUDENTS.map(st=>`<label><input type="checkbox" data-wallhide="${st.id}" ${(c.hide||[]).includes(st.id)?'checked':''}> ${esc(st.name)}</label>`).join('')}</div>
-    <b style="margin-top:8px">Fill-ins</b><label><input type="checkbox" data-wallopt="useUser" ${c.useUser!==false?'checked':''}> Show username if no wall name</label><label><input type="checkbox" data-wallopt="useCheckin" ${c.useCheckin!==false?'checked':''}> “Working on” from today’s check-in when there’s no blurb</label>
+    <b style="margin-top:8px">Fill-ins</b><label><input type="checkbox" data-wallopt="useUser" ${c.useUser!==false?'checked':''}> Show username if no wall name</label><label><input type="checkbox" data-wallopt="useCheckin" ${c.useCheckin!==false?'checked':''}> “Working on” from today’s check-in</label>
     <p class="hint">Saved for the TV too. Turned-off groups never leave the database.</p></div>`;
 }
 function wallCfgW(){ let c=S.settings.find(x=>x.id==='wall_cfg'); if(!c){ c={id:'wall_cfg',mode:'full',off:[]}; S.settings.push(c); } return c; }
@@ -4584,18 +4576,17 @@ const needsNext = p => !(String(p.nextStep||'').trim() && p.nextDate);
 function nextRowsHTML(list){
   return list.map(p=>`<div class="nxrow" data-nxrow="${p.id}"><div class="nxhead"><b>${esc(p.name)}</b><span class="hint">${esc(Object.keys(p.roles||{}).filter(k=>PEOPLE[k]&&!isTeacherId(k)).map(first).join(', '))}</span></div>
     <div class="nxf"><input data-nx="nextStep" maxlength="90" value="${esc(p.nextStep||'')}" placeholder="Next step, e.g. Rough cut to Mr. P"><input type="date" data-nx="nextDate" value="${esc(p.nextDate||'')}">
-    <label class="fopt"><input type="checkbox" data-nx="onWall" ${p.onWall?'checked':''}> On wall</label></div>
-    <input data-nx="wallBlurb" maxlength="70" value="${esc(p.wallBlurb||'')}" placeholder="Wall blurb (no real names), e.g. Dog food commercial"></div>`).join('')||'<p class="hint">No live projects.</p>';
+</div></div>`).join('')||'<p class="hint">No live projects.</p>';
 }
 function nextModal(title,list){
   openModal(`<div class="mhead wide"><h2>${esc(title)}</h2><button class="x" data-closemodal>×</button></div>
-    <p class="hint" style="margin:0">Every project gets a next step with a date. Only projects with <b>On wall</b> checked show on the Class Wall, using the blurb, never the project name.</p>
+    <p class="hint" style="margin:0">Every project gets a next step with a date. The Class Wall shows each student’s soonest next step.</p>
     ${nextRowsHTML(list)}<div class="mfoot"><button class="btn primary" data-nxsave>Save</button></div>`);
 }
 function saveNextModal(){
   $$('#modal [data-nxrow]').forEach(r=>{ const p=proj(r.dataset.nxrow); if(!p) return; const g=k=>r.querySelector(`[data-nx="${k}"]`);
-    const ns=g('nextStep').value.trim().slice(0,90), nd=g('nextDate').value, on=g('onWall').checked, bl=g('wallBlurb').value.trim().slice(0,70);
-    if((p.nextStep||'')!==ns) p.nextStep=ns; if((p.nextDate||'')!==nd && dateOk(nd)) p.nextDate=nd; if(!!p.onWall!==on) p.onWall=on; if((p.wallBlurb||'')!==bl) p.wallBlurb=bl; });
+    const ns=g('nextStep').value.trim().slice(0,90), nd=g('nextDate').value;
+    if((p.nextStep||'')!==ns) p.nextStep=ns; if((p.nextDate||'')!==nd && dateOk(nd)) p.nextDate=nd; });
   closeModal(); render(); toast('Next steps saved');
 }
 function nextClick(d){
@@ -4936,7 +4927,6 @@ document.addEventListener('click',e=>{
     drawCheckin(); ['ciq1','ciq2','ciq3'].forEach((x,k)=>$('#'+x).value=vals[k]); $('#ciq3ask').checked=chk; $('#ciq1').focus(); return; }
   if(d.cisave!==undefined){ const line=$('#ciLine').value.trim(); if(!line){ $('#ciLine').focus(); toast('Add a few details about today'); return; }
     const c=ensureCheckin(S.viewer,todayISO()); c.active=[...CI.active]; c.line=line; c.absent=false; Object.assign(c,nowStamp());
-    { const wp=$('#ciWallProj')&&proj($('#ciWallProj').value), ns=($('#ciNext')?.value||'').trim(), nd=$('#ciNextDate')?.value||''; if(wp){ if(ns) wp.nextStep=ns.slice(0,90); if(nd && dateOk(nd) && nd!==wp.nextDate) wp.nextDate=nd; } }
     const wantHelp=CI&&CI.help; closeCheckin(); toast('Checked in'); if(wantHelp) setTimeout(()=>openModal(askModal('help')),50);
     render(); return; }
   if(d.ciplan!==undefined){ const q=['ciq1','ciq2','ciq3'].map(x=>$('#'+x).value.trim()); if(!q[0]||!q[1]||!q[2]){ toast('Answer all three questions'); return; }
