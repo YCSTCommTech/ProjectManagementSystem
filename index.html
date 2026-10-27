@@ -950,6 +950,7 @@ button.abtag{cursor:pointer}
 .wside{background:rgba(0,149,76,.10);border:1px solid rgba(0,149,76,.35);border-radius:16px;padding:1.6vh 1.2vw;overflow:hidden;display:flex;flex-direction:column;gap:.8vh}
 .wside h3{margin:.4vh 0 .2vh;font-size:clamp(15px,1.5vw,26px)}.wside div{display:flex;flex-direction:column;font-size:clamp(14px,1.3vw,22px);padding:.4vh 0;border-bottom:1px solid rgba(255,255,255,.08)}.wside div span{color:#b9cdc2;font-size:.85em}.wquiet{color:#807F83;margin:0}
 .wgearlist{max-height:30vh;overflow:auto;display:flex;flex-direction:column;gap:2px;border:1px solid #e3e8e5;border-radius:8px;padding:6px 8px}.wgear{max-height:86vh;overflow:auto}
+.wwhen{font-size:.6em;color:#7CC9A0;text-align:right;margin-top:.2em}
 .wper{color:#cfe0d7;font-size:13px}.wper select{margin-left:4px}
 .wfoot{display:flex;gap:8px;align-items:center;opacity:.35;transition:opacity .2s}.wfoot:hover{opacity:1}.wfoot button{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);color:#cfe0d7;border-radius:8px;padding:6px 12px;font:inherit;font-size:13px;cursor:pointer}.werr{color:#f3b4ad;font-size:13px}
 .wgear{position:fixed;right:3vw;bottom:8vh;background:#fff;color:#14231d;border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:6px;box-shadow:0 10px 30px rgba(0,0,0,.4);font-size:15px;max-width:360px}
@@ -1121,8 +1122,8 @@ const CFG = window.JARVIS_CONFIG || {};
 const SUPABASE_URL = CFG.url || 'PASTE_YOUR_PROJECT_URL';
 const SUPABASE_ANON_KEY = CFG.anonKey || 'PASTE_YOUR_ANON_KEY';
 const LOGIN_DOMAIN = 'jarvis.local';
-const APP_VERSION = '1.5.1';
-const APP_DATE = 'Oct 26, 2026';
+const APP_VERSION = '1.5.2';
+const APP_DATE = 'Oct 27, 2026';
 
 /* ---------- Dates ---------- */
 const localISO = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -4533,7 +4534,7 @@ function wallDraw(){
   const now=new Date();
   o.innerHTML=`<div class="whead"><div class="wtitle"><span class="brand-mark"><i style="background:#00954C"></i><i style="background:#FFFFFF"></i><i style="background:#807F83"></i><i style="background:#7CC9A0"></i></span>Class Wall</div>
       <div class="wgroups">${[['all','Everyone'],...groups,...(groups.length>1?[['cycle','Cycle']]:[])].map(([k,l])=>`<button class="${sel===k?'on':''}" data-wallgroup="${k}">${esc(l)}</button>`).join('')}</div>
-      <div class="wclock">${esc(now.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'}))} · ${esc(now.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}))}</div></div>
+      <div class="wclock">${esc(now.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'}))} · ${esc(now.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}))}${WALL.data.showing==='last'?`<div class="wwhen">Last check-in · today’s shows at ${esc(WALL.data.cutover||'9:55 AM')}</div>`:''}</div></div>
     <div class="wbody ${nextOnly||!demos.length?'wfull':''}" style="--wrh:calc((100vh - 15vh) / ${per + 1})"><div class="wmain"><div class="wrow whdr"><span>Name</span>${nextOnly?'':'<span>Working on</span>'}<span>Next step</span></div>
       ${show.length?show.map(r=>`<div class="wrow ${nextOnly?'n2':''}"><b class="wname">${esc(r.name)}${r.demo&&!nextOnly?`<span class="wdemo">🙋 Demo: ${esc(r.demo)}</span>`:''}</b>${nextOnly?'':`<span class="wblurb">${r.blurb?esc(r.blurb):'<i>—</i>'}</span>`}<span class="wnext">${r.next?esc(r.next):'<i>—</i>'}${r.nextDate?`<em>${esc(day(r.nextDate))}</em>`:''}</span></div>`).join(''):'<div class="wempty">Nothing to show yet.</div>'}
       ${pages>1?`<div class="wpage">${pg+1} / ${pages}</div>`:''}</div>
@@ -4547,6 +4548,7 @@ function wallGearHTML(groups){
   return `<div class="wgear"><b>Show these groups</b>${gs.map(([k,l])=>`<label><input type="checkbox" data-walloff="${k}" ${off.has(k)?'':'checked'}> ${esc(l)}</label>`).join('')}
     <b style="margin-top:8px">Mode</b><label><input type="radio" name="wmode" data-wallmode="full" ${c.mode!=='next'?'checked':''}> Full (working on, just finished, demos)</label><label><input type="radio" name="wmode" data-wallmode="next" ${c.mode==='next'?'checked':''}> Next step only</label>
     <b style="margin-top:8px">Hide these students</b><div class="wgearlist">${STUDENTS.map(st=>`<label><input type="checkbox" data-wallhide="${st.id}" ${(c.hide||[]).includes(st.id)?'checked':''}> ${esc(st.name)}</label>`).join('')}</div>
+    <b style="margin-top:8px">Switch to today’s check-ins at</b><label><input type="time" data-wallcut value="${esc(c.cutover||'09:55')}"> <span class="hint">Before this, the wall shows each student’s last check-in.</span></label>
     <b style="margin-top:8px">Fill-ins</b><label><input type="checkbox" data-wallopt="useUser" ${c.useUser!==false?'checked':''}> Show username if no wall name</label><label><input type="checkbox" data-wallopt="useCheckin" ${c.useCheckin!==false?'checked':''}> Use today’s check-in (projects + next step)</label>
     <p class="hint">Saved for the TV too. Turned-off groups never leave the database.</p></div>`;
 }
@@ -4556,6 +4558,7 @@ document.addEventListener('change',e=>{ const t=e.target; if(!t||!t.dataset||!t.
 document.addEventListener('change',e=>{ const t=e.target; if(!t||!t.dataset) return;
   if(t.dataset.walloff){ const c=wallCfgW(), off=new Set((c.off||[]).map(String)); t.checked?off.delete(t.dataset.walloff):off.add(t.dataset.walloff); c.off=[...off]; persist(); setTimeout(wallFetch,900); return; }
   if(t.dataset.wallhide){ const c=wallCfgW(), h=new Set(c.hide||[]); t.checked?h.add(t.dataset.wallhide):h.delete(t.dataset.wallhide); c.hide=[...h]; persist(); setTimeout(wallFetch,900); return; }
+  if(t.dataset.wallcut!==undefined){ if(!/^\d\d:\d\d$/.test(t.value)) return; const c=wallCfgW(); c.cutover=t.value; persist(); setTimeout(wallFetch,900); return; }
   if(t.dataset.wallper!==undefined){ wallSet({per:+t.value}); WALL.page=0; wallDraw(); return; }
   if(t.dataset.wallopt){ const c=wallCfgW(); c[t.dataset.wallopt]=t.checked; persist(); setTimeout(wallFetch,900); return; }
   if(t.dataset.wallmode){ const c=wallCfgW(); c.mode=t.dataset.wallmode; persist(); setTimeout(wallFetch,900); return; }
