@@ -1122,7 +1122,7 @@ const CFG = window.JARVIS_CONFIG || {};
 const SUPABASE_URL = CFG.url || 'PASTE_YOUR_PROJECT_URL';
 const SUPABASE_ANON_KEY = CFG.anonKey || 'PASTE_YOUR_ANON_KEY';
 const LOGIN_DOMAIN = 'jarvis.local';
-const APP_VERSION = '1.5.3';
+const APP_VERSION = '1.5.4';
 const APP_DATE = 'Oct 28, 2026';
 
 /* ---------- Dates ---------- */
@@ -2894,7 +2894,7 @@ function renderRoster(){
     <td><select class="rin" data-rmajor="${p.id}" aria-label="Major" ${p.active?'':'disabled'}><option value="">—</option>${MAJORS.map(m=>`<option ${p.major===m?'selected':''}>${m}</option>`).join('')}</select></td>
     <td>${roleSel(p)}</td>
     <td class="ractions">${p.active?`<button class="btn tiny" data-rreset="${p.id}">Password</button><button class="linkbtn" data-roff="${p.id}">Turn off</button>`:`<button class="btn tiny" data-ron="${p.id}">Turn back on</button>`}</td></tr>`;
-  return `<div class="hello"><h2>Roster</h2><span class="grow"></span><button class="btn" data-rcaps>Capitalize names</button><button class="btn primary" data-rimport>Import spreadsheet</button><button class="btn" data-radd>Add a student</button><button class="btn" data-raddt>Add a teacher</button></div>
+  return `<div class="hello"><h2>Roster</h2><span class="grow"></span><button class="btn" data-rgradepw>Set grade passwords</button><button class="btn" data-rcaps>Capitalize names</button><button class="btn primary" data-rimport>Import spreadsheet</button><button class="btn" data-radd>Add a student</button><button class="btn" data-raddt>Add a teacher</button></div>
     <p class="hint" style="max-width:780px">Click any name, username, grade, or major to change it. It saves when you click away. Usernames are always lowercase, and sign-in ignores capitals, so <code>JSmith</code> works too. <b>Password</b> lets you make a new random one or type one in. Students can also set their own under <b>Edit my profile</b>. <b>Turn off</b> blocks sign-in but keeps their work.</p>
     <input type="file" id="rosterFile" accept=".xlsx,.csv" hidden>
     <h3 class="sech">Teachers <span class="hint">Full access to everything, same as you.</span></h3>
@@ -3062,7 +3062,29 @@ function passwordModal(pid){
     <div class="pwopts"><button class="btn primary" data-rpwrandom="${pid}">Make a random password</button>
       <div class="pwown"><input type="text" id="rpwOwn" placeholder="Or type one (8+ characters)" autocomplete="off"><button class="btn" data-rpwset="${pid}">Set it</button></div></div>`);
 }
+/* 1.5.4: set passwords for a whole grade (default: username twice) */
+function gradePwModal(grade){
+  grade=grade||'Sophomore'; const yr=gradFromLabel(grade);
+  const list=STUDENTS.filter(s=>s.grad===yr);
+  const pw=s=>/^evan\b/i.test(s.name)?'evanevan':s.username+s.username;
+  openModal(`<div class="mhead wide"><h2>Set passwords for a grade</h2><button class="x" data-closemodal>×</button></div>
+    <div class="fields"><label>Grade</label><select id="gpGrade">${['Senior','Junior','Sophomore','Freshman'].map(g=>`<option ${g===grade?'selected':''}>${g}</option>`).join('')}</select></div>
+    <p class="hint">Starts as their username twice. Uncheck anyone to leave their password alone. Passwords need at least 8 characters.</p>
+    ${list.length?`<div class="tablewrap"><table class="roster"><thead><tr><th></th><th class="c-item">Student</th><th>Username</th><th>New password</th></tr></thead><tbody>${list.map(s=>`<tr><td><input type="checkbox" data-gpon="${s.id}" ${/^alyssa\b/i.test(s.name)?'':'checked'}></td><td class="c-item">${esc(s.name)}</td><td><code>${esc(s.username)}</code></td><td><input data-gppw="${s.id}" value="${esc(pw(s))}"></td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">No students in that grade.</div>'}
+    <div class="mfoot"><span class="grow"></span><button class="btn primary" data-gpgo>Set checked passwords</button></div>`);
+}
+async function gradePwGo(){
+  const rows=$$('#modal [data-gpon]').filter(x=>x.checked).map(x=>({pid:x.dataset.gpon,password:($(`[data-gppw="${x.dataset.gpon}"]`).value||'').trim()}));
+  if(!rows.length){ toast('Nobody is checked'); return; }
+  const short=rows.filter(r=>r.password.length<8); if(short.length){ toast(`${short.length} password${short.length===1?' is':'s are'} under 8 characters. Fix ${short.length===1?'it':'them'} first.`); return; }
+  if(!confirm(`Change ${rows.length} password${rows.length===1?'':'s'}?`)) return;
+  const btn=$('[data-gpgo]'); btn.disabled=true; btn.textContent='Working…'; const out=[], bad=[];
+  for(const r of rows){ try{ out.push(await adminCall({action:'setPassword',pid:r.pid,password:r.password})); }catch(e){ bad.push(pname(r.pid)+': '+e.message); } }
+  closeModal(); if(out.length) showPasswords(out,'New password'); if(bad.length) toast('Not changed — '+bad.join('; '));
+}
 async function rosterClick(d,t){
+  if(d.rgradepw!==undefined){ gradePwModal('Sophomore'); return true; }
+  if(d.gpgo!==undefined){ gradePwGo(); return true; }
   if(d.rcaps!==undefined){ const list=Object.values(PEOPLE).filter(p=>p.role==='student' && titleCase(p.name)!==p.name); if(!list.length){ toast('All names are already capitalized'); return true; }
     if(!confirm(`Fix capitalization on ${list.length} name${list.length===1?'':'s'}? (e.g. “${list[0].name}” → “${titleCase(list[0].name)}”)`)) return true;
     for(const p of list){ await sb.from('people').update({name:titleCase(p.name)}).eq('pid',p.id); } await loadPeople(); render(); toast('Names capitalized'); return true; }
@@ -4559,6 +4581,7 @@ document.addEventListener('change',e=>{ const t=e.target; if(!t||!t.dataset) ret
   if(t.dataset.walloff){ const c=wallCfgW(), off=new Set((c.off||[]).map(String)); t.checked?off.delete(t.dataset.walloff):off.add(t.dataset.walloff); c.off=[...off]; persist(); setTimeout(wallFetch,900); return; }
   if(t.dataset.wallhide){ const c=wallCfgW(), h=new Set(c.hide||[]); t.checked?h.add(t.dataset.wallhide):h.delete(t.dataset.wallhide); c.hide=[...h]; persist(); setTimeout(wallFetch,900); return; }
   if(t.dataset.wallcut!==undefined){ if(!/^\d\d:\d\d$/.test(t.value)) return; const c=wallCfgW(); c.cutover=t.value; persist(); setTimeout(wallFetch,900); return; }
+  if(t.id==='gpGrade'){ gradePwModal(t.value); return; }
   if(t.dataset.wallper!==undefined){ wallSet({per:+t.value}); WALL.page=0; wallDraw(); return; }
   if(t.dataset.wallopt){ const c=wallCfgW(); c[t.dataset.wallopt]=t.checked; persist(); setTimeout(wallFetch,900); return; }
   if(t.dataset.wallmode){ const c=wallCfgW(); c.mode=t.dataset.wallmode; persist(); setTimeout(wallFetch,900); return; }
@@ -4799,7 +4822,7 @@ document.addEventListener('click',e=>{
   const d = t.dataset;
   if(t.tagName==='SUMMARY' || t.tagName==='A') return;
   if(d.help){ e.preventDefault(); UI.page='help'; UI.helpOpen=d.help; UI.helpQ=''; closeModal(); if(!(CI&&CI.required)) closeCheckin(); render(); setTimeout(()=>$('#help-'+d.help)?.scrollIntoView({block:'center'}),50); return; }
-  if(isTeacher() && (d.rimport!==undefined||d.radd!==undefined||d.raddgo!==undefined||d.rcreate!==undefined||d.rprint!==undefined||d.rcaps!==undefined||d.raddt!==undefined||d.raddtgo!==undefined||d.rpwrandom||d.rpwset||d.redit||d.resave||d.rreset||d.roff||d.ron)){ rosterClick(d,t); return; }
+  if(isTeacher() && (d.rgradepw!==undefined||d.gpgo!==undefined||d.rimport!==undefined||d.radd!==undefined||d.raddgo!==undefined||d.rcreate!==undefined||d.rprint!==undefined||d.rcaps!==undefined||d.raddt!==undefined||d.raddtgo!==undefined||d.rpwrandom||d.rpwset||d.redit||d.resave||d.rreset||d.roff||d.ron)){ rosterClick(d,t); return; }
   if(d.pwsave!==undefined){ const a=$('#pw1').value, b=$('#pw2').value; if(a.length<8){ toast('Use at least 8 characters'); return; } if(a!==b){ toast('The two passwords don’t match'); return; }
     t.disabled=true; sb.auth.updateUser({password:a}).then(({error})=>{ t.disabled=false; if(error){ toast(error.message); return; } $('#pw1').value=''; $('#pw2').value=''; toast('Password changed'); }); return; }
   if(remindClick(d,t,e)) return;
