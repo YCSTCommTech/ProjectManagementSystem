@@ -1122,8 +1122,8 @@ const CFG = window.JARVIS_CONFIG || {};
 const SUPABASE_URL = CFG.url || 'PASTE_YOUR_PROJECT_URL';
 const SUPABASE_ANON_KEY = CFG.anonKey || 'PASTE_YOUR_ANON_KEY';
 const LOGIN_DOMAIN = 'jarvis.local';
-const APP_VERSION = '1.5.2';
-const APP_DATE = 'Oct 27, 2026';
+const APP_VERSION = '1.5.3';
+const APP_DATE = 'Oct 28, 2026';
 
 /* ---------- Dates ---------- */
 const localISO = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -2963,7 +2963,7 @@ async function readRosterFile(file){
 let RIMP=[];
 function rosterPreview(list){
   const taken=new Set(Object.values(PEOPLE).map(p=>p.username));
-  RIMP=list.map(r=>({name:(r.first+' '+r.last).trim(), grade:/senior/i.test(r.grade)?'Senior':/junior/i.test(r.grade)?'Junior':'', major:MAJORS.find(m=>m.toLowerCase()===r.major.toLowerCase())||'', username:uniqueUser(r.username||suggestUser(r.first,r.last),taken)}));
+  RIMP=list.map(r=>({name:(r.first+' '+r.last).trim(), grade:/senior|^12/i.test(r.grade)?'Senior':/junior|^11/i.test(r.grade)?'Junior':/soph|^10/i.test(r.grade)?'Sophomore':/fresh|^9/i.test(r.grade)?'Freshman':'', major:MAJORS.find(m=>m.toLowerCase()===r.major.toLowerCase())||'', username:uniqueUser(r.username||suggestUser(r.first,r.last),taken)}));
   drawPreview();
 }
 function drawPreview(){
@@ -2975,7 +2975,7 @@ function drawPreview(){
     <p class="hint" style="margin:0">Fix anything in red, then create the accounts. Passwords are made for you.</p>
     <div class="tablewrap previewtbl"><table><thead><tr><th>Name</th><th>Grade</th><th>Major</th><th>Username</th><th></th></tr></thead><tbody>
     ${RIMP.map((r,i)=>{ const e=bad(r); return `<tr class="${e?'bad':''}"><td><input data-rp="${i}" data-f="name" value="${esc(r.name)}"></td>
-      <td><select data-rp="${i}" data-f="grade"><option value="">—</option>${['Senior','Junior'].map(g=>`<option ${r.grade===g?'selected':''}>${g}</option>`).join('')}</select></td>
+      <td><select data-rp="${i}" data-f="grade"><option value="">—</option>${['Senior','Junior','Sophomore','Freshman'].map(g=>`<option ${r.grade===g?'selected':''}>${g}</option>`).join('')}</select></td>
       <td><select data-rp="${i}" data-f="major"><option value="">—</option>${MAJORS.map(m=>`<option ${r.major===m?'selected':''}>${m}</option>`).join('')}</select></td>
       <td><input data-rp="${i}" data-f="username" value="${esc(r.username)}"></td><td class="small">${e?`<span class="err">${e}</span>`:'<span class="tag ok">Ready</span>'}</td></tr>`; }).join('')}
     </tbody></table></div>
