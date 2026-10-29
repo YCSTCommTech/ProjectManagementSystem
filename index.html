@@ -1122,7 +1122,7 @@ const CFG = window.JARVIS_CONFIG || {};
 const SUPABASE_URL = CFG.url || 'PASTE_YOUR_PROJECT_URL';
 const SUPABASE_ANON_KEY = CFG.anonKey || 'PASTE_YOUR_ANON_KEY';
 const LOGIN_DOMAIN = 'jarvis.local';
-const APP_VERSION = '1.5.5';
+const APP_VERSION = '1.5.6';
 const APP_DATE = 'Oct 28, 2026';
 
 /* ---------- Dates ---------- */
@@ -1208,8 +1208,8 @@ function stagesFor(w){ return STAGES.filter(s=>!s.legacy || (w && ((w.stages||{}
 /* ---------- Audience helpers ---------- */
 function studentsFor(aud){
   if(!aud) return [];
-  if(typeof aud==='string'){ if(aud==='all') return UPPER; const [k,v]=aud.split(':'); if(k==='grad') return STUDENTS.filter(s=>s.grad===+v); if(k==='major') return STUDENTS.filter(s=>s.major===v); return []; }
-  if(aud.all) return UPPER;
+  if(typeof aud==='string'){ if(aud==='all') return STUDENTS; const [k,v]=aud.split(':'); if(k==='grad') return STUDENTS.filter(s=>s.grad===+v); if(k==='major') return STUDENTS.filter(s=>s.major===v); return []; }
+  if(aud.all) return STUDENTS;
   const set=new Set();
   (aud.grads||[]).forEach(g=>STUDENTS.filter(s=>s.grad===g).forEach(s=>set.add(s.id)));
   (aud.majors||[]).forEach(m=>STUDENTS.filter(s=>s.major===m).forEach(s=>set.add(s.id)));
@@ -1418,6 +1418,7 @@ async function startSession(){
   resetFilters(); Object.assign(UI,{page:'home',project:'',wkStudent:'',wkStart:null,more:false});
   try{ const standalone=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone; if(isTeacher() && standalone && window.innerWidth<760){ UI.page='mylist'; setTimeout(()=>$('#tdQuick')?.focus(),400); } }catch(e){}
   if(ensureWeeklyReport()) persist();
+  if(isTeacher()){ const wc=S.settings.find(x=>x.id==='wall_cfg'); if(!wc || !wc.sophInit){ const c=wallCfgW(); c.sophInit=true; c.off=[...new Set([...(c.off||[]).map(String),String(SOPH_YEAR),String(FRESH_YEAR)])]; persist(); } }
   render(); maybeCheckin(); setTimeout(maybeAskEmail,600);
 }
 async function boot(){
@@ -1625,7 +1626,7 @@ function ensureWeeklyReport(){
     S.assignments.push(a); changed=true;
   }
   const have=new Set(S.items.filter(i=>i.assignmentId===a.id).map(i=>i.assignees[0]));
-  for(const s of studentsFor(a.audience).filter(s=>isTeacher()||s.id===S.viewer)) if(!have.has(s.id)){
+  for(const s of UPPER.filter(s=>isTeacher()||s.id===S.viewer)) if(!have.has(s.id)){
     S.items.push({id:`iw_${ws}_${s.id}`,source:'assignment',assignmentId:a.id,title:a.title,description:'',assignees:[s.id],status:'not',due:studentLastDay(s.id,ws),priority:a.priority,projectId:null,parentId:null,files:[],thread:[],history:[{kind:'created',by:'t',...nowStamp()}]});
     changed=true;
   }
@@ -2544,7 +2545,7 @@ function assignmentForm(a){
     </div>
     <div class="sech small">Assign to ${edit?'<span class="hint">(adding people creates their copies; nobody is removed)</span>':''}</div>
     <div class="checks"><label class="ck ${aud.all?'on':''}"><input type="checkbox" id="audAll" ${aud.all?'checked':''}> Everyone</label>
-      ${[SENIOR_YEAR,JUNIOR_YEAR,SOPH_YEAR,FRESH_YEAR].map(g=>`<label class="ck ${(aud.grads||[]).includes(g)?'on':''}"><input type="checkbox" class="audGrad" value="${g}" ${(aud.grads||[]).includes(g)?'checked':''}> ${g===SENIOR_YEAR?'Seniors':'Juniors'}</label>`).join('')}
+      ${[SENIOR_YEAR,JUNIOR_YEAR,SOPH_YEAR,FRESH_YEAR].map(g=>`<label class="ck ${(aud.grads||[]).includes(g)?'on':''}"><input type="checkbox" class="audGrad" value="${g}" ${(aud.grads||[]).includes(g)?'checked':''}> All ${({[SENIOR_YEAR]:'seniors',[JUNIOR_YEAR]:'juniors',[SOPH_YEAR]:'sophomores',[FRESH_YEAR]:'freshmen'})[g]}</label>`).join('')}
       ${MAJORS.map(m=>`<label class="ck ${(aud.majors||[]).includes(m)?'on':''}"><input type="checkbox" class="audMajor" value="${m}" ${(aud.majors||[]).includes(m)?'checked':''}> ${m}</label>`).join('')}</div>
     <details class="psec"><summary><span class="st">Or pick individual students</span></summary>${ppHTML('aud',STUDENTS.map(s=>s.id).sort((x,y)=>PEOPLE[x].grad-PEOPLE[y].grad),aud.students||[])}</details>
     <p class="hint" id="audCount"></p>
