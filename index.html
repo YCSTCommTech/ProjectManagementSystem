@@ -1122,7 +1122,7 @@ const CFG = window.JARVIS_CONFIG || {};
 const SUPABASE_URL = CFG.url || 'PASTE_YOUR_PROJECT_URL';
 const SUPABASE_ANON_KEY = CFG.anonKey || 'PASTE_YOUR_ANON_KEY';
 const LOGIN_DOMAIN = 'jarvis.local';
-const APP_VERSION = '1.5.4';
+const APP_VERSION = '1.5.5';
 const APP_DATE = 'Oct 28, 2026';
 
 /* ---------- Dates ---------- */
@@ -1709,7 +1709,7 @@ function visibleTop(){
   if(UI.scope==='review') list = list.filter(i=>i.status==='sub');
   if(UI.scope==='class') list = list.filter(i=>i.source==='assignment');
   if(UI.scope==='changes') list = list.filter(i=>i.assignees.includes(v) && needsChanges(i));
-  if(UI.scope==='gS'||UI.scope==='gJ'){ const g=UI.scope==='gS'?SENIOR_YEAR:JUNIOR_YEAR; list = list.filter(i=>i.assignees.some(a=>PEOPLE[a]?.grad===g) || (i.projectId && membersOf(proj(i.projectId)||{roles:{}}).some(a=>PEOPLE[a]?.grad===g))); }
+  if(['gS','gJ','gO','gF'].includes(UI.scope)){ const g={gS:SENIOR_YEAR,gJ:JUNIOR_YEAR,gO:SOPH_YEAR,gF:FRESH_YEAR}[UI.scope]; list = list.filter(i=>i.assignees.some(a=>PEOPLE[a]?.grad===g) || (i.projectId && membersOf(proj(i.projectId)||{roles:{}}).some(a=>PEOPLE[a]?.grad===g))); }
   if(UI.major) list = list.filter(i=> i.assignees.some(a=>PEOPLE[a]?.major===UI.major) || (i.projectId && proj(i.projectId)?.major===UI.major));
   if(UI.student) list = list.filter(i=> i.assignees.includes(UI.student) || (i.projectId && (proj(i.projectId)?.roles||{})[UI.student]));
   if(UI.overdue) list = list.filter(i=> isOverdue(i) || subsOf(i.id).some(isOverdue));
@@ -1720,7 +1720,7 @@ function visibleTop(){
 }
 const filtersActive = ()=> (UI.scope!=='all'&&UI.scope!=='wholeclass')||UI.major||UI.student||UI.overdue||UI.dueWeek||UI.status||UI.q;
 const SHOW_OPTS = () => isTeacher()
-  ? [['all','Everyone'],['review','Needs my review'],['class','Class assignments'],['gS','Seniors'],['gJ','Juniors']]
+  ? [['all','Everyone'],['review','Needs my review'],['class','Class assignments'],['gS','Seniors'],['gJ','Juniors'],...(SOPHS.length?[['gO','Sophomores']]:[]),...(FRESHMEN.length?[['gF','Freshmen']]:[])]
   : [['all','My work'],['mine','Only my items'],['class','Class assignments'],['changes','Returned to me'],['wholeclass','Whole class (public projects)']];
 function activeFilters(){
   const a=[], so=SHOW_OPTS().find(x=>x[0]===UI.scope);
