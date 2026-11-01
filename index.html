@@ -1123,7 +1123,7 @@ const CFG = window.JARVIS_CONFIG || {};
 const SUPABASE_URL = CFG.url || 'PASTE_YOUR_PROJECT_URL';
 const SUPABASE_ANON_KEY = CFG.anonKey || 'PASTE_YOUR_ANON_KEY';
 const LOGIN_DOMAIN = 'jarvis.local';
-const APP_VERSION = '1.5.8';
+const APP_VERSION = '1.5.9';
 const APP_DATE = 'Nov 1, 2026';
 
 /* ---------- Dates ---------- */
@@ -2220,7 +2220,7 @@ function startClassData(){
   out.due = S.assignments.filter(a=>{ const ins=S.items.filter(i=>i.assignmentId===a.id); return ins.length && !asnHidden(ins[0]); }).sort((a,b)=>(a.due||'9999').localeCompare(b.due||'9999')).map(a=>{ const ins=S.items.filter(i=>i.assignmentId===a.id); const left=ins.filter(i=>!complete(i)).length; return {id:a.id,title:a.weekly?'Weekly report':a.title,when:a.due,left,total:ins.length}; }).filter(x=>x.total);
   out.new = S.items.filter(i=>i.source==='task' && !i.parentId && !complete(i) && !inDoneProj(i) && (i.priority==='high' || tsOf(i)>=since)).sort((a,b)=>(b.priority==='high')-(a.priority==='high')||tsOf(b)-tsOf(a)).slice(0,6).map(i=>({title:i.title,proj:proj(i.projectId)?.name||'',high:i.priority==='high',due:i.due,who:i.assignees}));
   out.newProj = S.projects.filter(p=>liveProj(p) && tsOf(p)>=since).map(p=>p.name);
-  out.lessons = S.lessons.filter(l=>l.date>=t && l.date<=horizon).sort((a,b)=>(a.date+a.start).localeCompare(b.date+b.start)).map(l=>({title:l.title,date:l.date,start:l.start,open:Math.max(0,(l.seats||0)-(l.signups||[]).length)}));
+  out.lessons = S.lessons.filter(l=>l.date>=t && l.date<=horizon).sort((a,b)=>(a.date+a.start).localeCompare(b.date+b.start)).map(l=>({title:l.title,date:l.date,start:l.start,open:Math.max(0,(l.seats||0)-(l.signups||[]).length),assigned:l.assigned}));
   try{ const mp=currentMp(); const left=mp.days.filter(x=>x>=t).length; out.mp={num:mp.num,end:mp.end,left}; }catch(e){ out.mp=null; }
   try{ out.tv = tvNeeds().filter(x=>!(x.o.who||[]).length && x.date<=soon[1]).map(x=>({name:x.k==='a'?(x.o.title||'Announcement')+' graphic':x.i.name,date:x.date})); }catch(e){ out.tv=[]; }
   const st=STAGES.find(x=>x.id===({5:'friday'})[parseISO(t).getDay()]); out.weekly = st ? st.label : '';
@@ -2242,7 +2242,7 @@ function startClassHTML(){
   const hid=new Set(S.prefs.scHide||[]), dueShown=D.due.filter(x=>!hid.has(x.id)), dueHidden=D.due.filter(x=>hid.has(x.id));
   h+=box('due','Assignments',li(dueShown.map(x=>`<li class="schide-row"><button class="schide" data-schide="${x.id}" title="Hide this from the slide">✕</button><b>${esc(x.title)}</b><span>${!x.when?'No due date':x.when<t?'Was due '+esc(parseISO(x.when).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})):'Due '+esc(scDay(x.when))}${x.left?` · ${x.left} still to turn in`:' · all in'}</span></li>`))+(dueHidden.length?`<button class="scshowhid" data-scunhideall>${dueHidden.length} hidden · show</button>`:''));
   h+=box('new','New & high priority',li([...D.newProj.map(n=>`<li><b>New project:</b> ${esc(n)}</li>`),...D.new.map(x=>`<li>${x.high?'<span class="schi">HIGH</span> ':''}<b>${esc(x.title)}</b><span>${esc(x.proj)}${x.due?' · due '+esc(scDay(x.due)):''}${names(x.who)?' · '+esc(names(x.who)):''}</span></li>`)]));
-  h+=box('lessons','Lessons',li(D.lessons.map(x=>`<li><b>${esc(x.title)}</b><span>${esc(scDay(x.date))} ${esc(fmtTime(x.start))} · ${x.open?x.open+' seat'+(x.open===1?'':'s')+' open':'full'}</span></li>`)));
+  h+=box('lessons','Lessons',li(D.lessons.map(x=>`<li><b>${esc(x.title)}</b><span>${esc(scDay(x.date))} ${esc(fmtTime(x.start))} · ${x.assigned?'All '+gradLabel(x.assigned).toLowerCase()+'s':x.open?x.open+' seat'+(x.open===1?'':'s')+' open':'full'}</span></li>`)));
   h+=box('mp','Marking period',D.mp?`<div class="scbig">${D.mp.left}</div><p>class day${D.mp.left===1?'':'s'} left in MP${D.mp.num} (ends ${esc(fmt(D.mp.end))})${D.mp.left<=7?'<br><b>Submit your work for credit!</b>':''}</p>`:'');
   h+=box('tv','Spartan TV needs',li(D.tv.map(x=>`<li><b>${esc(x.name)}</b><span>${esc(scDay(x.date))}</span></li>`)));
   { const ip=latestPost(); const firstDay=ip&&postFresh(ip)&&(()=>{ let x=ip.week; for(let k=0;k<7;k++){ if(tvSchoolDay(x)) return x; x=addDays(x,1); } return ip.week; })()===t;
@@ -2417,12 +2417,13 @@ function lessonCard(l){
   return `<div class="lcard ${past?'past':''}"><div class="lhead"><b>${esc(l.title)}</b><span class="hint">${esc(fmtDay(l.date))} · ${esc(fmtTime(l.start))}–${esc(fmtTime(l.end))}</span></div>
     ${l.description?`<div class="desc">${esc(l.description)} ${speakBtn(l.title+'. '+l.description)}</div>`:''}
     <div class="lfoot"><span class="seats"><i style="width:${Math.min(100,n/l.seats*100)}%"></i></span><span class="hint">${n}/${l.seats} seats</span>${avatars(l.signups||[],8)}
-      ${remindBtn('L:'+l.id,'mini')}${isTeacher()?`<button class="linkbtn" data-editlesson="${l.id}">Edit</button><button class="linkbtn" data-dellesson="${l.id}">Delete</button>`:past?'':(mine?`<button class="btn tiny" data-leave="${l.id}">Leave</button>`:(n<l.seats?`<button class="btn tiny primary" data-signup="${l.id}">Sign up</button>`:'<span class="tag">Full</span>'))}</div></div>`;
+      ${remindBtn('L:'+l.id,'mini')}${l.assigned?`<span class="tag">${esc(gradLabel(l.assigned))}s · auto-enrolled</span>`:''}${isTeacher()?`<button class="linkbtn" data-editlesson="${l.id}">Edit</button><button class="linkbtn" data-dellesson="${l.id}">Delete</button>`:l.assigned?(mine?'<span class="tag ok">You’re in</span>':''):past?'':(mine?`<button class="btn tiny" data-leave="${l.id}">Leave</button>`:(n<l.seats?`<button class="btn tiny primary" data-signup="${l.id}">Sign up</button>`:'<span class="tag">Full</span>'))}</div></div>`;
 }
 function renderLessons(){
   const t=todayISO();
-  const up=S.lessons.filter(l=>l.date>=t).sort((a,b)=>(a.date+a.start).localeCompare(b.date+b.start));
-  const past=S.lessons.filter(l=>l.date<t).sort((a,b)=>b.date.localeCompare(a.date));
+  const vis=l=>isTeacher()||!l.assigned||(l.signups||[]).includes(S.viewer);
+  const up=S.lessons.filter(l=>l.date>=t&&vis(l)).sort((a,b)=>(a.date+a.start).localeCompare(b.date+b.start));
+  const past=S.lessons.filter(l=>l.date<t&&vis(l)).sort((a,b)=>b.date.localeCompare(a.date));
   const reqs=S.asks.filter(a=>a.kind==='lesson'&&a.open).sort((a,b)=>(b.plus||[]).length-(a.plus||[]).length);
   const polls=pollsFor(S.viewer).sort((a,b)=>(b.open-a.open)||tsOf(b)-tsOf(a));
   let h = `<div class="hello"><h2>Lessons & polls</h2>${helpDot('lessons')}<span class="grow"></span>${isTeacher()?'<button class="btn primary" data-newlesson>+ New lesson</button><button class="btn" data-newpoll>+ New poll</button>':'<button class="btn primary" data-askkind="lesson">Request a lesson</button>'}</div>`;
@@ -2559,7 +2560,8 @@ function lessonForm(l,fromAsk){
   return `<div class="mhead"><h2>${edit?'Edit lesson':'New lesson'}</h2><button class="x" data-closemodal>×</button></div>
     ${fromAsk?`<div class="note">Scheduling a student request. Everyone who +1’d it gets notified first.</div>`:''}
     <div class="fields"><label>Title</label><input id="lTitle" value="${esc(l.title)}"><label>Description</label><textarea id="lDesc" rows="2">${esc(l.description||'')}</textarea>
-      <label>Date</label><input id="lDate" type="date" value="${esc(l.date)}"><label>Start</label><input id="lStart" type="time" value="${esc(l.start)}"><label>End</label><input id="lEnd" type="time" value="${esc(l.end)}"><label>Seats</label><input id="lSeats" type="number" min="1" max="40" value="${l.seats}"></div>
+      <label>Date</label><input id="lDate" type="date" value="${esc(l.date)}"><label>Start</label><input id="lStart" type="time" value="${esc(l.start)}"><label>End</label><input id="lEnd" type="time" value="${esc(l.end)}"><label>Who</label><select id="lWho"><option value="">Sign-up (open seats)</option>${[[SENIOR_YEAR,'All seniors'],[JUNIOR_YEAR,'All juniors'],[SOPH_YEAR,'All sophomores'],[FRESH_YEAR,'All freshmen']].filter(([g])=>STUDENTS.some(st=>st.grad===g)||l.assigned===g).map(([g,lab])=>`<option value="${g}" ${l.assigned===g?'selected':''}>${lab} — auto-enrolled</option>`).join('')}</select>
+      <label>Seats</label><input id="lSeats" type="number" min="1" max="40" value="${l.seats}"><span></span><span class="hint">Seats only matter for sign-up lessons.</span></div>
     <div class="mfoot"><button class="btn primary" data-savelesson="${edit?l.id:''}" data-fromask="${fromAsk?fromAsk.id:''}">${edit?'Save':'Schedule lesson'}</button></div>`;
 }
 function pollForm(){
@@ -4972,10 +4974,12 @@ document.addEventListener('click',e=>{
   if(d.dellesson){ if(!confirm('Delete this lesson?')) return; S.lessons=S.lessons.filter(l=>l.id!==d.dellesson); render(); return; }
   if(d.schedule){ openModal(lessonForm(null,askById(d.schedule))); return; }
   if(d.savelesson!==undefined){ const title=$('#lTitle').value.trim(), date=$('#lDate').value, seats=Math.max(1,+$('#lSeats').value||1); if(!title||!date){ toast('Add a title and date'); return; }
-    const f={title,description:$('#lDesc').value.trim(),date,start:$('#lStart').value||'09:00',end:$('#lEnd').value||'09:30',seats};
-    if(d.savelesson){ Object.assign(lesson(d.savelesson),f); }
-    else { const l={id:rid('L'),...f,signups:[],by:S.viewer}; S.lessons.push(l); const a=d.fromask&&askById(d.fromask);
-      if(a){ a.open=false; a.lessonId=l.id; (a.plus||[]).forEach(p=>notify(p,'lesson',{text:l.title})); } else notify('all','lesson',{text:l.title}); }
+    const who=+($('#lWho')?.value||0), grp=who?STUDENTS.filter(st=>st.grad===who).map(st=>st.id):null;
+    const f={title,description:$('#lDesc').value.trim(),date,start:$('#lStart').value||'09:00',end:$('#lEnd').value||'09:30',seats:grp?Math.max(1,grp.length):seats,assigned:who||null};
+    if(d.savelesson){ const L=lesson(d.savelesson); const before=new Set(L.signups||[]); Object.assign(L,f); if(grp){ L.signups=[...new Set([...(L.signups||[]),...grp])]; L.signups.filter(x=>!before.has(x)).forEach(x=>notify(x,'lesson',{text:L.title})); } }
+    else { const l={id:rid('L'),...f,signups:grp||[],by:S.viewer}; S.lessons.push(l); const a=d.fromask&&askById(d.fromask);
+      if(grp){ grp.forEach(x=>notify(x,'lesson',{text:l.title})); if(a){ a.open=false; a.lessonId=l.id; } }
+      else if(a){ a.open=false; a.lessonId=l.id; (a.plus||[]).forEach(p=>notify(p,'lesson',{text:l.title})); } else notify('all','lesson',{text:l.title}); }
     closeModal(); render(); toast('Lesson saved'); return; }
   if(d.newpoll!==undefined){ openModal(pollForm()); return; }
   if(d.savepoll!==undefined){ const q=$('#pQ').value.trim(); const kind=$('#pKind').value; const opts=$('#pOpts').value.split('\n').map(x=>x.trim()).filter(Boolean);
