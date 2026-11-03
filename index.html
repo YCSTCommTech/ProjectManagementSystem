@@ -1133,7 +1133,7 @@ const CFG = window.JARVIS_CONFIG || {};
 const SUPABASE_URL = CFG.url || 'PASTE_YOUR_PROJECT_URL';
 const SUPABASE_ANON_KEY = CFG.anonKey || 'PASTE_YOUR_ANON_KEY';
 const LOGIN_DOMAIN = 'jarvis.local';
-const APP_VERSION = '1.5.13';
+const APP_VERSION = '1.5.14';
 const APP_DATE = 'Nov 3, 2026';
 
 /* ---------- Dates ---------- */
@@ -1182,7 +1182,7 @@ const lowerMe = () => !isTeacher() && isLowerGrad(me()?.grad);
 function hashColor(pid){ let h=0; for(const c of String(pid)) h=(h*31+c.charCodeAt(0))>>>0; return AVCOL[h%AVCOL.length]; }
 function setPeople(rows){
   for(const k of Object.keys(PEOPLE)) delete PEOPLE[k];
-  for(const r of rows.filter(r=>r.role!=='wall')) PEOPLE[r.pid] = {id:r.pid, uid:r.id, username:r.username, name:r.name, role:r.role, grad:r.grad, major:r.major||'', active:r.active, color: r.role==='teacher'?'#095641':hashColor(r.pid)};
+  for(const r of rows.filter(r=>r.role!=='wall')) PEOPLE[r.pid] = {id:r.pid, uid:r.id, username:r.username, name:r.name, role:r.role, helper:!!r.helper, grad:r.grad, major:r.major||'', active:r.active, color: r.role==='teacher'?'#095641':hashColor(r.pid)};
   STUDENTS = Object.values(PEOPLE).filter(p=>p.role==='student' && p.active).sort((a,b)=>a.name.localeCompare(b.name));
   SENIORS = STUDENTS.filter(s=>s.grad===SENIOR_YEAR); JUNIORS = STUDENTS.filter(s=>s.grad===JUNIOR_YEAR); SOPHS = STUDENTS.filter(s=>s.grad===SOPH_YEAR); FRESHMEN = STUDENTS.filter(s=>s.grad===FRESH_YEAR); UPPER = STUDENTS.filter(s=>!isLowerGrad(s.grad));
 }
@@ -1342,7 +1342,7 @@ function emailAskModal(){
 }
 function maybeAskEmail(){ if(!contactsReady || isTeacher() || !S.viewer || emailOf(S.viewer) || UI.emailAsked) return; if($('#modal').hidden) emailAskModal(); else UI.emailPending=true; }
 async function loadPeople(){
-  const {data,error}=await sb.from('people').select('id,pid,username,name,role,grad,major,active').limit(2000);
+  const {data,error}=await sb.from('people').select('id,pid,username,name,role,grad,major,active,helper').limit(2000);
   if(error) throw error; setPeople(data||[]);
 }
 async function loadAll(){
@@ -1470,6 +1470,8 @@ const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 const esc = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const me = ()=> PEOPLE[S.viewer];
+const isHelper = () => !!(S.viewer && PEOPLE[S.viewer] && PEOPLE[S.viewer].helper && PEOPLE[S.viewer].role==='student');
+const isStaff = () => isTeacher() || isHelper();
 const isTeacher = ()=> !!S.viewer && me().role==='teacher';
 /* ---------- Names + profiles (nickname, avatar) ---------- */
 const profile = id => S.settings.find(x=>x.id==='profile_'+id) || {};
@@ -2169,7 +2171,7 @@ function pollHTML(q){
   const mineR = [...(q.responses||[])].reverse().find(r=>r.by===S.viewer);
   const latest = {}; (q.responses||[]).forEach(r=>latest[r.by]=r);
   const resp = Object.values(latest);
-  const canSee = isTeacher() || (mineR && q.classSees!=='hidden');
+  const canSee = isTeacher() || q.by===S.viewer || (mineR && q.classSees!=='hidden');
   let answer='';
   if(!isTeacher() && q.open){
     if(q.kind==='choice') answer = `<div class="checks">${q.options.map(o=>`<button class="chip ${mineR&&mineR.val===o?'on':''}" data-vote="${q.id}" data-val="${esc(o)}">${esc(o)}</button>`).join('')}</div>`;
@@ -2428,16 +2430,16 @@ function lessonCard(l){
   return `<div class="lcard ${past?'past':''}"><div class="lhead"><b>${esc(l.title)}</b><span class="hint">${esc(fmtDay(l.date))} · ${esc(fmtTime(l.start))}–${esc(fmtTime(l.end))}</span></div>
     ${l.description?`<div class="desc">${esc(l.description)} ${speakBtn(l.title+'. '+l.description)}</div>`:''}
     <div class="lfoot"><span class="seats"><i style="width:${Math.min(100,n/l.seats*100)}%"></i></span><span class="hint">${n}/${l.seats} seats</span>${avatars(l.signups||[],8)}
-      ${remindBtn('L:'+l.id,'mini')}${l.assigned?`<span class="tag">${esc(lAssignedLabel(l))} · auto-enrolled</span>`:(l.openTo||[]).length?`<span class="tag">${esc(gradesLabel(l.openTo))} only</span>`:''}${isTeacher()?`<button class="linkbtn" data-editlesson="${l.id}">Edit</button><button class="linkbtn" data-dellesson="${l.id}">Delete</button>`:l.assigned?(mine?'<span class="tag ok">You’re in</span>':''):past?'':(mine?`<button class="btn tiny" data-leave="${l.id}">Leave</button>`:(n<l.seats?`<button class="btn tiny primary" data-signup="${l.id}">Sign up</button>`:'<span class="tag">Full</span>'))}</div></div>`;
+      ${remindBtn('L:'+l.id,'mini')}${l.assigned?`<span class="tag">${esc(lAssignedLabel(l))} · auto-enrolled</span>`:(l.openTo||[]).length?`<span class="tag">${esc(gradesLabel(l.openTo))} only</span>`:''}${isStaff()?`<button class="linkbtn" data-editlesson="${l.id}">Edit</button><button class="linkbtn" data-dellesson="${l.id}">Delete</button>`:l.assigned?(mine?'<span class="tag ok">You’re in</span>':''):past?'':(mine?`<button class="btn tiny" data-leave="${l.id}">Leave</button>`:(n<l.seats?`<button class="btn tiny primary" data-signup="${l.id}">Sign up</button>`:'<span class="tag">Full</span>'))}</div></div>`;
 }
 function renderLessons(){
   const t=todayISO();
-  const vis=l=>isTeacher()||(l.assigned?(l.signups||[]).includes(S.viewer):forMyGrade(l.openTo)||(l.signups||[]).includes(S.viewer));
+  const vis=l=>isStaff()||(l.assigned?(l.signups||[]).includes(S.viewer):forMyGrade(l.openTo)||(l.signups||[]).includes(S.viewer));
   const up=S.lessons.filter(l=>l.date>=t&&vis(l)).sort((a,b)=>(a.date+a.start).localeCompare(b.date+b.start));
   const past=S.lessons.filter(l=>l.date<t&&vis(l)).sort((a,b)=>b.date.localeCompare(a.date));
   const reqs=S.asks.filter(a=>a.kind==='lesson'&&a.open).sort((a,b)=>(b.plus||[]).length-(a.plus||[]).length);
   const polls=pollsFor(S.viewer).sort((a,b)=>(b.open-a.open)||tsOf(b)-tsOf(a));
-  let h = `<div class="hello"><h2>Lessons & polls</h2>${helpDot('lessons')}<span class="grow"></span>${isTeacher()?'<button class="btn primary" data-newlesson>+ New lesson</button><button class="btn" data-newpoll>+ New poll</button>':'<button class="btn primary" data-askkind="lesson">Request a lesson</button>'}</div>`;
+  let h = `<div class="hello"><h2>Lessons & polls</h2>${helpDot('lessons')}<span class="grow"></span>${isStaff()?'<button class="btn primary" data-newlesson>+ New lesson</button><button class="btn" data-newpoll>+ New poll</button>':'<button class="btn primary" data-askkind="lesson">Request a lesson</button>'}</div>`;
   h += `<h3 class="sech">Upcoming lessons</h3>${up.length?`<div class="lgrid">${up.map(lessonCard).join('')}</div>`:'<div class="empty">No lessons scheduled.</div>'}`;
   h += `<h3 class="sech">Lesson requests <span class="hint">+1 the ones you want. Mr. P schedules the popular ones.</span></h3>${reqs.length?reqs.map(a=>askCardHTML(a)).join(''):'<div class="hint">No requests yet.</div>'}`;
   h += `<h3 class="sech">Polls</h3>${polls.length?polls.map(pollHTML).join(''):'<div class="hint">No polls yet.</div>'}`;
@@ -2908,7 +2910,7 @@ function uniqueUser(base,taken){ let u=cleanUser(base)||'student', n=2, out=u; w
 function renderRoster(){
   const all=Object.values(PEOPLE).filter(p=>p.role==='student').sort((a,b)=>a.name.localeCompare(b.name));
   const teachers=Object.values(PEOPLE).filter(p=>p.role==='teacher').sort((a,b)=>a.id==='t'?-1:b.id==='t'?1:a.name.localeCompare(b.name));
-  const roleSel=p=>`<select class="rin" data-rrole="${p.id}" aria-label="Role" ${p.id===S.viewer||!p.active?'disabled':''}><option value="student" ${p.role==='student'?'selected':''}>Student</option><option value="teacher" ${p.role==='teacher'?'selected':''}>Teacher</option></select>`;
+  const roleSel=p=>`<select class="rin" data-rrole="${p.id}" aria-label="Role" ${p.id===S.viewer||!p.active?'disabled':''}><option value="student" ${p.role==='student'&&!p.helper?'selected':''}>Student</option><option value="helper" ${p.role==='student'&&p.helper?'selected':''}>Student Assistant</option><option value="teacher" ${p.role==='teacher'?'selected':''}>Teacher</option></select>`;
   const trow=p=>`<tr class="${p.active?'':'offrow'}"><td class="c-item"><div class="cell-item">${av(p.id)}<input class="rin rname" data-rname="${p.id}" value="${esc(p.name)}" aria-label="Name" ${p.active?'':'disabled'}></div></td>
     <td><input class="rin ruser" data-ruser="${p.id}" value="${esc(p.username)}" aria-label="Username" ${p.active?'':'disabled'}></td><td>${roleSel(p)}</td>
     <td class="ractions">${p.id===S.viewer?'<span class="hint">You · change your password under Edit my profile</span>':p.active?`<button class="btn tiny" data-rreset="${p.id}">Password</button><button class="linkbtn" data-roff="${p.id}">Turn off</button>`:`<button class="btn tiny" data-ron="${p.id}">Turn back on</button>`}</td></tr>`;
@@ -3073,6 +3075,9 @@ async function rosterChange(t){
   if(d.rname){ const v=t.value.trim(); if(!v){ t.value=PEOPLE[d.rname].name; return true; } if(v!==PEOPLE[d.rname].name && await savePerson(d.rname,{name:v})) toast('Name saved'); return true; }
   if(d.rgrade){ if(await savePerson(d.rgrade,{grad:gradFromLabel(t.value)})) toast('Grade saved'); return true; }
   if(d.rmajor){ if(await savePerson(d.rmajor,{major:t.value||null})) toast('Major saved'); return true; }
+  if(d.rrole && (t.value==='helper' || (t.value==='student' && PEOPLE[d.rrole].helper && PEOPLE[d.rrole].role==='student'))){ const p=PEOPLE[d.rrole], on=t.value==='helper';
+    if(!confirm(on?`Make ${p.name} a Student Assistant? They can run Spartan TV, the ticker, the project bank, lessons, polls, events, Inspiration posts, and the Class Wall. They still can’t see passwords, emails, check-ins, weekly reports, grades, or private projects.`:`Make ${p.name} a regular student again?`)){ t.value=p.helper?'helper':'student'; return true; }
+    if(await savePerson(d.rrole,{helper:on})) toast(on?`${p.name} is now a Student Assistant`:`${p.name} is a regular student again`); return true; }
   if(d.rrole){ const p=PEOPLE[d.rrole]; const role=t.value;
     if(!confirm(role==='teacher'?`Make ${p.name} a teacher? They’ll have full access, same as you.`:`Change ${p.name} to a student? They’ll lose teacher access.`)){ t.value=p.role; return true; }
     try{ await adminCall({action:'setRole',pid:d.rrole,role}); await loadPeople(); render(); toast(`${p.name} is now a ${role}`); }catch(e){ t.value=p.role; toast(e.message); } return true; }
@@ -3143,7 +3148,7 @@ const eventKindLabel = k => (EVENT_KINDS.find(x=>x[0]===k)||EVENT_KINDS[0])[1];
 const eventById = id => S.events.find(e=>e.id===id);
 const eventDays = e => { const out=[]; let d=e.date; const end=e.endDate&&e.endDate>=e.date?e.endDate:e.date; while(d<=end && out.length<60){ out.push(d); d=addDays(d,1); } return out; };
 const eventOn = (e,d) => d>=e.date && d<=(e.endDate&&e.endDate>=e.date?e.endDate:e.date);
-const visibleEvents = () => S.events.filter(e=> (e.status==='approved' && forMyGrade(e.grads)) || isTeacher() || e.by===S.viewer);
+const visibleEvents = () => S.events.filter(e=> (e.status==='approved' && forMyGrade(e.grads)) || isStaff() || e.by===S.viewer);
 const linkedProjects = eid => S.projects.filter(p=>p.eventId===eid);
 const linkedItems = eid => S.items.filter(i=>i.eventId===eid);
 function eventOpenTasks(eid){
@@ -3213,7 +3218,7 @@ function calFilterBar(){
 }
 function calHead(label){
   const views=[['day','Day'],['week','Week'],['month','Month'],['mp','Marking period']];
-  const pend = isTeacher() ? S.events.filter(e=>e.status==='pending').length : 0;
+  const pend = isStaff() ? S.events.filter(e=>e.status==='pending').length : 0;
   return `<div class="calhead"><div class="seg calviews">${views.map(([k,l])=>`<button class="${UI.calView===k?'on':''}" data-calview="${k}">${l}</button>`).join('')}</div>
     ${UI.calView!=='mp'?`<div class="calnav"><button class="btn tiny" data-calstep="-1" aria-label="Previous">‹</button><button class="btn tiny" data-caltoday>Today</button><button class="btn tiny" data-calstep="1" aria-label="Next">›</button><b>${esc(label)}</b></div>`:'<span></span>'}
     <span class="grow"></span>${pend?`<button class="btn tiny" data-calpending>${pend} event request${pend===1?'':'s'}</button>`:''}<button class="btn primary tiny" data-newevent="">+ Event</button> ${helpDot('calendar')}</div>`;
@@ -3276,7 +3281,7 @@ function mpStrip(mp){
 }
 /* ---------- Event modal ---------- */
 function eventModal(e,date){
-  const edit=!!e, T=isTeacher();
+  const edit=!!e, T=isStaff();
   e=e||{title:'',kind:'event',date:date||todayISO(),endDate:'',start:'',end:'',location:'',description:''};
   openModal(`<div class="mhead"><h2>${edit?'Edit event':T?'New event':'Suggest an event'}</h2><button class="x" data-closemodal>×</button></div>
     ${!T?'<p class="hint" style="margin:0">Mr. P approves events before the class sees them.</p>':''}
@@ -3291,7 +3296,7 @@ function eventModal(e,date){
     <div class="mfoot"><button class="btn primary" data-saveevent="${edit?e.id:''}">${edit?'Save':T?'Add to calendar':'Send to Mr. P'}</button></div>`);
 }
 function eventDetail(e){
-  const T=isTeacher(), mine=e.by===S.viewer, lp=linkedProjects(e.id), li=linkedItems(e.id), prog=eventOpenTasks(e.id);
+  const T=isStaff(), mine=e.by===S.viewer, lp=linkedProjects(e.id), li=linkedItems(e.id), prog=eventOpenTasks(e.id);
   const canEditIt = T || (mine && e.status==='pending');
   openModal(`<div class="mhead"><h2>${esc(e.title)}</h2><button class="x" data-closemodal>×</button></div>
     <div class="evmeta"><span class="evchip k-${e.kind}">${esc(eventKindLabel(e.kind))}</span>${(e.grads||[]).length?` <span class="tag">${esc(gradesLabel(e.grads))} only</span>`:''} <b>${esc(fmtDay(e.date))}${e.endDate&&e.endDate>e.date?' – '+esc(fmtDay(e.endDate)):''}</b>${e.start?` · ${esc(fmtTime(e.start))}${e.end?'–'+esc(fmtTime(e.end)):''}`:''}${e.location?` · ${esc(e.location)}`:''}</div>
@@ -3314,12 +3319,12 @@ function saveEvent(id){
   if(!title||!date){ toast('Add a name and a date'); return; }
   let endDate=$('#evEnd').value; if(endDate && endDate<date) endDate='';
   const f={title,kind:$('#evKind').value,date,endDate,start:$('#evStart').value,end:$('#evEndT').value,location:$('#evLoc').value.trim(),description:$('#evDesc').value.trim()};
-  if(isTeacher()) f.grads=readGrades('evGr');
+  if(isStaff()) f.grads=readGrades('evGr');
   if(id){ Object.assign(eventById(id),f); closeModal(); render(); toast('Event saved'); return; }
-  const e={id:rid('e'),...f,by:S.viewer,status:isTeacher()?'approved':'pending',...nowStamp()};
+  const e={id:rid('e'),...f,by:S.viewer,status:isStaff()?'approved':'pending',...nowStamp()};
   S.events.push(e);
-  if(!isTeacher()) notifyTeachers('eventreq',{text:`${title} · ${fmt(date)}`});
-  closeModal(); UI.calDate=date; render(); toast(isTeacher()?'Added to the calendar':'Sent to Mr. P for approval');
+  if(!isStaff()) notifyTeachers('eventreq',{text:`${title} · ${fmt(date)}`});
+  closeModal(); UI.calDate=date; render(); toast(isStaff()?'Added to the calendar':'Sent to Mr. P for approval');
 }
 function calClick(d,t){
   if(d.calview){ UI.calView=d.calview; render(); return true; }
@@ -3413,11 +3418,11 @@ function placeRequest(a,b,after){
 }
 function moveRequest(a,dir){ const list=openRequests(); const k=list.indexOf(a), j=k+dir; if(k<0||j<0||j>=list.length) return; placeRequest(a,list[j],dir>0); }
 function bankCard(b){
-  const T=isTeacher(), tried=(b.starts||[]).length, hands=b.hands||[], raised=hands.includes(S.viewer);
+  const T=isStaff(), TT=isTeacher(), tried=(b.starts||[]).length, hands=b.hands||[], raised=hands.includes(S.viewer);
   const img = b.image ? `<div class="bimg"><img src="${esc(b.image)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.classList.add('noimg');this.remove()"></div>` : `<div class="bimg noimg"><span>${esc((b.major||'Idea').split(' ').map(w=>w[0]).join(''))}</span></div>`;
   let acts='';
   if(b.status==='ready' && b.type==='idea') acts=`<button class="btn tiny primary" data-bankstart="${b.id}">Start this</button>`;
-  if(b.status==='ready' && b.type==='request') acts = T ? `<button class="btn tiny primary" data-bankactivate="${b.id}">Activate${hands.length?` (${hands.length})`:''}</button>` : `<button class="btn tiny ${raised?'':'primary'}" data-bankhand="${b.id}">${raised?'You asked · undo':'Request it'}</button>`;
+  if(b.status==='ready' && b.type==='request') acts = TT ? `<button class="btn tiny primary" data-bankactivate="${b.id}">Activate${hands.length?` (${hands.length})`:''}</button>` : `<button class="btn tiny ${raised?'':'primary'}" data-bankhand="${b.id}">${raised?'You asked · undo':'Request it'}</button>`;
   if(T && b.status==='raw') acts=`<button class="btn tiny primary" data-bankedit="${b.id}">Edit & make ready</button>`;
   if(T && b.status==='retired') acts=`<button class="btn tiny" data-bankrestore="${b.id}">Bring back</button>`;
   const reqDrag = T && b.type==='request' && b.status==='ready' && UI.bankTab==='requests';
@@ -3429,7 +3434,7 @@ function bankCard(b){
     <div class="bacts">${acts}${T?`<button class="linkbtn" data-bankedit="${b.id}">Edit</button>`:''}</div></div></article>`;
 }
 function renderBank(){
-  const T=isTeacher();
+  const T=isStaff();
   if(seedBankIfEmpty()) persist();
   const tabs = T ? [['ideas','Ideas'],['requests','Requests'],['raw','Raw'],['archive','Taken & retired']] : [['ideas','Ideas'],['requests','Requests'],['mine','My suggestions']];
   UI.bankTab = tabs.some(x=>x[0]===UI.bankTab) ? UI.bankTab : 'ideas';
@@ -3495,7 +3500,7 @@ function bankDetail(b){
     ${(b.steps||[]).length?`<h3 class="sech small">Starter steps</h3><ol class="bsteps">${b.steps.map(s=>`<li>${esc(s)}</li>`).join('')}</ol>`:''}
     ${b.type==='idea'?`<h3 class="sech small">Tried by ${starts.length}</h3>${starts.length?starts.map(s=>{ const target=s.itemId?item(s.itemId):proj(s.projectId); return `<div class="mrow">${av(s.by)}<b>${esc(pname(s.by))}</b><span class="hint">${esc(s.at||'')}</span>${target?`<button class="linkbtn" data-open="${s.itemId?'i:'+s.itemId:'p:'+s.projectId}">See their work</button>`:''}</div>`; }).join(''):'<p class="hint">Be the first.</p>'}`:''}
     ${b.status==='taken'?`<div class="note">Taken by ${esc((b.takenBy||[]).map(pname).join(', '))}${b.takenAt?` on ${esc(new Date(b.takenAt).toLocaleDateString('en-US',{month:'short',day:'numeric'}))}`:''}. ${b.takenProject&&proj(b.takenProject)?`<button class="linkbtn" data-open="p:${b.takenProject}">Open project</button>`:''}</div>`:''}
-    <div class="mfoot">${remindBtn('b:'+b.id)}${b.annId&&tvById(b.annId)?`<button class="btn" data-tvann="${b.annId}">See the announcement</button>`:''}${isTeacher()&&b.status==='ready'&&b.type==='idea'?`<button class="btn" data-bankcopy="${b.id}">Give everyone a copy</button>`:''}${b.status==='ready'&&b.type==='idea'?`<button class="btn primary" data-bankstart="${b.id}">Start this</button>`:''}${b.status==='ready'&&b.type==='request'&&!isTeacher()?`<button class="btn primary" data-bankhand="${b.id}">${(b.hands||[]).includes(S.viewer)?'Undo request':'Request it'}</button>`:''}${b.status==='ready'&&b.type==='request'&&isTeacher()?`<button class="btn primary" data-bankactivate="${b.id}">Activate</button>`:''}${isTeacher()?`<button class="btn" data-bankedit="${b.id}">Edit</button>`:''}</div>`);
+    <div class="mfoot">${remindBtn('b:'+b.id)}${b.annId&&tvById(b.annId)?`<button class="btn" data-tvann="${b.annId}">See the announcement</button>`:''}${isTeacher()&&b.status==='ready'&&b.type==='idea'?`<button class="btn" data-bankcopy="${b.id}">Give everyone a copy</button>`:''}${b.status==='ready'&&b.type==='idea'?`<button class="btn primary" data-bankstart="${b.id}">Start this</button>`:''}${b.status==='ready'&&b.type==='request'&&!isTeacher()?`<button class="btn primary" data-bankhand="${b.id}">${(b.hands||[]).includes(S.viewer)?'Undo request':'Request it'}</button>`:''}${b.status==='ready'&&b.type==='request'&&isTeacher()?`<button class="btn primary" data-bankactivate="${b.id}">Activate</button>`:''}${isStaff()?`<button class="btn" data-bankedit="${b.id}">Edit</button>`:''}</div>`);
 }
 function bankStartModal(b){
   const mine=S.projects.filter(p=>liveProj(p) && canEditProject(p) && (p.roles||{})[S.viewer]);
@@ -3849,7 +3854,7 @@ function abFor(d){
 function tvDateLong(d){ const x=parseISO(d), n=x.getDate(), suf=(n%100>=11&&n%100<=13)?'th':({1:'st',2:'nd',3:'rd'}[n%10]||'th'); return `${x.toLocaleDateString('en-US',{weekday:'long'})} ${x.toLocaleDateString('en-US',{month:'long'})} ${n}${suf}`; }
 const tvSegs = () => tvRows('seg').sort((a,b)=>(a.pos||0)-(b.pos||0));
 function tvSeed(){
-  if(!isTeacher() || tvRows('seg').length) return false;
+  if(!isStaff() || tvRows('seg').length) return false;
   const mk=(o)=>S.broadcast.push({id:rid('sg'),kind:'seg',shot:'2-SHOT',cue:'',say:'',prompt:'',needs:'none',freq:'daily',days:[],videoOnly:false,active:true,...o});
   mk({name:'Open / TIH',videoOnly:true,cue:'Open or TIH',pos:10});
   mk({name:'Intro',cue:'CG: {DATE} {AB} day\nCG: Anchor Names',say:'Good morning and welcome to Spartan TV. I’m (Name).\n\nAnd I’m (Name). These are the announcements for {DATE} {AB} day.',pos:20});
@@ -3864,7 +3869,7 @@ function tvSeed(){
 }
 const tvDay = d => tvById('tvd_'+d);
 function tvBuildDay(d){
-  if(!isTeacher() || tvDay(d) || !tvSchoolDay(d)) return false;
+  if(!isStaff() || tvDay(d) || !tvSchoolDay(d)) return false;
   S.broadcast.push({id:'tvd_'+d,kind:'day',date:d,skipAnn:[]});
   const wd=parseISO(d).getDay();
   tvSegs().filter(s=>s.active!==false && (s.freq==='daily' || (s.freq==='days' && (s.days||[]).includes(wd)))).forEach(s=>tvAddBlock(d,s));
@@ -4011,7 +4016,7 @@ function tvScriptModal(d){
 
 /* ---------- Page ---------- */
 function renderTV(){
-  const T=isTeacher();
+  const T=isStaff();
   if(!UI.tvWeek) UI.tvWeek=weekStartOf(todayISO());
   if(parseISO(todayISO()).getDay()===6 || parseISO(todayISO()).getDay()===0){ if(!UI.tvWeekSet){ UI.tvWeek=weekStartOf(addDays(todayISO(),2)); } }
   UI.tvWeekSet=true;
@@ -4021,7 +4026,7 @@ function renderTV(){
   if(changed) setTimeout(()=>persist(),0);
   const c=tvCfg(), doc=(c.weekDocs||{})[ws];
   const tabs=[['rundown','Rundown'],['needs','What needs doing'],...(T?[['ann','Announcements'],['segs','Segments'],['ticker','Ticker']]:[])];
-  let h=`<div class="hello"><h2>Spartan TV</h2></div>
+  let h=`<div class="hello"><h2>Spartan TV</h2><span class="grow"></span>${T&&!isTeacher()?'<button class="btn" data-wallopen>📺 Class Wall</button>':''}</div>
   <div class="tvtabs seg" role="tablist">${tabs.map(([k,l])=>`<button data-tvtab="${k}" class="${tab===k?'on':''}">${l}${k==='needs'?` <span class="navcount">${tvNeeds().filter(n=>!(n.o.who||[]).length).length||''}</span>`:''}</button>`).join('')}</div>`;
   if(tab==='rundown'){
     h+=`<div class="tvweekbar"><button class="btn tiny" data-tvweek="-7" aria-label="Previous week">‹</button><b>Week of ${esc(fmt(ws))}</b><button class="btn tiny" data-tvweek="7" aria-label="Next week">›</button>${ws!==weekStartOf(todayISO())?'<button class="linkbtn" data-tvweek="0">This week</button>':''}
@@ -4038,7 +4043,7 @@ function renderTV(){
   return h;
 }
 function tvDayCard(d){
-  const T=isTeacher(), school=tvSchoolDay(d), ab=abFor(d), day=tvDay(d), x=parseISO(d), today=d===todayISO();
+  const T=isStaff(), school=tvSchoolDay(d), ab=abFor(d), day=tvDay(d), x=parseISO(d), today=d===todayISO();
   let h=`<section class="tvday ${today?'today':''} ${school?'':'off'}"><header><span class="tvdate"><b>${WD[x.getDay()]}</b> ${esc(fmt(d))}</span>
     ${school?(T?`<button class="abtag ${ab}" data-tvflip="${d}" title="Click to switch A/B. Days after it follow.">${ab}</button>`:`<span class="abtag ${ab}">${ab}</span>`):'<span class="tag">No school</span>'}
     ${T?`<button class="linkbtn tvoff" data-tvoff="${d}">${school?'No school?':'School day'}</button>`:''}</header>`;
@@ -4092,7 +4097,7 @@ function tvSegsHTML(){
 /* ---------- Editors ---------- */
 let TVE=null;
 function tvBlockModal(id){
-  const b=tvById(id); if(!b) return; const i=tvInfo(b), T=isTeacher(), L=tvLinkInfo(b); TVE=id;
+  const b=tvById(id); if(!b) return; const i=tvInfo(b), T=isStaff(), L=tvLinkInfo(b); TVE=id;
   const mine=(b.who||[]).includes(S.viewer);
   const itemOpts=S.items.filter(x=>x.source==='task' && !inDoneProj(x) && !x.parentId).map(x=>[`i:${x.id}`,`${x.title} · ${proj(x.projectId)?.name||''}`]);
   openModal(`<div class="mhead"><h2>${esc(i.name)} · ${esc(WD[parseISO(b.date).getDay()])} ${esc(fmt(b.date))}</h2><button class="x" data-closemodal>×</button></div>
@@ -4180,16 +4185,16 @@ function tvAnnModal(id,preset){
     <div class="mfoot">${id?`<button class="btn danger" data-tvanndel="${id}">Delete</button><button class="btn" data-tvanndup="${id}" title="Start a new announcement filled in from this one">Copy</button>`:''}<span class="grow"></span><button class="btn primary" data-tvannsave>${preset?'Save copy':'Save'}</button></div>`);
 }
 function tvAnnView(id,d){
-  const a=tvById(id); if(!a) return; if(isTeacher() && !d) return tvAnnModal(id);
+  const a=tvById(id); if(!a) return; if(isStaff() && !d) return tvAnnModal(id);
   const mine=(a.who||[]).includes(S.viewer), day=d&&tvDay(d);
   openModal(`<div class="mhead"><h2>📣 ${esc(a.title||'Announcement')}</h2><button class="x" data-closemodal>×</button></div>
     <p class="hint">Runs ${esc(fmt(a.start))} – ${esc(fmt(a.end))}. Approved wording. Copy it exactly.</p>
     <div class="tvfixed"><div>${esc(a.say||'').replace(/\n/g,'<br>')}</div></div>
     ${a.needsGfx?`<div class="fields"><span class="lbl">Graphic by</span><span>${avatars(a.who||[],4)} ${isTeacher()?'':`<button class="btn tiny ${mine?'':'primary'}" data-tvclaim="${a.id}">${mine?'Drop it':'I’ll do it'}</button>`}</span>
-      <span class="lbl">Status</span><select id="tvStatus" ${isTeacher()||mine?'':'disabled'}>${TV_ST.map(([k,l])=>`<option value="${k}" ${(a.status||'not')===k?'selected':''}>${l}</option>`).join('')}</select>
-      <span class="lbl">Final file</span><input id="tvFile" value="${esc(a.file||'')}" ${isTeacher()||mine?'':'disabled'} placeholder="Link to the finished graphic">${!a.file&&gfxFile(a)?`<span></span><a href="${esc(gfxFile(a))}" target="_blank" rel="noopener">Open finished graphic (from the project)</a>`:''}</div>`:''}
+      <span class="lbl">Status</span><select id="tvStatus" ${isStaff()||mine?'':'disabled'}>${TV_ST.map(([k,l])=>`<option value="${k}" ${(a.status||'not')===k?'selected':''}>${l}</option>`).join('')}</select>
+      <span class="lbl">Final file</span><input id="tvFile" value="${esc(a.file||'')}" ${isStaff()||mine?'':'disabled'} placeholder="Link to the finished graphic">${!a.file&&gfxFile(a)?`<span></span><a href="${esc(gfxFile(a))}" target="_blank" rel="noopener">Open finished graphic (from the project)</a>`:''}</div>`:''}
     ${a.gfxNote?`<div class="hint">Graphic notes: ${esc(a.gfxNote)}</div>`:''}
-    <div class="mfoot">${isTeacher()&&day?`<button class="btn" data-tvskip="${id}|${d}">Skip it on ${esc(fmt(d))}</button><button class="btn" data-tvannedit="${id}">Edit</button>`:''}${a.needsGfx&&(isTeacher()||mine)?`<button class="btn primary" data-tvsaveann="${id}">Save</button>`:''}</div>`);
+    <div class="mfoot">${isStaff()&&day?`<button class="btn" data-tvskip="${id}|${d}">Skip it on ${esc(fmt(d))}</button><button class="btn" data-tvannedit="${id}">Edit</button>`:''}${a.needsGfx&&(isTeacher()||mine)?`<button class="btn primary" data-tvsaveann="${id}">Save</button>`:''}</div>`);
 }
 
 
@@ -4215,7 +4220,7 @@ function tickerLinesFor(d){
   return res;
 }
 function tickerPublish(){
-  if(!isTeacher()) return; const c=tkCfgW(), days={};
+  if(!isStaff()) return; const c=tkCfgW(), days={};
   for(let k=-1;k<21;k++){ const d=addDays(todayISO(),k); days[d]=tickerLinesFor(d).filter(x=>!x.hidden && !x.extra && x.text.trim()).map(x=>x.text.trim()); }
   const sig=JSON.stringify(days)+JSON.stringify(c.style||{});
   if(c.pubSig===sig) return; c.days=days; c.pubSig=sig; c.pubAt=Date.now(); persist();
@@ -4284,7 +4289,7 @@ function tvClick(d,t,e){
   if(d.tvsaveblock){ const b=tvById(d.tvsaveblock); if(!b) return true;
     if($('#tvText')) b.text=$('#tvText').value.slice(0,4000); if($('#tvStatus')) b.status=$('#tvStatus').value; if($('#tvFile')) b.file=$('#tvFile').value.trim().slice(0,500);
     if(b.status==='done' && !b.doneAt) b.doneAt=Date.now(); b.editedBy=S.viewer;
-    if(isTeacher()){ b.who=$$('input[data-pp="tvwho"]:checked').map(x=>x.value); if($('#tvLink')) b.link=$('#tvLink').value; if(b.custom && $('#bName')) tvReadSeg('b',b); }
+    if(isStaff()){ b.who=$$('input[data-pp="tvwho"]:checked').map(x=>x.value); if($('#tvLink')) b.link=$('#tvLink').value; if(b.custom && $('#bName')) tvReadSeg('b',b); }
     closeModal(); render(); toast('Saved'); return true; }
   if(d.tvsaveann){ const a=tvById(d.tvsaveann); if(!a) return true; if($('#tvStatus')) a.status=$('#tvStatus').value; if($('#tvFile')) a.file=$('#tvFile').value.trim().slice(0,500); a.editedBy=S.viewer; closeModal(); render(); toast('Saved'); return true; }
   if(d.tvskip){ const [id,dd]=d.tvskip.split('|'); const day=tvDay(dd); if(day){ day.skipAnn=[...new Set([...(day.skipAnn||[]),id])]; } closeModal(); render(); toast('Skipped for that day'); return true; }
@@ -4533,7 +4538,7 @@ function myListCard(){
 
 
 /* ---------- 1.4.17: Inspiration — weekly teacher post ---------- */
-const posts = () => S.settings.filter(x=>x.id.startsWith('post_') && (isTeacher()||x.published)).sort((a,b)=>(b.week||'').localeCompare(a.week||'')||(b.ts||0)-(a.ts||0));
+const posts = () => S.settings.filter(x=>x.id.startsWith('post_') && (isStaff()||x.published)).sort((a,b)=>(b.week||'').localeCompare(a.week||'')||(b.ts||0)-(a.ts||0));
 const latestPost = () => S.settings.filter(x=>x.id.startsWith('post_') && x.published).sort((a,b)=>(b.week||'').localeCompare(a.week||'')||(b.ts||0)-(a.ts||0))[0];
 const postFresh = p => p && p.week && addDays(p.week,7) > todayISO();
 let PE=null;
@@ -4547,7 +4552,7 @@ function postCardHTML(c){
 function postHTML(p,full){
   const likes=p.likes||[], mine=likes.includes(S.viewer);
   return `<section class="ipost ${p.published?'':'draft'}"><div class="iphead"><div><div class="hint">Week of ${esc(fmt(p.week))}${p.published?'':' · <b>Draft — students can’t see this</b>'}</div><h3>${esc(p.title||'This week in Comm Tech')}</h3></div>
-    ${isTeacher()?`<button class="btn tiny" data-postedit="${p.id}">Edit</button>`:''}</div>
+    ${isStaff()?`<button class="btn tiny" data-postedit="${p.id}">Edit</button>`:''}</div>
     ${p.intro?`<p class="ipintro">${esc(p.intro)}</p>`:''}
     ${p.body?`<div class="ipbody">${mdLite(p.body)}</div>`:''}
     <div class="icgrid">${(p.cards||[]).map(postCardHTML).join('')}</div>
@@ -4556,9 +4561,9 @@ function postHTML(p,full){
 }
 function renderInspo(){
   const list=posts();
-  let h=`<div class="hello"><h2>Inspiration</h2><span class="grow"></span>${isTeacher()?'<button class="btn primary" data-postnew>+ New post</button>':''}</div>
+  let h=`<div class="hello"><h2>Inspiration</h2><span class="grow"></span>${isStaff()?'<button class="btn primary" data-postnew>+ New post</button>':''}</div>
     <p class="hint" style="margin-top:0">Check out the cool/interesting/inspiring work Mr. P has seen or read this week!</p>`;
-  h+= list.length ? list.map((p,k)=> k===0 ? postHTML(p,true) : `<details class="ipfold"><summary><span class="hint">Week of ${esc(fmt(p.week))}${p.published?'':' · Draft'}</span><b>${esc(p.title||'This week in Comm Tech')}</b></summary>${postHTML(p,true)}</details>`).join('') : `<div class="empty">${isTeacher()?'No posts yet. Click + New post to write this week’s.':'Nothing posted yet. Check back Monday!'}</div>`;
+  h+= list.length ? list.map((p,k)=> k===0 ? postHTML(p,true) : `<details class="ipfold"><summary><span class="hint">Week of ${esc(fmt(p.week))}${p.published?'':' · Draft'}</span><b>${esc(p.title||'This week in Comm Tech')}</b></summary>${postHTML(p,true)}</details>`).join('') : `<div class="empty">${isStaff()?'No posts yet. Click + New post to write this week’s.':'Nothing posted yet. Check back Monday!'}</div>`;
   return h;
 }
 function inspoHomeCard(){
@@ -5096,7 +5101,7 @@ document.addEventListener('click',e=>{
   if(d.savepoll!==undefined){ const q=$('#pQ').value.trim(); const kind=$('#pKind').value; const opts=$('#pOpts').value.split('\n').map(x=>x.trim()).filter(Boolean);
     if(!q){ toast('Add a question'); return; } if(kind==='choice' && opts.length<2){ toast('Add at least two options'); return; }
     const pg=readGrades('pGr'); const aud=pg.length?{grads:pg}:{all:true};
-    S.polls.push({id:rid('q'),question:q,kind,options:kind==='choice'?opts:[],audience:aud,namesToMe:$('#pNames').value==='1',classSees:$('#pClass').value,open:true,responses:[],...nowStamp()});
+    S.polls.push({id:rid('q'),by:S.viewer,question:q,kind,options:kind==='choice'?opts:[],audience:aud,namesToMe:$('#pNames').value==='1',classSees:$('#pClass').value,open:true,responses:[],...nowStamp()});
     if(pg.length) studentsInGrades(pg).forEach(st=>notify(st.id,'poll',{text:q})); else notify('all','poll',{text:q}); closeModal(); render(); toast('Poll posted'); return; }
   if(d.vote){ const q=S.polls.find(x=>x.id===d.vote); if(!q||!q.open) return; q.responses=[...(q.responses||[]),{by:S.viewer,val:d.val,...nowStamp()}]; render(); return; }
   if(d.votetext){ const q=S.polls.find(x=>x.id===d.votetext); const inp=$(`[data-k="poll:${d.votetext}"]`); const v=(inp?.value||'').trim(); if(!q||!v) return; q.responses=[...(q.responses||[]),{by:S.viewer,val:v,...nowStamp()}]; inp.value=''; render(); toast('Answer sent'); return; }
