@@ -957,6 +957,15 @@ button.abtag{cursor:pointer}
 .walltv{margin-top:14px;width:100%}.nxflag{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .nxrow{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:10px 0;display:flex;flex-direction:column;gap:6px}.nxhead{display:flex;justify-content:space-between;gap:8px}.nxf{display:grid;grid-template-columns:1fr auto;gap:6px;align-items:center}.nxrow input:not([type=checkbox]){width:100%;box-sizing:border-box}
 .ciwall{display:grid;grid-template-columns:1fr auto;gap:6px}.ciwall select{grid-column:1/-1}
+.tkwrap{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;margin-top:12px}@media (max-width:900px){.tkwrap{grid-template-columns:1fr}}
+.tkcol{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px}
+.tkline{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)}.tkline.off .tktext{opacity:.4;text-decoration:line-through}.tktext{flex:1;font-weight:600}
+.tkeye{border:0;background:none;cursor:pointer;font-size:16px}#tkLines{width:100%;box-sizing:border-box;font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:8px}.tkbtns{margin-top:8px;display:flex;gap:8px}
+.tkprev{background:#111;border-radius:10px;padding:26px 0 0;overflow:hidden}.tkbar{height:46px;background:var(--bar);border-radius:10px;display:flex;overflow:hidden}
+.tklogo{width:46px;flex:none;display:grid;place-items:center;color:#fff;font-weight:900;border-right:2px solid rgba(255,255,255,.25)}.tkwin{flex:1;overflow:hidden;display:flex;align-items:center}
+.tktrack{display:flex;white-space:nowrap;color:var(--txt);font-weight:700;text-transform:uppercase;font-size:17px;animation:tkscroll linear infinite}.tktrack span{padding-right:2em}.tktrack i{font-style:normal;padding:0 .8em}
+@keyframes tkscroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.tkstyle{margin-top:12px}.tkurl{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.tkurl code{font-size:12px;background:var(--surface-2,#f3f5f4);padding:6px 8px;border-radius:6px;word-break:break-all}
 .tag.late{background:#fde8e6;color:#b42318;border-color:#f3b4ad}.tag.subat{background:#eef2f0;color:#3c4a44}
 .tvrow.dragging{opacity:.4}.tvrow.tvdropb{box-shadow:inset 0 3px 0 #00954C}.tvrow.tvdropa{box-shadow:inset 0 -3px 0 #00954C}.tvrow[draggable="true"]{cursor:grab}
 .tvrow{display:flex;align-items:center;gap:6px;border:0;background:transparent;text-align:left;padding:6px;border-radius:8px;font:inherit;font-size:13px;color:var(--ink);cursor:pointer;min-height:32px}
@@ -1123,8 +1132,8 @@ const CFG = window.JARVIS_CONFIG || {};
 const SUPABASE_URL = CFG.url || 'PASTE_YOUR_PROJECT_URL';
 const SUPABASE_ANON_KEY = CFG.anonKey || 'PASTE_YOUR_ANON_KEY';
 const LOGIN_DOMAIN = 'jarvis.local';
-const APP_VERSION = '1.5.11';
-const APP_DATE = 'Nov 2, 2026';
+const APP_VERSION = '1.5.12';
+const APP_DATE = 'Nov 3, 2026';
 
 /* ---------- Dates ---------- */
 const localISO = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -1419,6 +1428,7 @@ async function startSession(){
   resetFilters(); Object.assign(UI,{page:'home',project:'',wkStudent:'',wkStart:null,more:false});
   try{ const standalone=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone; if(isTeacher() && standalone && window.innerWidth<760){ UI.page='mylist'; setTimeout(()=>$('#tdQuick')?.focus(),400); } }catch(e){}
   if(ensureWeeklyReport()) persist();
+  if(isTeacher()) setTimeout(tickerPublish,1500);
   if(isTeacher()){ const wc=S.settings.find(x=>x.id==='wall_cfg'); if(!wc || !wc.sophInit){ const c=wallCfgW(); c.sophInit=true; c.off=[...new Set([...(c.off||[]).map(String),String(SOPH_YEAR),String(FRESH_YEAR)])]; persist(); } }
   render(); maybeCheckin(); setTimeout(maybeAskEmail,600);
 }
@@ -3864,7 +3874,7 @@ function tvAddBlock(d,s,custom){
   S.broadcast.push(b); return b;
 }
 /* A block shows its library segment's current wording unless it was changed for that day */
-function tvInfo(b){ const s=!b.custom && b.segId && tvById(b.segId); return s ? {...b,name:s.name,shot:s.shot,cue:s.cue,say:s.say,prompt:s.prompt,needs:s.needs,videoOnly:!!s.videoOnly,pos:b.pos??s.pos} : b; }
+function tvInfo(b){ const s=!b.custom && b.segId && tvById(b.segId); return s ? {...b,name:s.name,shot:s.shot,cue:s.cue,say:s.say,prompt:s.prompt,needs:s.needs,videoOnly:!!s.videoOnly,pos:b.pos??s.pos,ticker:!!s.ticker,tickerText:s.tickerText||''} : b; }
 /* v1.4.4 announcement rules:
    - normal: airs start..end on its set days, and ALWAYS on its first and last school day (moved to the nearest school day if those are days off)
    - event dates: airs M/W/F of the week before each date, plus the day of. {NEXT} becomes the next date.
@@ -4009,7 +4019,7 @@ function renderTV(){
   if(T){ changed=tvSeed()||changed; if(days[4]>=todayISO()) days.forEach(d=>{ if(d>=todayISO()) changed=tvBuildDay(d)||changed; }); }
   if(changed) setTimeout(()=>persist(),0);
   const c=tvCfg(), doc=(c.weekDocs||{})[ws];
-  const tabs=[['rundown','Rundown'],['needs','What needs doing'],...(T?[['ann','Announcements'],['segs','Segments']]:[])];
+  const tabs=[['rundown','Rundown'],['needs','What needs doing'],...(T?[['ann','Announcements'],['segs','Segments'],['ticker','Ticker']]:[])];
   let h=`<div class="hello"><h2>Spartan TV</h2></div>
   <div class="tvtabs seg" role="tablist">${tabs.map(([k,l])=>`<button data-tvtab="${k}" class="${tab===k?'on':''}">${l}${k==='needs'?` <span class="navcount">${tvNeeds().filter(n=>!(n.o.who||[]).length).length||''}</span>`:''}</button>`).join('')}</div>`;
   if(tab==='rundown'){
@@ -4022,6 +4032,8 @@ function renderTV(){
   if(tab==='needs') h+=tvNeedsHTML();
   if(tab==='ann' && T) h+=tvAnnHTML();
   if(tab==='segs' && T) h+=tvSegsHTML();
+  if(tab==='ticker' && T) h+=tickerHTML();
+  if(T) setTimeout(tickerPublish,50);
   return h;
 }
 function tvDayCard(d){
@@ -4099,6 +4111,7 @@ function tvSegFields(s,pre){
     <label>Always says</label><textarea id="${pre}Say" rows="4" placeholder="Fixed words. Leave a blank line between paragraphs to switch anchors.">${esc(s.say||'')}</textarea>
     <label>Writer prompt</label><input id="${pre}Prompt" value="${esc(s.prompt||'')}" placeholder="Leave empty if nothing changes day to day">
     <label>Needs made</label><select id="${pre}Needs">${Object.entries(TV_NEEDS).map(([k,l])=>`<option value="${k}" ${s.needs===k?'selected':''}>${l}</option>`).join('')}</select>
+    <label>Ticker</label><span><label class="fopt"><input type="checkbox" id="${pre}Tick" ${s.ticker?'checked':''}> Add to ticker</label><input id="${pre}TickTxt" maxlength="80" value="${esc(s.tickerText||'')}" placeholder="Short ticker line (blank = the name)"></span>
     ${pre==='s'?`<label>How often</label><span>${F.map(([k,l])=>`<label class="fopt"><input type="radio" name="sFreq" value="${k}" ${s.freq===k?'checked':''}> ${l}</label>`).join('')}<span class="tvdays">${[1,2,3,4,5].map(x=>`<label><input type="checkbox" data-sday="${x}" ${(s.days||[]).includes(x)?'checked':''}> ${WD[x]}</label>`).join('')}</span></span>
     <label>Position</label><input id="sPos" type="number" value="${s.pos||50}"><span></span><span class="hint">Lower numbers come first. Announcements sit at ${tvCfg().annPos??40}.</span>
     <label>Turned on</label><label class="fopt"><input type="checkbox" id="sActive" ${s.active!==false?'checked':''}> Use this segment</label>`:''}</div>`;
@@ -4107,6 +4120,7 @@ function tvReadSeg(pre,o){
   const v=id=>($('#'+pre+id)||{}).value;
   o.name=(v('Name')||'').trim()||'Untitled segment'; const sh=v('Shot'); o.videoOnly=sh==='video'; if(sh!=='video') o.shot=sh;
   o.cue=v('Cue')||''; o.say=v('Say')||''; o.prompt=(v('Prompt')||'').trim(); o.needs=v('Needs')||'none';
+  if($('#'+pre+'Tick')){ o.ticker=$('#'+pre+'Tick').checked; o.tickerText=(v('TickTxt')||'').trim().slice(0,80); }
 }
 function tvSegModal(id){
   const s=id?tvById(id):{name:'',shot:'2-SHOT',cue:'',say:'',prompt:'',needs:'none',freq:'manual',days:[],pos:60,videoOnly:false,active:true};
@@ -4146,6 +4160,7 @@ function tvAnnModal(id,preset){
       <label>Graphic</label><span><label class="fopt"><input type="checkbox" id="aGfx" ${a.needsGfx?'checked':''}> Needs a graphic — post a request in the project bank</label>
         <span class="hint">Leave unchecked for simple ones you edit in vMix.${gb?` Bank request: <b>${esc(gb.status==='taken'?'taken by '+(gb.takenBy||[]).map(first).join(', '):'waiting in Requests')}</b>.`:''}${gf?` <a href="${esc(gf)}" target="_blank" rel="noopener">Open finished graphic</a>`:''}</span></span>
       <label>Graphic notes</label><textarea id="aGfxNote" rows="2" placeholder="Optional: use the club logo, vertical lower-third, school colors…">${esc(a.gfxNote||'')}</textarea>
+      <label>Ticker</label><span><label class="fopt"><input type="checkbox" id="aTick" ${a.ticker?'checked':''}> Add to ticker</label><input id="aTickTxt" maxlength="80" value="${esc(a.tickerText||'')}" placeholder="Short line, e.g. Army visit (date) — blank = the title"><span class="hint">Shows on the ticker on the same days it airs. (date) becomes “today” or the day.</span></span>
     </div>
     <details class="psec"><summary><span class="st">More options</span></summary><div class="fields tvsegf">
       <label>From</label><input id="aFrom" value="${esc(a.from||'')}" placeholder="Who sent it (optional)">
@@ -4171,8 +4186,79 @@ function tvAnnView(id,d){
     <div class="mfoot">${isTeacher()&&day?`<button class="btn" data-tvskip="${id}|${d}">Skip it on ${esc(fmt(d))}</button><button class="btn" data-tvannedit="${id}">Edit</button>`:''}${a.needsGfx&&(isTeacher()||mine)?`<button class="btn primary" data-tvsaveann="${id}">Save</button>`:''}</div>`);
 }
 
+
+/* ---------- 1.5.12: Ticker (vMix) ---------- */
+const TK_DEF={speed:140,size:5.2,bar:'#005746',txt:'#ffffff',sep:'•',logo:true};
+const tkCfg = () => S.broadcast.find(x=>x.id==='tv_ticker') || {id:'tv_ticker',kind:'ticker',lines:[],hide:{},style:{...TK_DEF},days:{}};
+function tkCfgW(){ let c=S.broadcast.find(x=>x.id==='tv_ticker'); if(!c){ c={id:'tv_ticker',kind:'ticker',lines:[],hide:{},style:{...TK_DEF},days:{}}; S.broadcast.push(c); } return c; }
+const tkShortDate = E => parseISO(E).toLocaleDateString('en-US',{weekday:'short',month:'numeric',day:'numeric'});
+function tkFill(txt,info){ txt=String(txt||''); if(!info||!info.next) return txt.replace(/\s*\((?:date|day)\)/gi,''); return txt.replace(/\((?:date|day)\)/gi, info.today?'today':tkShortDate(info.next)); }
+/* every possible line for a day, in order: announcements, segments, then your own lines */
+function tickerLinesFor(d){
+  const out=[], c=tkCfg(), day=tvDay(d), skip=new Set((day&&day.skipAnn)||[]);
+  if(tvSchoolDay(d)){
+    tvRows('ann').filter(a=>a.ticker && !skip.has(a.id)).map(a=>({a,info:annAir(a,d)})).filter(x=>x.info).sort((x,y)=>(x.a.order||0)-(y.a.order||0))
+      .forEach(x=>out.push({key:'a:'+x.a.id,text:tkFill(x.a.tickerText||x.a.title||'',x.info),src:'Announcement'}));
+    S.broadcast.filter(b=>b.kind==='block'&&b.date===d).map(b=>({b,i:tvInfo(b)})).filter(x=>x.i.ticker).sort((x,y)=>(x.i.pos||0)-(y.i.pos||0))
+      .forEach(x=>out.push({key:'b:'+x.b.id,text:x.i.tickerText||x.i.name||'',src:'Segment'}));
+  }
+  (c.lines||[]).forEach(l=>{ if(l.text) out.push({key:'m:'+l.id,text:l.text,src:'Your line'}); });
+  const hid=new Set((c.hide||{})[d]||[]);
+  return out.map(x=>({...x,hidden:hid.has(x.key)}));
+}
+function tickerPublish(){
+  if(!isTeacher()) return; const c=tkCfgW(), days={};
+  for(let k=-1;k<21;k++){ const d=addDays(todayISO(),k); days[d]=tickerLinesFor(d).filter(x=>!x.hidden && x.text.trim()).map(x=>x.text.trim()); }
+  const sig=JSON.stringify(days)+JSON.stringify(c.style||{});
+  if(c.pubSig===sig) return; c.days=days; c.pubSig=sig; c.pubAt=Date.now(); persist();
+}
+function tickerHTML(){
+  const c=tkCfg(), st={...TK_DEF,...(c.style||{})};
+  let d=UI.tkDay||todayISO(); UI.tkDay=d;
+  const L=tickerLinesFor(d), shown=L.filter(x=>!x.hidden).map(x=>x.text);
+  const url=new URL('ticker.html?clean=1',location.href).href;
+  return `<div class="tkwrap"><section class="tkcol">
+    <div class="tvweekbar"><button class="btn tiny" data-tkday="-1">‹</button><b>${esc(fmtDay(d))}</b><button class="btn tiny" data-tkday="1">›</button>${d!==todayISO()?'<button class="linkbtn" data-tkday="0">Today</button>':''}</div>
+    <h3 class="sech small">On the ticker <span class="hint">Click 👁 to hide a line for this day only</span></h3>
+    ${L.length?L.map(x=>`<div class="tkline ${x.hidden?'off':''}"><button class="tkeye" data-tkhide="${esc(x.key)}" title="${x.hidden?'Show':'Hide'} on ${esc(fmt(d))}">${x.hidden?'🚫':'👁'}</button><span class="tktext">${esc(x.text||'(empty)')}</span><span class="tag">${x.src}</span></div>`).join(''):'<p class="hint">Nothing yet. Check “Add to ticker” on an announcement or segment, or type your own lines below.</p>'}
+    <h3 class="sech small">Your own lines <span class="hint">One per line. These show every day.</span></h3>
+    <textarea id="tkLines" rows="4" placeholder="Go Spartans!&#10;Follow @yorktech for live updates">${esc((c.lines||[]).map(l=>l.text).join('\n'))}</textarea>
+    <div class="tkbtns"><button class="btn primary" data-tksave>Save lines</button></div>
+  </section><section class="tkcol">
+    <h3 class="sech small">Preview</h3>
+    <div class="tkprev" style="--bar:${esc(st.bar)};--txt:${esc(st.txt)}"><div class="tkbar">${st.logo?'<span class="tklogo">YT</span>':''}<div class="tkwin"><div class="tktrack" style="animation-duration:${Math.max(6,(shown.join(' '+st.sep+' ').length*11)/(st.speed*0.5))}s">${[0,1].map(()=>`<span>${shown.length?shown.map(t=>esc(t)+` <i>${esc(st.sep)}</i> `).join(''):'TEXT HERE'}</span>`).join('')}</div></div></div></div>
+    <div class="fields tkstyle">
+      <label>Speed <b>${st.speed}</b></label><input type="range" min="30" max="400" step="5" data-tkst="speed" value="${st.speed}">
+      <label>Text size <b>${Number(st.size).toFixed(1)}</b></label><input type="range" min="2.5" max="8" step="0.1" data-tkst="size" value="${st.size}">
+      <label>Bar color</label><input type="color" data-tkst="bar" value="${esc(st.bar)}">
+      <label>Text color</label><input type="color" data-tkst="txt" value="${esc(st.txt)}">
+      <label>Separator</label><input data-tkst="sep" maxlength="6" value="${esc(st.sep)}">
+      <label>Logo</label><label class="fopt"><input type="checkbox" data-tkst="logo" ${st.logo?'checked':''}> Show logo</label>
+    </div>
+    <div class="tkbtns"><button class="btn" data-tkreset>Reset style</button></div>
+    <h3 class="sech small">vMix</h3>
+    <p class="hint">Add a <b>Web Browser</b> input at 1920×1080 with this address, on an Overlay channel. It checks for changes every 10 seconds and shows today’s lines.</p>
+    <div class="tkurl"><code>${esc(url)}</code><button class="btn tiny" data-tkcopy="${esc(url)}">Copy link</button></div>
+    <p class="hint">No internet on the vMix PC? <button class="linkbtn" data-tkfile>Download messages.js for ${esc(fmt(d))}</button> and use your offline ticker folder.</p>
+    <p class="hint">${c.pubAt?`Ticker last updated ${esc(new Date(c.pubAt).toLocaleString('en-US',{weekday:'short',hour:'numeric',minute:'2-digit'}))}.`:''}</p>
+  </section></div>`;
+}
+function tickerClick(d,t){
+  if(d.tkday!==undefined){ const n=+d.tkday; UI.tkDay = n===0?todayISO():addDays(UI.tkDay||todayISO(),n); render(); return true; }
+  if(d.tkhide){ const c=tkCfgW(), day=UI.tkDay||todayISO(); c.hide={...(c.hide||{})}; const h=new Set(c.hide[day]||[]); h.has(d.tkhide)?h.delete(d.tkhide):h.add(d.tkhide); c.hide[day]=[...h];
+    Object.keys(c.hide).forEach(k=>{ if(k<addDays(todayISO(),-7)) delete c.hide[k]; }); render(); return true; }
+  if(d.tksave!==undefined){ const c=tkCfgW(); const old=c.lines||[]; c.lines=$('#tkLines').value.split('\n').map(x=>x.trim()).filter(Boolean).slice(0,30).map((text,k)=>({id:(old[k]&&old[k].text===text)?old[k].id:rid('tl'),text:text.slice(0,120)})); render(); toast('Ticker lines saved'); return true; }
+  if(d.tkreset!==undefined){ const c=tkCfgW(); c.style={...TK_DEF}; render(); return true; }
+  if(d.tkcopy){ try{ navigator.clipboard.writeText(d.tkcopy); toast('Link copied. Paste it into the vMix Web Browser input.'); }catch(e){ prompt('Copy this link:',d.tkcopy); } return true; }
+  if(d.tkfile!==undefined){ const day=UI.tkDay||todayISO(), st={...TK_DEF,...(tkCfg().style||{})}; const cfg={text:tickerLinesFor(day).filter(x=>!x.hidden).map(x=>x.text).join('\n'),speed:+st.speed,size:+st.size,bar:st.bar,txt:st.txt,sep:st.sep,logo:!!st.logo,t:Date.now()};
+    const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['window.TICKER_CONFIG='+JSON.stringify(cfg)+';'],{type:'text/javascript'})); a.download='messages.js'; document.body.appendChild(a); a.click(); a.remove(); toast('messages.js downloaded. Put it in your ticker folder.'); return true; }
+  return false;
+}
+document.addEventListener('change',e=>{ const t=e.target; if(!t||!t.dataset||!t.dataset.tkst) return; const c=tkCfgW(); c.style={...TK_DEF,...(c.style||{})}; const k=t.dataset.tkst;
+  c.style[k] = k==='logo'?t.checked : (k==='speed'||k==='size')?+t.value : t.value; render(); });
 /* ---------- Clicks ---------- */
 function tvClick(d,t,e){
+  if(tickerClick(d,t)) return true;
   if(d.tvtab){ UI.tvTab=d.tvtab; render(); return true; }
   if(d.tvweek!==undefined){ const n=+d.tvweek; UI.tvWeek = n===0?weekStartOf(todayISO()):addDays(UI.tvWeek||weekStartOf(todayISO()),n); render(); return true; }
   if(d.tvflip){ const c=tvCfgW(); c.abSet={...(c.abSet||{})}; c.abSet[d.tvflip]=abOther(abFor(d.tvflip)); render(); toast(`${fmt(d.tvflip)} is now a ${c.abSet[d.tvflip]} day. The days after it follow.`); return true; }
@@ -4206,7 +4292,7 @@ function tvClick(d,t,e){
     if(!start||!end||end<start){ toast(dates.length?'Check the dates':'Add visit dates, or a Runs start and end'); return true; }
     if(dates.length && !/\((?:date|day|insert day)\)|\{NEXT\}/i.test(v('aSay'))) { if(!confirm('The wording has no (date) in it, so it won’t say which day. Save anyway?')) return true; }
     const a=TVE?tvById(TVE):{id:rid('an'),kind:'ann',who:[],status:'not',file:''};
-    Object.assign(a,{title:v('aTitle').trim()||v('aSay').trim().slice(0,40),from:v('aFrom').trim(),email:v('aEmail'),say:v('aSay').trim(),start,end,days:$$('input[data-aday]:checked').map(x=>+x.dataset.aday),shot:v('aShot')||'Graphic',cue:v('aCue').trim(),needsGfx:!!$('#aGfx')?.checked,gfxNote:v('aGfxNote').trim().slice(0,1000),order:+v('aOrder')||0,dates});
+    Object.assign(a,{title:v('aTitle').trim()||v('aSay').trim().slice(0,40),from:v('aFrom').trim(),email:v('aEmail'),say:v('aSay').trim(),start,end,days:$$('input[data-aday]:checked').map(x=>+x.dataset.aday),shot:v('aShot')||'Graphic',cue:v('aCue').trim(),needsGfx:!!$('#aGfx')?.checked,gfxNote:v('aGfxNote').trim().slice(0,1000),ticker:!!$('#aTick')?.checked,tickerText:v('aTickTxt').trim().slice(0,80),order:+v('aOrder')||0,dates});
     if($('#aFile')) a.file=v('aFile').trim();
     if(!TVE) S.broadcast.push(a); syncGfxRequest(a); closeModal(); render(); toast(dates.length?`Saved · ${dates.length} date${dates.length===1?'':'s'}: ${dates.map(shortDate).join(', ')}`:'Announcement saved'); return true; }
   if(d.tvanndup){ const src=tvById(d.tvanndup); if(!src) return true; const {id,who,status,file,doneAt,editedBy,bankId,...rest}=src; tvAnnModal(null,{...rest,title:(src.title||'Announcement')+' (copy)'}); return true; }
