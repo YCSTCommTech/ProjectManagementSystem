@@ -1123,8 +1123,8 @@ const CFG = window.JARVIS_CONFIG || {};
 const SUPABASE_URL = CFG.url || 'PASTE_YOUR_PROJECT_URL';
 const SUPABASE_ANON_KEY = CFG.anonKey || 'PASTE_YOUR_ANON_KEY';
 const LOGIN_DOMAIN = 'jarvis.local';
-const APP_VERSION = '1.5.10';
-const APP_DATE = 'Nov 1, 2026';
+const APP_VERSION = '1.5.11';
+const APP_DATE = 'Nov 2, 2026';
 
 /* ---------- Dates ---------- */
 const localISO = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -1560,7 +1560,7 @@ const returnCount = i => (i.history||[]).filter(e=>e.kind==='status'&&e.from==='
 function needsChanges(i){ const h=(i.history||[]).filter(e=>e.kind==='status'); const last=h[h.length-1]; return !!last && last.from==='sub' && last.to==='work' && i.status==='work'; }
 
 /* ---------- Asks ---------- */
-const askIncludes = (a,v) => a.kind==='feedback' ? (a.to==='all' || (Array.isArray(a.to)&&a.to.includes(v))) : a.kind==='help' ? isTeacherId(v) : a.kind==='merge' ? (isTeacherId(v) || (Array.isArray(a.to)&&a.to.includes(v))) : true;
+const askIncludes = (a,v) => a.kind==='feedback' ? ((a.to==='all' && (isTeacherId(v)||isTeacherId(a.by)||levelOf(v)===levelOf(a.by))) || (Array.isArray(a.to)&&a.to.includes(v))) : a.kind==='help' ? isTeacherId(v) : a.kind==='merge' ? (isTeacherId(v) || (Array.isArray(a.to)&&a.to.includes(v))) : true;
 const toName = to => to==='all' ? 'Everyone' : (Array.isArray(to)?to:[to]).map(first).join(', ');
 const openAsksFor = (target) => S.asks.filter(a=>a.kind==='feedback' && (target.itemId? a.itemId===target.itemId : (a.projectId===target.projectId && !a.itemId)));
 function canReplyAsk(a){ return isTeacher() || a.by===S.viewer || askIncludes(a,S.viewer); }
@@ -2417,11 +2417,11 @@ function lessonCard(l){
   return `<div class="lcard ${past?'past':''}"><div class="lhead"><b>${esc(l.title)}</b><span class="hint">${esc(fmtDay(l.date))} · ${esc(fmtTime(l.start))}–${esc(fmtTime(l.end))}</span></div>
     ${l.description?`<div class="desc">${esc(l.description)} ${speakBtn(l.title+'. '+l.description)}</div>`:''}
     <div class="lfoot"><span class="seats"><i style="width:${Math.min(100,n/l.seats*100)}%"></i></span><span class="hint">${n}/${l.seats} seats</span>${avatars(l.signups||[],8)}
-      ${remindBtn('L:'+l.id,'mini')}${l.assigned?`<span class="tag">${esc(lAssignedLabel(l))} · auto-enrolled</span>`:''}${isTeacher()?`<button class="linkbtn" data-editlesson="${l.id}">Edit</button><button class="linkbtn" data-dellesson="${l.id}">Delete</button>`:l.assigned?(mine?'<span class="tag ok">You’re in</span>':''):past?'':(mine?`<button class="btn tiny" data-leave="${l.id}">Leave</button>`:(n<l.seats?`<button class="btn tiny primary" data-signup="${l.id}">Sign up</button>`:'<span class="tag">Full</span>'))}</div></div>`;
+      ${remindBtn('L:'+l.id,'mini')}${l.assigned?`<span class="tag">${esc(lAssignedLabel(l))} · auto-enrolled</span>`:(l.openTo||[]).length?`<span class="tag">${esc(gradesLabel(l.openTo))} only</span>`:''}${isTeacher()?`<button class="linkbtn" data-editlesson="${l.id}">Edit</button><button class="linkbtn" data-dellesson="${l.id}">Delete</button>`:l.assigned?(mine?'<span class="tag ok">You’re in</span>':''):past?'':(mine?`<button class="btn tiny" data-leave="${l.id}">Leave</button>`:(n<l.seats?`<button class="btn tiny primary" data-signup="${l.id}">Sign up</button>`:'<span class="tag">Full</span>'))}</div></div>`;
 }
 function renderLessons(){
   const t=todayISO();
-  const vis=l=>isTeacher()||!l.assigned||(l.signups||[]).includes(S.viewer);
+  const vis=l=>isTeacher()||(l.assigned?(l.signups||[]).includes(S.viewer):forMyGrade(l.openTo)||(l.signups||[]).includes(S.viewer));
   const up=S.lessons.filter(l=>l.date>=t&&vis(l)).sort((a,b)=>(a.date+a.start).localeCompare(b.date+b.start));
   const past=S.lessons.filter(l=>l.date<t&&vis(l)).sort((a,b)=>b.date.localeCompare(a.date));
   const reqs=S.asks.filter(a=>a.kind==='lesson'&&a.open).sort((a,b)=>(b.plus||[]).length-(a.plus||[]).length);
@@ -2555,6 +2555,14 @@ function assignmentForm(a){
 }
 function readAudience(){ const aud={}; if($('#audAll').checked) aud.all=true; aud.grads=$$('.audGrad:checked').map(x=>+x.value); aud.majors=$$('.audMajor:checked').map(x=>x.value); aud.students=$$('input[data-pp="aud"]:checked').map(x=>x.value); return aud; }
 function updAudCount(){ const el=$('#audCount'); if(el) el.textContent=`Will appear on ${studentsFor(readAudience()).length} students’ boards.`; }
+/* 1.5.11: who-is-this-for grade checkboxes, reused by events, lessons, polls */
+const GRADE_OPTS = () => [[SENIOR_YEAR,'Seniors'],[JUNIOR_YEAR,'Juniors'],[SOPH_YEAR,'Sophomores'],[FRESH_YEAR,'Freshmen']];
+function gradeChecks(cls,sel,hint){ sel=(sel||[]).map(Number); return `<span class="checks">${GRADE_OPTS().filter(([g])=>STUDENTS.some(st=>st.grad===g)||sel.includes(g)).map(([g,l])=>`<label class="ck ${sel.includes(g)?'on':''}"><input type="checkbox" class="${cls} gck" value="${g}" ${sel.includes(g)?'checked':''}> ${l}</label>`).join('')}${hint?`<span class="hint">${hint}</span>`:''}</span>`; }
+const readGrades = cls => $$('.'+cls+':checked').map(x=>+x.value);
+const gradesLabel = gs => (gs||[]).map(g=>(GRADE_OPTS().find(x=>x[0]===+g)||[0,'?'])[1]).join(' + ');
+const forMyGrade = gs => isTeacher() || !(gs&&gs.length) || gs.map(Number).includes(PEOPLE[S.viewer]?.grad);
+const studentsInGrades = gs => (gs&&gs.length) ? STUDENTS.filter(st=>gs.map(Number).includes(st.grad)) : STUDENTS;
+const levelOf = pid => { const g=PEOPLE[pid]?.grad; return g!=null && g>JUNIOR_YEAR ? 'lower' : 'upper'; };
 const lAssigned = l => !l||!l.assigned ? [] : (Array.isArray(l.assigned)?l.assigned:[l.assigned]).map(Number);
 const lAssignedLabel = l => lAssigned(l).map(g=>gradLabel(g)+'s').join(' + ');
 function lessonForm(l,fromAsk){
@@ -2563,6 +2571,7 @@ function lessonForm(l,fromAsk){
     ${fromAsk?`<div class="note">Scheduling a student request. Everyone who +1’d it gets notified first.</div>`:''}
     <div class="fields"><label>Title</label><input id="lTitle" value="${esc(l.title)}"><label>Description</label><textarea id="lDesc" rows="2">${esc(l.description||'')}</textarea>
       <label>Date</label><input id="lDate" type="date" value="${esc(l.date)}"><label>Start</label><input id="lStart" type="time" value="${esc(l.start)}"><label>End</label><input id="lEnd" type="time" value="${esc(l.end)}"><label>Auto-enroll</label><span class="checks">${[[SENIOR_YEAR,'All seniors'],[JUNIOR_YEAR,'All juniors'],[SOPH_YEAR,'All sophomores'],[FRESH_YEAR,'All freshmen']].filter(([g])=>STUDENTS.some(st=>st.grad===g)||lAssigned(l).includes(g)).map(([g,lab])=>`<label class="ck ${lAssigned(l).includes(g)?'on':''}"><input type="checkbox" class="lWho" value="${g}" ${lAssigned(l).includes(g)?'checked':''}> ${lab}</label>`).join('')}<span class="hint">Leave all unchecked for a sign-up lesson.</span></span>
+      <label>Sign-up open to</label>${gradeChecks('lOpen',l.openTo,'For sign-up lessons. Leave unchecked for everyone.')}
       <label>Seats</label><input id="lSeats" type="number" min="1" max="40" value="${l.seats}"><span></span><span class="hint">Seats only matter for sign-up lessons.</span></div>
     <div class="mfoot"><button class="btn primary" data-savelesson="${edit?l.id:''}" data-fromask="${fromAsk?fromAsk.id:''}">${edit?'Save':'Schedule lesson'}</button></div>`;
 }
@@ -2571,7 +2580,7 @@ function pollForm(){
     <div class="fields"><label>Question</label><input id="pQ" placeholder="e.g. Who wants a Premiere keyframing lesson?">
       <label>Type</label><select id="pKind"><option value="choice">Multiple choice</option><option value="scale">Interest 1–5</option><option value="text">Short answer</option></select>
       <label>Options</label><textarea id="pOpts" rows="4" placeholder="One option per line (multiple choice only)"></textarea>
-      <label>Who</label><select id="pAud"><option value="all">Everyone</option><option value="${SENIOR_YEAR}">Seniors</option><option value="${JUNIOR_YEAR}">Juniors</option><option value="${SOPH_YEAR}">Sophomores</option><option value="${FRESH_YEAR}">Freshmen</option></select>
+      <label>Who</label>${gradeChecks('pGr',[],'Leave unchecked for everyone.')}
       <label>You see</label><select id="pNames"><option value="1">Names with answers</option><option value="0">Anonymous answers</option></select>
       <label>Class sees</label><select id="pClass"><option value="counts">Results, no names</option><option value="names">Results with names</option><option value="hidden">Nothing (only you see results)</option></select></div>
     <div class="mfoot"><button class="btn primary" data-savepoll>Post poll</button></div>`;
@@ -3123,7 +3132,7 @@ const eventKindLabel = k => (EVENT_KINDS.find(x=>x[0]===k)||EVENT_KINDS[0])[1];
 const eventById = id => S.events.find(e=>e.id===id);
 const eventDays = e => { const out=[]; let d=e.date; const end=e.endDate&&e.endDate>=e.date?e.endDate:e.date; while(d<=end && out.length<60){ out.push(d); d=addDays(d,1); } return out; };
 const eventOn = (e,d) => d>=e.date && d<=(e.endDate&&e.endDate>=e.date?e.endDate:e.date);
-const visibleEvents = () => S.events.filter(e=> e.status==='approved' || isTeacher() || e.by===S.viewer);
+const visibleEvents = () => S.events.filter(e=> (e.status==='approved' && forMyGrade(e.grads)) || isTeacher() || e.by===S.viewer);
 const linkedProjects = eid => S.projects.filter(p=>p.eventId===eid);
 const linkedItems = eid => S.items.filter(i=>i.eventId===eid);
 function eventOpenTasks(eid){
@@ -3246,7 +3255,7 @@ function renderCal(){
 function mpStrip(mp){
   const t=todayISO();
   const weeks=[]; mp.days.forEach(d=>{ const w=weekStartOf(d); let g=weeks.find(x=>x.w===w); if(!g){ g={w,days:[]}; weeks.push(g); } g.days.push(d); });
-  const evs=S.events.filter(e=>e.status==='approved');
+  const evs=S.events.filter(e=>e.status==='approved' && forMyGrade(e.grads));
   const cell=(d,k)=>{ const e=evs.filter(x=>eventOn(x,d)); const due=S.assignments.filter(a=>a.due===d).length;
     return `<button class="mpd ${d<t?'past':''} ${d===t?'today':''} ${e.some(x=>x.kind==='noschool')?'off':''}" data-calgo="${d}" title="${esc(fmtDay(d))}${e.length?' · '+e.map(x=>x.title).join(', '):''}${due?' · '+due+' due':''}">
       <span class="mpn">${mp.days.indexOf(d)+1}</span>${e.length?'<i class="dot ev"></i>':''}${due?'<i class="dot due"></i>':''}</button>`; };
@@ -3266,14 +3275,15 @@ function eventModal(e,date){
       <label>Ends</label><input type="date" id="evEnd" value="${esc(e.endDate||'')}" title="Leave blank for one day">
       <label>Time</label><span class="evtimes"><input type="time" id="evStart" value="${esc(e.start||'')}"> – <input type="time" id="evEndT" value="${esc(e.end||'')}"></span>
       <label>Where</label><input id="evLoc" value="${esc(e.location||'')}" placeholder="Optional">
-      <label>Details</label><textarea id="evDesc" rows="2">${esc(e.description||'')}</textarea></div>
+      <label>Details</label><textarea id="evDesc" rows="2">${esc(e.description||'')}</textarea>
+      ${T?`<label>For</label>${gradeChecks('evGr',e.grads,'Leave unchecked for everyone.')}`:''}</div>
     <div class="mfoot"><button class="btn primary" data-saveevent="${edit?e.id:''}">${edit?'Save':T?'Add to calendar':'Send to Mr. P'}</button></div>`);
 }
 function eventDetail(e){
   const T=isTeacher(), mine=e.by===S.viewer, lp=linkedProjects(e.id), li=linkedItems(e.id), prog=eventOpenTasks(e.id);
   const canEditIt = T || (mine && e.status==='pending');
   openModal(`<div class="mhead"><h2>${esc(e.title)}</h2><button class="x" data-closemodal>×</button></div>
-    <div class="evmeta"><span class="evchip k-${e.kind}">${esc(eventKindLabel(e.kind))}</span> <b>${esc(fmtDay(e.date))}${e.endDate&&e.endDate>e.date?' – '+esc(fmtDay(e.endDate)):''}</b>${e.start?` · ${esc(fmtTime(e.start))}${e.end?'–'+esc(fmtTime(e.end)):''}`:''}${e.location?` · ${esc(e.location)}`:''}</div>
+    <div class="evmeta"><span class="evchip k-${e.kind}">${esc(eventKindLabel(e.kind))}</span>${(e.grads||[]).length?` <span class="tag">${esc(gradesLabel(e.grads))} only</span>`:''} <b>${esc(fmtDay(e.date))}${e.endDate&&e.endDate>e.date?' – '+esc(fmtDay(e.endDate)):''}</b>${e.start?` · ${esc(fmtTime(e.start))}${e.end?'–'+esc(fmtTime(e.end)):''}`:''}${e.location?` · ${esc(e.location)}`:''}</div>
     ${e.description?`<div class="desc">${esc(e.description)} ${speakBtn(e.description)}</div>`:''}
     ${e.status==='pending'?`<div class="note">Suggested by ${esc(pname(e.by))} — waiting for Mr. P.</div>`:e.status==='declined'?`<div class="note bad">Declined${e.note?`: “${esc(e.note)}”`:''}</div>`:''}
     ${lp.length||li.length?`<h3 class="sech small">Part of this event <span class="hint">${prog.open} open of ${prog.total} items</span></h3>
@@ -3293,6 +3303,7 @@ function saveEvent(id){
   if(!title||!date){ toast('Add a name and a date'); return; }
   let endDate=$('#evEnd').value; if(endDate && endDate<date) endDate='';
   const f={title,kind:$('#evKind').value,date,endDate,start:$('#evStart').value,end:$('#evEndT').value,location:$('#evLoc').value.trim(),description:$('#evDesc').value.trim()};
+  if(isTeacher()) f.grads=readGrades('evGr');
   if(id){ Object.assign(eventById(id),f); closeModal(); render(); toast('Event saved'); return; }
   const e={id:rid('e'),...f,by:S.viewer,status:isTeacher()?'approved':'pending',...nowStamp()};
   S.events.push(e);
@@ -3326,7 +3337,7 @@ function calClick(d,t){
 }
 function eventOptions(selected){
   const t=addDays(todayISO(),-14);
-  const list=S.events.filter(e=>e.status==='approved' && ((e.endDate||e.date)>=t || e.id===selected)).sort((a,b)=>a.date.localeCompare(b.date));
+  const list=S.events.filter(e=>e.status==='approved' && forMyGrade(e.grads) && ((e.endDate||e.date)>=t || e.id===selected)).sort((a,b)=>a.date.localeCompare(b.date));
   return `<option value="">— None —</option>${list.map(e=>`<option value="${e.id}" ${e.id===selected?'selected':''}>${esc(e.title)} · ${esc(fmt(e.date))}</option>`).join('')}`;
 }
 
@@ -4589,6 +4600,7 @@ document.addEventListener('change',e=>{ const t=e.target; if(!t||!t.dataset) ret
   if(t.dataset.wallhide){ const c=wallCfgW(), h=new Set(c.hide||[]); t.checked?h.add(t.dataset.wallhide):h.delete(t.dataset.wallhide); c.hide=[...h]; persist(); setTimeout(wallFetch,900); return; }
   if(t.dataset.wallcut!==undefined){ if(!/^\d\d:\d\d$/.test(t.value)) return; const c=wallCfgW(); c.cutover=t.value; persist(); setTimeout(wallFetch,900); return; }
   if(t.id==='gpGrade'){ gradePwModal(t.value); return; }
+  if(t.classList&&t.classList.contains('gck')){ t.closest('.ck')?.classList.toggle('on',t.checked); return; }
   if(t.classList&&t.classList.contains('lWho')){ t.closest('.ck')?.classList.toggle('on',t.checked); return; }
   if(t.dataset.wallper!==undefined){ wallSet({per:+t.value}); WALL.page=0; wallDraw(); return; }
   if(t.dataset.wallopt){ const c=wallCfgW(); c[t.dataset.wallopt]=t.checked; persist(); setTimeout(wallFetch,900); return; }
@@ -4796,7 +4808,7 @@ function sendAsk(key){
   S.asks.push(a);
   if(k==='i') logEvent(o,{kind:'ask',to});
   const extra={askId:a.id,itemId:a.itemId,projectId:a.projectId,text:note};
-  if(all) notify('all','feedback',extra); else picked.forEach(p=>notify(p,'feedback',extra));
+  if(all){ if(isTeacher()) notify('all','feedback',extra); else STUDENTS.filter(st=>st.id!==S.viewer && levelOf(st.id)===levelOf(S.viewer)).forEach(st=>notify(st.id,'feedback',extra)); } else picked.forEach(p=>notify(p,'feedback',extra));
   UI.askForm=false; const n=$(`[data-k="asknote:${key}"]`); if(n) n.value='';
   render(); toast('Feedback requested from '+toName(to));
 }
@@ -4978,18 +4990,18 @@ document.addEventListener('click',e=>{
   if(d.schedule){ openModal(lessonForm(null,askById(d.schedule))); return; }
   if(d.savelesson!==undefined){ const title=$('#lTitle').value.trim(), date=$('#lDate').value, seats=Math.max(1,+$('#lSeats').value||1); if(!title||!date){ toast('Add a title and date'); return; }
     const who=$$('.lWho:checked').map(x=>+x.value), grp=who.length?STUDENTS.filter(st=>who.includes(st.grad)).map(st=>st.id):null;
-    const f={title,description:$('#lDesc').value.trim(),date,start:$('#lStart').value||'09:00',end:$('#lEnd').value||'09:30',seats:grp?Math.max(1,grp.length):seats,assigned:who.length?who:null};
+    const f={title,description:$('#lDesc').value.trim(),date,start:$('#lStart').value||'09:00',end:$('#lEnd').value||'09:30',seats:grp?Math.max(1,grp.length):seats,assigned:who.length?who:null,openTo:who.length?[]:readGrades('lOpen')};
     if(d.savelesson){ const L=lesson(d.savelesson); const before=new Set(L.signups||[]); Object.assign(L,f); if(grp){ L.signups=[...new Set([...(L.signups||[]),...grp])]; L.signups.filter(x=>!before.has(x)).forEach(x=>notify(x,'lesson',{text:L.title})); } }
     else { const l={id:rid('L'),...f,signups:grp||[],by:S.viewer}; S.lessons.push(l); const a=d.fromask&&askById(d.fromask);
       if(grp){ grp.forEach(x=>notify(x,'lesson',{text:l.title})); if(a){ a.open=false; a.lessonId=l.id; } }
-      else if(a){ a.open=false; a.lessonId=l.id; (a.plus||[]).forEach(p=>notify(p,'lesson',{text:l.title})); } else notify('all','lesson',{text:l.title}); }
+      else if(a){ a.open=false; a.lessonId=l.id; (a.plus||[]).forEach(p=>notify(p,'lesson',{text:l.title})); } else { const og=l.openTo||[]; if(og.length) studentsInGrades(og).forEach(st=>notify(st.id,'lesson',{text:l.title})); else notify('all','lesson',{text:l.title}); } }
     closeModal(); render(); toast('Lesson saved'); return; }
   if(d.newpoll!==undefined){ openModal(pollForm()); return; }
   if(d.savepoll!==undefined){ const q=$('#pQ').value.trim(); const kind=$('#pKind').value; const opts=$('#pOpts').value.split('\n').map(x=>x.trim()).filter(Boolean);
     if(!q){ toast('Add a question'); return; } if(kind==='choice' && opts.length<2){ toast('Add at least two options'); return; }
-    const aud=$('#pAud').value==='all'?{all:true}:{grads:[+$('#pAud').value]};
+    const pg=readGrades('pGr'); const aud=pg.length?{grads:pg}:{all:true};
     S.polls.push({id:rid('q'),question:q,kind,options:kind==='choice'?opts:[],audience:aud,namesToMe:$('#pNames').value==='1',classSees:$('#pClass').value,open:true,responses:[],...nowStamp()});
-    notify('all','poll',{text:q}); closeModal(); render(); toast('Poll posted'); return; }
+    if(pg.length) studentsInGrades(pg).forEach(st=>notify(st.id,'poll',{text:q})); else notify('all','poll',{text:q}); closeModal(); render(); toast('Poll posted'); return; }
   if(d.vote){ const q=S.polls.find(x=>x.id===d.vote); if(!q||!q.open) return; q.responses=[...(q.responses||[]),{by:S.viewer,val:d.val,...nowStamp()}]; render(); return; }
   if(d.votetext){ const q=S.polls.find(x=>x.id===d.votetext); const inp=$(`[data-k="poll:${d.votetext}"]`); const v=(inp?.value||'').trim(); if(!q||!v) return; q.responses=[...(q.responses||[]),{by:S.viewer,val:v,...nowStamp()}]; inp.value=''; render(); toast('Answer sent'); return; }
   if(d.pollopen){ const q=S.polls.find(x=>x.id===d.pollopen); q.open=!q.open; render(); return; }
