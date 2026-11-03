@@ -957,6 +957,7 @@ button.abtag{cursor:pointer}
 .walltv{margin-top:14px;width:100%}.nxflag{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .nxrow{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:10px 0;display:flex;flex-direction:column;gap:6px}.nxhead{display:flex;justify-content:space-between;gap:8px}.nxf{display:grid;grid-template-columns:1fr auto;gap:6px;align-items:center}.nxrow input:not([type=checkbox]){width:100%;box-sizing:border-box}
 .ciwall{display:grid;grid-template-columns:1fr auto;gap:6px}.ciwall select{grid-column:1/-1}
+.tvtick{margin:6px 0;font-size:13px}.tvtick summary{cursor:pointer;font-weight:700}.tvtick textarea{width:100%;box-sizing:border-box;font:inherit;font-size:13px;margin:6px 0;padding:6px 8px;border:1px solid var(--line);border-radius:8px}
 .tkwrap{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;margin-top:12px}@media (max-width:900px){.tkwrap{grid-template-columns:1fr}}
 .tkcol{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px}
 .tkline{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)}.tkline.off .tktext{opacity:.4;text-decoration:line-through}.tktext{flex:1;font-weight:600}
@@ -1132,7 +1133,7 @@ const CFG = window.JARVIS_CONFIG || {};
 const SUPABASE_URL = CFG.url || 'PASTE_YOUR_PROJECT_URL';
 const SUPABASE_ANON_KEY = CFG.anonKey || 'PASTE_YOUR_ANON_KEY';
 const LOGIN_DOMAIN = 'jarvis.local';
-const APP_VERSION = '1.5.12';
+const APP_VERSION = '1.5.13';
 const APP_DATE = 'Nov 3, 2026';
 
 /* ---------- Dates ---------- */
@@ -4048,6 +4049,11 @@ function tvDayCard(d){
     const i=e.i, cl=tvClaimable(i);
     return `<button class="tvrow" ${T?`draggable="true" data-tvdrag="${d}|b|${e.b.id}"`:''} data-tvblock="${e.b.id}">${tvStDot(cl||e.b.link?tvStatus(e.b):'done')}<span class="tvname">${esc(i.name)}${e.b.text&&i.videoOnly?` · <span class="hint">${esc(e.b.text)}</span>`:''}</span>${e.b.link?`<span class="hint">${ICON.link||'🔗'}</span>`:''}${tvNeedTag(i)}${tvWhoHTML(e.b,cl)}</button>`;
   }).join('')+'</div>';
+  { const auto=tickerLinesFor(d).filter(x=>!x.hidden&&!x.extra).map(x=>x.text), ex=(day.tickerExtra||[]);
+    h+=`<details class="tvtick" ${UI.tkOpen===d?'open':''} data-tkopen="${d}"><summary>📺 Ticker <span class="hint">${auto.length+ex.length} line${auto.length+ex.length===1?'':'s'}</span></summary>
+      ${auto.length?`<div class="hint">${auto.map(esc).join(' • ')}</div>`:''}
+      <textarea data-tkextra="${d}" rows="2" maxlength="1200" placeholder="Add lines for this day, one per line (scores, shout-outs…)">${esc(ex.join('\n'))}</textarea>
+      <button class="btn tiny" data-tkextrasave="${d}">Save ticker lines</button></details>`; }
   h+=`<footer>${T?`<select data-tvadd="${d}" aria-label="Add a segment"><option value="">+ Add segment…</option>${tvSegs().filter(s=>s.active!==false).map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('')}<option value="custom">One-time custom segment…</option></select>`:''}
     <button class="btn tiny primary" data-tvscript="${d}">Script starter</button></footer>`;
   return h+'</section>';
@@ -4204,11 +4210,13 @@ function tickerLinesFor(d){
   }
   (c.lines||[]).forEach(l=>{ if(l.text) out.push({key:'m:'+l.id,text:l.text,src:'Your line'}); });
   const hid=new Set((c.hide||{})[d]||[]);
-  return out.map(x=>({...x,hidden:hid.has(x.key)}));
+  const res=out.map(x=>({...x,hidden:hid.has(x.key)}));
+  ((day&&day.tickerExtra)||[]).forEach((t,k)=>res.push({key:'x:'+k,text:t,src:'Student line',extra:true}));
+  return res;
 }
 function tickerPublish(){
   if(!isTeacher()) return; const c=tkCfgW(), days={};
-  for(let k=-1;k<21;k++){ const d=addDays(todayISO(),k); days[d]=tickerLinesFor(d).filter(x=>!x.hidden && x.text.trim()).map(x=>x.text.trim()); }
+  for(let k=-1;k<21;k++){ const d=addDays(todayISO(),k); days[d]=tickerLinesFor(d).filter(x=>!x.hidden && !x.extra && x.text.trim()).map(x=>x.text.trim()); }
   const sig=JSON.stringify(days)+JSON.stringify(c.style||{});
   if(c.pubSig===sig) return; c.days=days; c.pubSig=sig; c.pubAt=Date.now(); persist();
 }
@@ -4220,7 +4228,7 @@ function tickerHTML(){
   return `<div class="tkwrap"><section class="tkcol">
     <div class="tvweekbar"><button class="btn tiny" data-tkday="-1">‹</button><b>${esc(fmtDay(d))}</b><button class="btn tiny" data-tkday="1">›</button>${d!==todayISO()?'<button class="linkbtn" data-tkday="0">Today</button>':''}</div>
     <h3 class="sech small">On the ticker <span class="hint">Click 👁 to hide a line for this day only</span></h3>
-    ${L.length?L.map(x=>`<div class="tkline ${x.hidden?'off':''}"><button class="tkeye" data-tkhide="${esc(x.key)}" title="${x.hidden?'Show':'Hide'} on ${esc(fmt(d))}">${x.hidden?'🚫':'👁'}</button><span class="tktext">${esc(x.text||'(empty)')}</span><span class="tag">${x.src}</span></div>`).join(''):'<p class="hint">Nothing yet. Check “Add to ticker” on an announcement or segment, or type your own lines below.</p>'}
+    ${L.length?L.map(x=>x.extra?`<div class="tkline"><span class="tkeye">✏️</span><span class="tktext">${esc(x.text)}</span><span class="tag">Student line</span></div>`:`<div class="tkline ${x.hidden?'off':''}"><button class="tkeye" data-tkhide="${esc(x.key)}" title="${x.hidden?'Show':'Hide'} on ${esc(fmt(d))}">${x.hidden?'🚫':'👁'}</button><span class="tktext">${esc(x.text||'(empty)')}</span><span class="tag">${x.src}</span></div>`).join(''):'<p class="hint">Nothing yet. Check “Add to ticker” on an announcement or segment, or type your own lines below.</p>'}
     <h3 class="sech small">Your own lines <span class="hint">One per line. These show every day.</span></h3>
     <textarea id="tkLines" rows="4" placeholder="Go Spartans!&#10;Follow @yorktech for live updates">${esc((c.lines||[]).map(l=>l.text).join('\n'))}</textarea>
     <div class="tkbtns"><button class="btn primary" data-tksave>Save lines</button></div>
@@ -4244,6 +4252,8 @@ function tickerHTML(){
   </section></div>`;
 }
 function tickerClick(d,t){
+  if(d.tkextrasave){ const day=tvDay(d.tkextrasave); if(!day){ toast('Mr. P needs to set up this day first'); return true; } const ta=$(`textarea[data-tkextra="${d.tkextrasave}"]`);
+    day.tickerExtra=String(ta.value||'').split('\n').map(x=>x.trim()).filter(Boolean).slice(0,12).map(x=>x.slice(0,100)); day.editedBy=S.viewer; UI.tkOpen=d.tkextrasave; render(); toast('Ticker lines saved'); return true; }
   if(d.tkday!==undefined){ const n=+d.tkday; UI.tkDay = n===0?todayISO():addDays(UI.tkDay||todayISO(),n); render(); return true; }
   if(d.tkhide){ const c=tkCfgW(), day=UI.tkDay||todayISO(); c.hide={...(c.hide||{})}; const h=new Set(c.hide[day]||[]); h.has(d.tkhide)?h.delete(d.tkhide):h.add(d.tkhide); c.hide[day]=[...h];
     Object.keys(c.hide).forEach(k=>{ if(k<addDays(todayISO(),-7)) delete c.hide[k]; }); render(); return true; }
