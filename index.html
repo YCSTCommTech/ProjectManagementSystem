@@ -1089,6 +1089,19 @@ body.scopen{overflow:hidden}
 .cmdrow{all:unset;cursor:pointer;display:flex;justify-content:space-between;gap:8px;padding:8px 10px;border-radius:7px}.cmdrow.on,.cmdrow:hover{background:var(--accent-soft)}.cmdrow small{color:var(--ink-3)}
 .toast.show{pointer-events:auto}
 .toast .undo{color:#7CE0A8;font-weight:700;margin-left:10px}
+.donow{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:0 0 14px;padding:14px 16px;border-radius:12px;background:linear-gradient(135deg,#095641,#00954C);color:#fff}
+.donow small{display:block;opacity:.8;font-weight:600;text-transform:uppercase;letter-spacing:.04em;font-size:11px}.donow b{display:block;font-size:18px}.donow .hint{color:#E6F4EC}
+.donow .btn{background:#fff;color:#095641;border-color:#fff}.donow .btn.primary{background:#0B3B2C;color:#fff;border-color:#0B3B2C}
+.brief{margin:10px 0;padding:12px 14px;border:1px solid var(--line);border-left:4px solid #00954C;border-radius:10px;background:var(--surface)}.brief small{font-weight:700;color:#00954C;text-transform:uppercase;font-size:11px;letter-spacing:.04em}.brief ul{margin:6px 0 0;padding-left:18px}.brief .bad{color:#B42318}
+.rdl{margin:0;padding-left:20px}.rdl li{padding:3px 0}
+.showday{position:fixed;inset:0;z-index:60;background:#06281E;color:#fff;display:flex;flex-direction:column;font-size:22px}
+.sdtop,.sdfoot{display:flex;gap:12px;align-items:center;padding:14px 22px;background:#095641}.sdtop span{margin-left:auto;font-variant-numeric:tabular-nums}
+.showday ol{flex:1;overflow:auto;margin:0;padding:20px 40px 20px 70px}.showday li{padding:12px;border-radius:10px;opacity:.85}.showday li.past{opacity:.35}.showday li.now{background:#00954C;opacity:1}
+.showday li p{margin:6px 0 0;font-size:18px}.showday li small{font-size:15px;opacity:.85}
+.bulkbar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:6px}.bsel{display:flex;gap:6px;align-items:center}.bsel>*:last-child{flex:1}.sbgrid{display:grid;gap:8px}
+.pgal{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}.ptile{display:flex;flex-direction:column;gap:4px;padding:8px;border:1px solid var(--line);border-radius:10px;text-decoration:none;color:var(--ink);background:var(--surface)}
+.ptile img,.pph{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:7px;display:grid;place-items:center;color:#fff;font-size:34px;font-weight:700}
+.story{list-style:none;padding:0 0 0 14px;border-left:3px solid #00954C}.story li{padding:6px 0 6px 10px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 </style>
 </head>
 <body>
@@ -1146,8 +1159,8 @@ const FEATURES = Object.assign({aiHelper:false}, CFG.features||{});
 const SUPABASE_URL = CFG.url || 'PASTE_YOUR_PROJECT_URL';
 const SUPABASE_ANON_KEY = CFG.anonKey || 'PASTE_YOUR_ANON_KEY';
 const LOGIN_DOMAIN = 'jarvis.local';
-const APP_VERSION = '1.5.14';
-const APP_DATE = 'Nov 3, 2026';
+const APP_VERSION = '2.0.0';
+const APP_DATE = 'Nov 10, 2026';
 
 /* ---------- Dates ---------- */
 const localISO = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -1202,7 +1215,7 @@ function setPeople(rows){
 }
 const LOCAL_KEY = 'jarvis-prefs';
 const TABLES = ['projects','assignments','items','notifs','syncs','asks','lessons','polls','checkins','weeks','settings','events','bank','reminders','todos','reflections','broadcast'];
-const APPEND = new Set(['thread','history','readBy','replies','plus','responses','starts']);
+const APPEND = new Set(['thread','history','readBy','replies','plus','responses','starts','entries']);
 const rid = p => p + Math.random().toString(36).slice(2,9) + Date.now().toString(36).slice(-4);
 const HELP_TYPES = {help:'Help with something',equipment:'Equipment',approval:'Approval',other:'Something else'};
 const WEEKLY_Q = {
@@ -1288,6 +1301,21 @@ function write(t,id,op,payload,k,after){
   return chains[key];
 }
 const remoteSkipped = new Set();
+const ALOG=[];
+function alogNote(t,o,op){
+  if(!isHelper()||isTeacher()) return;
+  if(!['broadcast','bank','lessons','polls','events','settings'].includes(t)) return;
+  if(t==='settings' && !(/^post_|^wall_cfg$/.test(o.id||''))) return;
+  const what={broadcast:'Spartan TV',bank:'Project bank',lessons:'Lesson',polls:'Poll',events:'Event',settings:/^post_/.test(o.id)?'Inspiration post':'Class Wall'}[t];
+  const last=ALOG[ALOG.length-1], label=String(o.title||o.name||o.q||o.text||(o.id==='tv_ticker'?'Ticker':'')||o.id).slice(0,80);
+  if(last&&last.label===label&&last.what===what) return;
+  ALOG.push({what,op,label,ts:Date.now()});
+}
+function alogHTML(){
+  const rows=S.settings.filter(x=>/^alog_/.test(x.id)).flatMap(r=>(r.entries||[]).map(e=>({...e,by:r.by}))).sort((a,b)=>b.ts-a.ts).slice(0,150);
+  if(!rows.length) return '<div class="empty">No Student Assistant activity yet.</div>';
+  return `<table class="mini alog">${rows.map(e=>`<tr><td class="hint">${esc(new Date(e.ts).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}))}</td><td>${av(e.by)} ${esc(first(e.by))}</td><td>${esc(e.op)} ${esc(e.what)}</td><td>${esc(e.label)}</td></tr>`).join('')}</table>`;
+}
 function persist(){
   if(!sb || !ready || !S.viewer) return;
   const dep=(t,o)=> t==='items' ? (inflightPut['projects:'+o.projectId] || inflightPut['items:'+o.parentId]) : undefined;
@@ -1297,6 +1325,7 @@ function persist(){
       seen.add(o.id);
       const cur = JSON.stringify(o), old = sh.get(o.id);
       if(old === cur) continue;
+      alogNote(t,o,old===undefined?'added':'changed');
       if(old === undefined){ const k2=t+':'+o.id, pr=write(t,o.id,'put',o,undefined,dep(t,o)); inflightPut[k2]=pr; pr.then(()=>{ if(inflightPut[k2]===pr) delete inflightPut[k2]; }); sh.set(o.id,cur); continue; }
       const prev = JSON.parse(old), patch = {};
       for(const k of new Set([...Object.keys(prev),...Object.keys(o)])){
@@ -1309,8 +1338,9 @@ function persist(){
       if(Object.keys(patch).length) write(t,o.id,'patch',patch);
       sh.set(o.id,cur);
     }
-    for(const id of [...sh.keys()]) if(!seen.has(id)){ write(t,id,'delete'); sh.delete(id); }
+    for(const id of [...sh.keys()]) if(!seen.has(id)){ try{ alogNote(t,JSON.parse(sh.get(id)),'deleted'); }catch(_){} write(t,id,'delete'); sh.delete(id); }
   }
+  if(ALOG.length){ const id=`alog_${todayISO()}_${S.viewer}`; let r=S.settings.find(x=>x.id===id); if(!r){ r={id,by:S.viewer,date:todayISO(),entries:[]}; S.settings.push(r); } r.entries=[...(r.entries||[]),...ALOG.splice(0)]; persist(); return; }
 }
 /* Fill in missing fields so old (v1) rows or half-saved rows can never crash a screen */
 function normalize(t,o){
@@ -2153,6 +2183,7 @@ function projectBody(p){
   }
   if(comb) h += sec('pcombine', parent||kids.length?'Combined projects':'Combine with another project', comb, !!(parent||kids.length||pend));
   h += reflectionsHTML(p);
+  h += `<button class="btn" data-story="${p.id}" style="align-self:flex-start">📖 Project story</button>`;
   if(ad && !p.completed) h += `<button class="btn primary" data-completeproj="${p.id}" style="align-self:flex-start">✓ Mark project complete</button>`;
   if(ad) h += `<button class="btn danger" data-delproject="${p.id}" style="align-self:flex-start">Delete project</button>`;
   return h;
@@ -2226,7 +2257,7 @@ function renderHomeStudent(){
   const polls = pollsFor(v).filter(q=>q.open && !(q.responses||[]).some(r=>r.by===v));
   const stage = stageDue(v,ws);
   const hr=new Date().getHours(); const greet = hr<12?'Good morning':hr<17?'Good afternoon':'Good evening';
-  let h = `<div class="hello"><h2>${greet}, ${esc(first(v))}</h2><span class="hint">${esc(fmtDay(t))}</span></div><div class="hgrid">`+remindersCard();
+  let h = `<div class="hello"><h2>${greet}, ${esc(first(v))}</h2><span class="hint">${esc(fmtDay(t))}</span></div>`+doNowHTML(v,mine,ci)+(isHelper()?`<div class="note">You’re a Student Assistant. <button class="linkbtn" data-page="producer">Open the Producer dashboard</button></div>`:'')+`<div class="hgrid">`+remindersCard();
   if(!lowerMe()) h += card('Today', ci&&ci.line ? `<div class="ciline">“${esc(ci.line)}”</div><div class="checks">${(ci.active||[]).map(k=>`<span class="tag">${esc(activeLabel(k))}</span>`).join('')}</div><div class="askacts"><button class="btn tiny" data-editcheckin>Edit check-in</button><button class="btn tiny" data-page="today">Open my schedule</button></div>` : (ci&&ci.absent?'<div class="hint">You marked today as absent.</div>':`<button class="btn primary" data-editcheckin>Check in for today</button>`));
   if(stage && !lowerMe() && stage!=='monday') h += card(stage==='mid'?'Midweek check-in is ready':'Friday reflection is ready', `<p class="hint">${stage==='mid'?'Two quick questions about how your week is going.':'Wrap up your week. Your daily check-ins are there to help you remember.'}</p><button class="btn primary" data-page="week">Open My week</button>`);
   h += card('Due soon', due.length?due.map(miniRow).join(''):'<div class="hint">Nothing due in the next few days.</div>', `<button class="linkbtn" data-page="board">Board</button>`);
@@ -2323,6 +2354,96 @@ function startClassClick(d,t){
   if(d.scgear!==undefined){ UI.scGear=!UI.scGear; $('#startclass').innerHTML=startClassHTML(); return true; }
   return false;
 }
+function doNowHTML(v,mine,ci){
+  const open=mine.filter(i=>!complete(i));
+  const pick = open.find(needsChanges) ? {i:open.find(needsChanges),why:'Mr. P asked for changes'}
+    : open.filter(isOverdue).sort((a,b)=>a.due.localeCompare(b.due))[0] ? {i:open.filter(isOverdue).sort((a,b)=>a.due.localeCompare(b.due))[0],why:'This is overdue'}
+    : open.filter(i=>i.due).sort((a,b)=>a.due.localeCompare(b.due))[0] ? {i:open.filter(i=>i.due).sort((a,b)=>a.due.localeCompare(b.due))[0],why:'Due soonest'}
+    : open.find(i=>i.status==='work') ? {i:open.find(i=>i.status==='work'),why:'You already started this'} : null;
+  const ck = !lowerMe() && !(ci&&ci.line) ? `<button class="btn primary" data-editcheckin>Check in for today</button>` : '';
+  const ai = FEATURES.aiHelper ? `<button class="btn" data-studybuddy>🎓 Study buddy</button>` : '';
+  return `<div class="donow"><div><small>What should I do now?</small>${pick?`<b>${esc(pick.i.title)}</b><span class="hint">${pick.why}${pick.i.due?' · due '+esc(new Date(pick.i.due+'T12:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})):''}</span>`:'<b>You’re all caught up 🎉</b><span class="hint">Pick something from the project bank or help a classmate.</span>'}</div><span class="grow"></span>${ck}${pick?`<button class="btn" data-open="i:${pick.i.id}">Open it</button>`:'<button class="btn" data-page="bank">Project bank</button>'}${ai}</div>`;
+}
+function briefingHTML(){
+  const t=todayISO(), y=addDays(t,-1);
+  const quiet = UPPER.filter(s=>[0,1,2,3,4,5,6].map(k=>addDays(t,-k)).filter(d=>isClassDay(s.id,d)).slice(0,3).every(d=>{const c=checkin(s.id,d); return !c||(!c.line&&!c.absent);}));
+  const late = S.items.filter(i=>!i.parentId&&isOverdue(i)&&(i.assignees||[]).some(a=>PEOPLE[a]&&PEOPLE[a].active&&PEOPLE[a].role==='student'));
+  const flagged = S.asks.filter(a=>a.open&&a.ai&&(a.flagged||a.urgent));
+  const ls = S.lessons.filter(l=>l.date===t);
+  const subs = S.items.filter(i=>i.source==='assignment'&&i.status==='sub');
+  const pts=[];
+  if(flagged.length) pts.push(`<b class="bad">⚠ ${flagged.length} AI conversation${flagged.length>1?'s':''} flagged or urgent.</b> <button class="linkbtn" data-page="asks">Open</button>`);
+  if(ls.length) pts.push(`Lesson${ls.length>1?'s':''} today: ${ls.map(l=>esc(l.title)+' at '+esc(l.start||'')).join(', ')}.`);
+  if(subs.length) pts.push(`${subs.length} assignment${subs.length>1?'s':''} waiting for review. <button class="linkbtn" data-gotoreview>Review</button>`);
+  if(late.length) pts.push(`${late.length} overdue task${late.length>1?'s':''} across the class.`);
+  if(quiet.length) pts.push(`No check-in for 3 class days: ${quiet.slice(0,6).map(s=>`<button class="linkbtn" data-stu="${s.id}">${esc(first(s.id))}</button>`).join(', ')}${quiet.length>6?' +'+(quiet.length-6):''}.`);
+  return `<div class="brief"><small>Morning briefing</small>${pts.length?'<ul>'+pts.map(x=>`<li>${x}</li>`).join('')+'</ul>':'<p class="hint">Nothing needs you yet. Have a good class.</p>'}</div>`;
+}
+function renderStudent360(){
+  const id=UI.stu, x=PEOPLE[id]; if(!x||!isTeacher()) return '<div class="empty">Pick a student from Search (Ctrl K).</div>';
+  const t=todayISO(), days=[...Array(14)].map((_,k)=>addDays(t,-k)).filter(d=>isClassDay(id,d)).slice(0,8);
+  const its=S.items.filter(i=>!i.parentId&&(i.assignees||[]).includes(id)&&!inDoneProj(i)), open=its.filter(i=>!complete(i)).sort((a,b)=>(a.due||'9').localeCompare(b.due||'9'));
+  const projs=S.projects.filter(p=>liveProj(p)&&(p.roles||{})[id]), asks=S.asks.filter(a=>a.by===id).sort((a,b)=>(b.ts||0)-(a.ts||0)).slice(0,6);
+  const sel=UI.bsel||(UI.bsel=new Set());
+  const ciRow=d=>{const c=checkin(id,d); return `<tr><td>${esc(fmtDay(d))}</td><td>${c&&c.absent?'<span class="tag">Absent</span>':c&&c.line?esc(c.line):'<span class="tag warn">No check-in</span>'}</td></tr>`;};
+  return `<div class="hello">${av(id)}<h2>${esc(x.name)}</h2><span class="hint">${esc(gradLabel(x.grad))}${x.major?' · '+esc(x.major):''}${x.helper?' · Student Assistant':''}</span><span class="grow"></span><button class="btn" data-openweek="${id}|${weekStartOf(t)}">This week’s report</button></div>
+  <div class="stats"><div><b>${open.length}</b><span>open tasks</span></div><div><b>${open.filter(isOverdue).length}</b><span>overdue</span></div><div><b>${its.filter(complete).length}</b><span>done</span></div><div><b>${projs.length}</b><span>projects</span></div></div>
+  <div class="hgrid">${card('Open work', open.length?`<div class="bulkbar"><span class="hint">${sel.size} selected</span><button class="btn tiny" data-bulkdone ${sel.size?'':'disabled'}>Mark done</button><input type="date" id="bulkDue"><button class="btn tiny" data-bulkdue ${sel.size?'':'disabled'}>Set due date</button></div>`+open.map(i=>`<label class="bsel"><input type="checkbox" data-bsel="${i.id}" ${sel.has(i.id)?'checked':''}> ${miniRow(i)}</label>`).join(''):'<div class="hint">Nothing open. 🎉</div>')}
+  ${card('Check-ins', `<table class="mini">${days.map(ciRow).join('')}</table>`)}
+  ${card('Projects', projs.map(p=>`<button class="linkbtn" data-story="${p.id}" title="Project story">📖</button> <button class="linkbtn" data-nav="${p.id}"><span class="dot" style="background:${p.color}"></span> ${esc(p.name)}</button> <span class="hint">${esc(p.roles[id])}</span><br>`).join('')||'<div class="hint">None</div>')}
+  ${card('Recent asks', asks.map(a=>`<div class="mini">${esc(a.kind)} · ${esc(String(a.note||'').slice(0,80))}${a.ai?' <span class="tag">AI</span>':''}${a.open?'':' <span class="hint">closed</span>'}</div>`).join('')||'<div class="hint">None</div>','<button class="linkbtn" data-page="asks">Asks</button>')}</div>`;
+}
+document.addEventListener('click',e=>{ const t=e.target.closest('[data-stu],[data-bulkdone],[data-bulkdue],[data-studybuddy]'); if(!t) return;
+  if(t.dataset.stu!==undefined){ UI.page='student'; UI.stu=t.dataset.stu; UI.bsel=new Set(); render(); return; }
+  if(t.dataset.studybuddy!==undefined){ openModal(`<div class="mhead"><h2>🎓 Study buddy</h2><button class="x" data-closemodal>×</button></div><p class="hint">Pick one. JARVIS Assistant will help you think it through. It won’t do the work for you.</p><div class="sbgrid">${[['Quiz me for NOCTI','Quiz me with 5 NOCTI-style questions for my major, one at a time.'],['Adobe cert practice','Give me Adobe Certified Professional practice questions, one at a time.'],['Turn my project into steps','Help me turn my current project into a short checklist of next steps.'],['Explain an assignment','Help me understand what this assignment is asking: '],['Give feedback on my idea','Ask me questions to improve this idea: ']].map(([l,q])=>`<button class="btn" data-sbq="${esc(q)}">${l}</button>`).join('')}</div>`); return; }
+  const ids=[...(UI.bsel||[])], its=ids.map(item).filter(Boolean);
+  if(t.dataset.bulkdone!==undefined){ its.forEach(i=>{ (i.history||(i.history=[])).push({kind:'status',from:i.status,to:'done',by:S.viewer,ts:Date.now()}); i.status='done'; }); UI.bsel=new Set(); render(); toast(`Marked ${its.length} done.`); }
+  if(t.dataset.bulkdue!==undefined){ const d=$('#bulkDue').value; if(!d) return toast('Pick a date first.'); its.forEach(i=>i.due=d); UI.bsel=new Set(); render(); toast(`Moved ${its.length} to ${d}.`); } });
+document.addEventListener('change',e=>{ const c=e.target.closest('[data-bsel]'); if(!c) return; const s=UI.bsel||(UI.bsel=new Set()); c.checked?s.add(c.dataset.bsel):s.delete(c.dataset.bsel); render(); });
+document.addEventListener('click',e=>{ const b=e.target.closest('[data-sbq]'); if(!b) return; const q=b.dataset.sbq; openModal(askModal('help')); const n=$('#hNote'); if(n){ n.value=q; n.focus(); } });
+function renderPortfolio(){
+  const v=isTeacher()?(UI.stu||null):S.viewer;
+  const pick=isTeacher()?`<select data-portstu><option value="">Everyone</option>${UPPER.map(x=>`<option value="${x.id}" ${x.id===v?'selected':''}>${esc(x.name)}</option>`).join('')}</select>`:'';
+  const its=S.items.filter(i=>complete(i)&&(i.files||[]).some(f=>latestUrl(f))&&(!v||(i.assignees||[]).includes(v))).sort((a,b)=>(b.doneAt||b.ts||0)-(a.doneAt||a.ts||0)).slice(0,120);
+  const img=u=>/\.(png|jpe?g|gif|webp)(\?|$)/i.test(u);
+  return `<div class="hello"><h2>Portfolio</h2><span class="hint">${isTeacher()?'Finished work with files.':'Your finished work, all in one place.'}</span><span class="grow"></span>${pick}</div>
+  ${its.length?`<div class="pgal">${its.map(i=>{ const u=latestUrl(i.files.find(f=>latestUrl(f))), p=proj(i.projectId); return `<a class="ptile" href="${esc(u)}" target="_blank" rel="noopener">${img(u)?`<img src="${esc(u)}" alt="" loading="lazy">`:`<span class="pph" style="background:${p?p.color:'#00954C'}">${esc((i.title||'?').slice(0,1))}</span>`}<b>${esc(i.title)}</b><span class="hint">${p?esc(p.name)+' · ':''}${isTeacher()?esc(first(i.assignees[0])):''}</span></a>`; }).join('')}</div>`:'<div class="empty">Nothing here yet. When you finish a task with a file or link attached, it shows up here.</div>'}`;
+}
+function renderStory(){
+  const p=proj(UI.storyP); if(!p) return '<div class="empty">Pick a project.</div>';
+  const its=S.items.filter(i=>i.projectId===p.id), ev=[];
+  if(p.ts) ev.push({ts:p.ts,t:'Project started',by:p.owner});
+  its.forEach(i=>{ ev.push({ts:i.ts||0,t:`Added “${i.title}”`,by:i.by}); (i.history||[]).filter(h=>h.kind==='status').forEach(h=>ev.push({ts:h.ts,t:`“${i.title}” → ${(stat(h.to)||{}).label||h.to}`,by:h.by})); (i.files||[]).forEach(f=>(f.versions||[]).forEach((x,k)=>ev.push({ts:x.ts||0,t:`${k?'New version of':'Uploaded'} ${f.name||'a file'} on “${i.title}”`,by:x.by,u:x.url}))); });
+  if(p.completedAt) ev.push({ts:p.completedAt,t:'Project complete 🎉',by:null});
+  S.reflections.filter(r=>r.id.startsWith(`rf_${p.id}_`)&&r.text).forEach(r=>ev.push({ts:r.ts||p.completedAt||0,t:`Reflection: “${String(r.text).slice(0,140)}”`,by:r.by||r.id.split('_').pop()}));
+  ev.sort((a,b)=>(a.ts||0)-(b.ts||0));
+  return `<div class="hello"><span class="dot" style="background:${p.color}"></span><h2>${esc(p.name)}: the story</h2><span class="grow"></span><button class="btn" data-nav="${p.id}">Open board</button></div>
+   <div class="stats"><div><b>${its.length}</b><span>tasks</span></div><div><b>${its.filter(complete).length}</b><span>done</span></div><div><b>${projPeople(p).length}</b><span>people</span></div></div>
+   <ol class="story">${ev.filter(e=>e.ts).map(e=>`<li><span class="hint">${esc(new Date(e.ts).toLocaleDateString('en-US',{month:'short',day:'numeric'}))}</span> ${e.by&&PEOPLE[e.by]?av(e.by):''} ${esc(e.t)}${e.u?` <a href="${esc(e.u)}" target="_blank" rel="noopener">open</a>`:''}</li>`).join('')||'<li class="hint">No history yet.</li>'}</ol>`;
+}
+document.addEventListener('change',e=>{ const s=e.target.closest('[data-portstu]'); if(s){ UI.stu=s.value||null; render(); } });
+document.addEventListener('click',e=>{ const b=e.target.closest('[data-story]'); if(b){ $('#modal').hidden=true; UI.page='story'; UI.storyP=b.dataset.story; render(); } });
+function renderProducer(){
+  const t=todayISO(), rd=tvRundown(t), needs=tvNeeds(), open=needs.filter(n=>!(n.o.who||[]).length);
+  const tk=(typeof tickerLinesFor==='function'?tickerLinesFor(t):[])||[];
+  const reqs=S.bank.filter(b=>b.request&&!b.done&&!(b.claimedBy||[]).length);
+  const row=x=>`<li>${x.t==='a'?'📣 '+esc(x.a.title||x.a.text||'Announcement'):'🎬 '+esc(x.i.name||'Segment')}</li>`;
+  return `<div class="hello"><h2>Producer</h2><span class="hint">${esc(fmtDay(t))}</span><span class="grow"></span><button class="btn primary" data-showday>▶ Show-day mode</button></div>
+  <div class="hgrid">${card('Today’s rundown', rd.length?`<ol class="rdl">${rd.map(row).join('')}</ol>`:'<div class="empty">No show planned for today.</div>','<button class="linkbtn" data-page="tv">Spartan TV</button>')}
+  ${card(`Open jobs <span class="navcount">${open.length}</span>`, open.length?open.slice(0,8).map(n=>`<div class="mini">${esc(n.date)} · ${esc(n.k==='a'?(n.o.title||'Announcement graphic'):(n.i.name||'Segment'))}</div>`).join(''):'<div class="hint">Every job in the next 2 weeks has someone.</div>')}
+  ${card('Ticker', tk.length?tk.slice(0,8).map(l=>`<div class="mini">${esc(typeof l==='string'?l:(l.text||''))}</div>`).join(''):'<div class="hint">No ticker lines today.</div>','<button class="linkbtn" data-page="tv">Edit ticker</button>')}
+  ${card('Graphic requests', reqs.length?reqs.slice(0,6).map(b=>`<div class="mini">${esc(b.title)}</div>`).join(''):'<div class="hint">No open requests.</div>','<button class="linkbtn" data-page="bank">Project bank</button>')}</div>`;
+}
+function showDay(){
+  const rd=tvRundown(todayISO()); UI.sd=UI.sd||0; const ov=document.createElement('div'); ov.className='showday'; ov.id='showday';
+  const draw=()=>{ ov.innerHTML=`<div class="sdtop"><b>SPARTAN TV · ${esc(fmtDay(todayISO()))}</b><span id="sdclock"></span><button class="btn" data-sdx>Exit</button></div><ol>${rd.map((x,k)=>{const i=x.t==='a'?x.a:x.i; return `<li class="${k===UI.sd?'now':k<UI.sd?'past':''}"><b>${esc(x.t==='a'?(i.title||'Announcement'):(i.name||'Segment'))}</b>${i.say||i.text?`<p>${esc(String(i.say||i.text).slice(0,280))}</p>`:''}${i.cue?`<small>Cue: ${esc(i.cue)}</small>`:''}</li>`;}).join('')||'<li>No rundown today.</li>'}</ol><div class="sdfoot"><button class="btn" data-sdp>◀ Back</button><button class="btn primary" data-sdn>Next ▶</button></div>`;
+    const n=ov.querySelector('.now'); n&&n.scrollIntoView&&n.scrollIntoView({block:'center'}); };
+  draw(); document.body.appendChild(ov);
+  const clk=setInterval(()=>{const c=document.getElementById('sdclock'); if(!c) return clearInterval(clk); c.textContent=new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',second:'2-digit'});},1000);
+  ov.addEventListener('click',e=>{ if(e.target.closest('[data-sdx]')){ov.remove();return;} if(e.target.closest('[data-sdn]')) UI.sd=Math.min(UI.sd+1,rd.length-1); else if(e.target.closest('[data-sdp]')) UI.sd=Math.max(UI.sd-1,0); else return; draw(); });
+  document.addEventListener('keydown',function k(e){ if(!document.getElementById('showday')) return document.removeEventListener('keydown',k); if(e.key==='ArrowRight'||e.key===' '){UI.sd=Math.min(UI.sd+1,rd.length-1);draw();e.preventDefault();} if(e.key==='ArrowLeft'){UI.sd=Math.max(UI.sd-1,0);draw();} if(e.key==='Escape') ov.remove(); });
+}
+document.addEventListener('click',e=>{ if(e.target.closest('[data-showday]')){UI.sd=0;showDay();} });
 function renderHomeTeacher(){
   const t=todayISO();
   if(!STUDENTS.length) return `<div class="empty" style="margin-top:16px">Welcome to JARVIS. Start by adding your students. <button class="btn primary" data-page="roster" style="margin-left:8px">Go to Roster</button></div>`;
@@ -2336,7 +2457,7 @@ function renderHomeTeacher(){
   const lessons = S.lessons.filter(l=>l.date===t);
   let h = `<div class="hello"><h2>Class today</h2><span class="hint">${esc(fmtDay(t))}</span><span class="grow"></span><button class="btn" data-wallopen>📺 Class Wall</button><button class="btn primary" data-startclass>▶ Start of class</button></div>
     ${(()=>{ const n=S.projects.filter(p=>liveProj(p)&&!p.completed&&Object.keys(p.roles||{}).some(k=>PEOPLE[k]&&PEOPLE[k].role==='student'&&PEOPLE[k].active)&&needsNext(p)).length; return n?`<div class="note nxflag">⚑ <b>${n} project${n===1?'':'s'}</b> ${n===1?'has':'have'} no next step with a date. <button class="btn tiny" data-nextmissing>Fix them</button></div>`:''; })()}
-    <div class="stats"><div><b>${inN}/${roster.length}</b><span>checked in</span></div><div><b>${absN}</b><span>absent</span></div>
+    ${briefingHTML()}<div class="stats"><div><b>${inN}/${roster.length}</b><span>checked in</span></div><div><b>${absN}</b><span>absent</span></div>
       <button data-gotoreview><b>${review}</b><span>to review</span></button><button data-page="asks"><b>${help}</b><span>open asks</span></button><button data-page="lessons"><b>${lreq}</b><span>lesson requests</span></button><button data-page="mp"><b>${S.settings.filter(x=>x.id.startsWith('claim_')&&x.status==='submitted').length}</b><span>credit requests</span></button></div>
     <div class="hgrid" style="margin-top:12px">${remindersCard()}${myListCard()}</div>
     <div class="filters" style="margin:10px 0 8px">${['',String(SENIOR_YEAR),String(JUNIOR_YEAR),...(SOPHS.length?[String(SOPH_YEAR)]:[]),...(FRESHMEN.length?[String(FRESH_YEAR)]:[])].map(g=>`<button class="chip ${UI.homeGrade===g?'on':''}" data-homegrade="${g}">${g===''?'Juniors & seniors':gradLabel(+g)==='Freshman'?'Freshmen':gradLabel(+g)+'s'}</button>`).join('')}<span class="hint">Click a student to open their week.</span></div>
@@ -2484,18 +2605,25 @@ const pastDue = a => a && a.due && new Date(a.due+'T23:59:00') < new Date();
 function syncMissing(){ return S.items.filter(i=> i.source==='assignment' && i.status!=='done' && !asnClosed(i) && !i.missingId && pastDue(asn(i.assignmentId))); }
 const syncPending = ()=> syncReady().length + syncMissing().length;
 function doneAt(i){ const e=[...(i.history||[])].reverse().find(e=>e.kind==='status'&&e.to==='done'); return e?e.at:''; }
+document.addEventListener('click',e=>{ const g=e.target.closest('[data-syncgrade]'); if(g){ UI.syncGrade=g.dataset.syncgrade; render(); return; }
+  const c=e.target.closest('[data-synccopy]'); if(!c) return; const id=c.dataset.synccopy, gOk=i=>!UI.syncGrade||(PEOPLE[i.assignees[0]]||{}).grad===+UI.syncGrade;
+  const rows=[...syncReady().filter(i=>i.assignmentId===id&&gOk(i)).map(i=>[PEOPLE[i.assignees[0]]?.name||'?','Done']),...syncMissing().filter(i=>i.assignmentId===id&&gOk(i)).map(i=>[PEOPLE[i.assignees[0]]?.name||'?','M'])].sort((a,b)=>a[0].localeCompare(b[0]));
+  const txt=rows.map(r=>r.join('\t')).join('\n'); (navigator.clipboard?navigator.clipboard.writeText(txt):Promise.reject()).then(()=>toast(`Copied ${rows.length} rows.`),()=>{ openModal(`<div class="mhead"><h2>Copy column</h2><button class="x" data-closemodal>×</button></div><textarea rows="12" style="width:100%">${esc(txt)}</textarea>`); }); });
 function renderSync(){
-  const ready = syncReady(), missing = syncMissing(), last = S.syncs[S.syncs.length-1];
+  const gOk = i => !UI.syncGrade || (PEOPLE[i.assignees[0]]||{}).grad===+UI.syncGrade;
+  const ready = syncReady().filter(gOk), missing = syncMissing().filter(gOk), last = S.syncs[S.syncs.length-1];
+  const grads=[...new Set(UPPER.map(x=>x.grad))].sort();
   const aids = [...new Set([...ready,...missing].map(i=>i.assignmentId))].map(asn).filter(Boolean).sort((a,b)=>a.due.localeCompare(b.due));
   const nm = i => PEOPLE[i.assignees[0]]?.name||'?';
   let h = `<div class="hello"><h2>Schoology sync log</h2></div><div class="syncsum"><span class="big">${ready.length}</span><span class="muted">done to enter</span><span class="big" style="color:var(--danger)">${missing.length}</span><span class="muted">missing to enter<br>since your last sync${last?` (${esc(last.at)})`:''}</span>
     ${ready.length||missing.length?'<button class="btn primary" data-syncall>Mark all synced</button>':''}</div>
+    <div class="seg" style="margin:8px 0"><button class="${!UI.syncGrade?'on':''}" data-syncgrade="">All</button>${grads.map(g=>`<button class="${+UI.syncGrade===g?'on':''}" data-syncgrade="${g}">${esc(gradLabel(g))}</button>`).join('')}</div>
     <p class="hint" style="margin:8px 2px 0">Only work you’ve marked Done counts as complete. Anything else past its due date is listed as missing.</p>`;
   if(!aids.length) h += `<div class="empty" style="margin-top:16px">Everything is entered.</div>`;
   for(const a of aids){
     const r = ready.filter(i=>i.assignmentId===a.id).sort((x,y)=>nm(x).localeCompare(nm(y)));
     const m = missing.filter(i=>i.assignmentId===a.id).sort((x,y)=>nm(x).localeCompare(nm(y)));
-    h += `<section class="scard"><header><h3>${esc(a.title)}</h3><span class="hint">Due ${fmt(a.due)} · ${esc(audienceLabel(a.audience))}</span><button class="btn" data-syncone="${a.id}">Mark synced</button></header>
+    h += `<section class="scard"><header><h3>${esc(a.title)}</h3><span class="hint">Due ${fmt(a.due)} · ${esc(audienceLabel(a.audience))}</span><button class="btn" data-synccopy="${a.id}" title="Copies Name, then Done or M, one student per line, for pasting into Schoology">Copy column</button><button class="btn" data-syncone="${a.id}">Mark synced</button></header>
       ${r.length?`<div class="tablewrap" style="border:0;border-radius:0"><table><tbody>${r.map(i=>{ const u=latestUrl((i.files||[])[0]); return `<tr><td class="st">${av(i.assignees[0])}<button class="title" data-open="i:${i.id}">${esc(nm(i))}</button></td>
         <td>Done ${esc(doneAt(i))}${i.missingId?' <span class="tag chg">Was entered missing — update grade</span>':''}</td><td>${submitCount(i)>1?`Round ${submitCount(i)}`:'First try'}</td>
         <td>${a.weekly?`<button class="linkbtn" data-openweek="${i.assignees[0]}|${a.weekStart}">Open report</button>`:u?`<a href="${esc(u)}" target="_blank" rel="noopener">Open work</a>`:'<span class="hint">No link</span>'}</td></tr>`; }).join('')}</tbody></table></div>`:''}
@@ -2926,7 +3054,8 @@ async function adminCall(body){
 const suggestUser = (first,last) => (last||'').trim() ? ((first||'').trim()[0]||'') + last.trim() : (first||'').trim();
 const cleanUser = u => String(u||'').toLowerCase().replace(/[^a-z0-9]/g,'').slice(0,30);
 function uniqueUser(base,taken){ let u=cleanUser(base)||'student', n=2, out=u; while(taken.has(out)) out=u+(n++); taken.add(out); return out; }
-function renderRoster(){
+function renderRoster(){ return renderRoster0() + (STUDENTS.some(x=>x.helper)?`<h3 class="sech">Student Assistant activity <span class="hint">What assistants added, changed, or deleted.</span></h3>${alogHTML()}`:''); }
+function renderRoster0(){
   const all=Object.values(PEOPLE).filter(p=>p.role==='student').sort((a,b)=>a.name.localeCompare(b.name));
   const teachers=Object.values(PEOPLE).filter(p=>p.role==='teacher').sort((a,b)=>a.id==='t'?-1:b.id==='t'?1:a.name.localeCompare(b.name));
   const roleSel=p=>`<select class="rin" data-rrole="${p.id}" aria-label="Role" ${p.id===S.viewer||!p.active?'disabled':''}><option value="student" ${p.role==='student'&&!p.helper?'selected':''}>Student</option><option value="helper" ${p.role==='student'&&p.helper?'selected':''}>Student Assistant</option><option value="teacher" ${p.role==='teacher'?'selected':''}>Teacher</option></select>`;
@@ -4763,13 +4892,17 @@ function nextClick(d){
 }
 /* ---------- Render ---------- */
 const PAGES = () => isTeacher()
-  ? [['home','Class today'],['mylist','My list'],['board','Board'],['tv','Spartan TV'],['cal','Calendar'],['bank','Project bank'],['inspo','Inspiration'],['past','Past projects'],['week','Weekly reports'],['lessons','Lessons & polls'],['asks','Asks'],['sync','Schoology sync'],['roster','Roster'],['help','Help']]
-  : [['home','Home'],['board','Board'],['tv','Spartan TV'],['cal','Calendar'],...(lowerMe()?[]:[['week','My week']]),['bank','Project bank'],['inspo','Inspiration'],['past','Past projects'],['lessons','Lessons & polls'],['asks','Asks'],['help','Help']];
+  ? [['home','Class today'],['mylist','My list'],['producer','Producer'],['board','Board'],['tv','Spartan TV'],['cal','Calendar'],['bank','Project bank'],['inspo','Inspiration'],['past','Past projects'],['portfolio','Portfolio'],['week','Weekly reports'],['lessons','Lessons & polls'],['asks','Asks'],['sync','Schoology sync'],['roster','Roster'],['help','Help']]
+  : [['home','Home'],...(isHelper()?[['producer','Producer']]:[]),['board','Board'],['tv','Spartan TV'],['cal','Calendar'],...(lowerMe()?[]:[['week','My week']]),['bank','Project bank'],['inspo','Inspiration'],['past','Past projects'],['portfolio','Portfolio'],['lessons','Lessons & polls'],['asks','Asks'],['help','Help']];
 function pageHTML(){
   if(SIMPLE() && !UI.more && !['home','board','week'].includes(UI.page)) UI.page='home';
   switch(UI.page){
     case 'home': return (isTeacher()?'':inspoHomeCard())+(isTeacher()?renderHomeTeacher():renderHomeStudent());
     case 'inspo': return renderInspo();
+    case 'portfolio': return renderPortfolio();
+    case 'story': return renderStory();
+    case 'student': return renderStudent360();
+    case 'producer': return isStaff()?renderProducer():'';
     case 'board': return renderBoardPage();
     case 'today': return renderToday();
     case 'week': return renderWeek();
@@ -4826,6 +4959,7 @@ function renderPast(){
 function cmdItems(){
   const it=PAGES().map(([k,l])=>({t:l,sub:'Page',go:()=>{UI.page=k;UI.project=null;render();}}));
   S.projects.filter(p=>liveProj(p)&&(isTeacher()||(p.roles||{})[S.viewer]||!p.private)).forEach(p=>it.push({t:p.name,sub:'Project',go:()=>{UI.page='board';UI.project=p.id;render();}}));
+  S.projects.filter(p=>(isTeacher()||(p.roles||{})[S.viewer])).forEach(p=>it.push({t:p.name+' — story',sub:'Project story',go:()=>{UI.page='story';UI.storyP=p.id;render();}}));
   if(isTeacher()) STUDENTS.forEach(id=>{const x=PEOPLE[id]; if(x) it.push({t:x.name,sub:'Student',go:()=>{UI.page='student';UI.stu=id;render();}});});
   S.items.filter(i=>!i.parentId&&(isTeacher()||(i.assignees||[]).includes(S.viewer))).slice(0,400).forEach(i=>it.push({t:i.title,sub:'Task',go:()=>{UI.page='board';UI.project=i.projectId||null;render();}}));
   return it;
@@ -4859,7 +4993,7 @@ function renderSide(){
   $('#btnSimple').style.display=isTeacher()?'none':''; $('#btnSimple').textContent=`Simplified view: ${simple?'On':'Off'}`;
   let pages=PAGES();
   if(simple){ const core=pages.filter(([k])=>['home','board','week'].includes(k)); pages = UI.more ? [...core,...pages.filter(([k])=>!['home','board','week'].includes(k))] : core; }
-  const GRP={home:'Today',mylist:'Today',asks:'Today',board:'Work',week:'Work',lessons:'Work',cal:'Work',tv:'Create',bank:'Create',inspo:'Create',past:'Create',sync:'Manage',roster:'Manage',help:'Manage'};
+  const GRP={producer:'Create',home:'Today',mylist:'Today',asks:'Today',board:'Work',week:'Work',lessons:'Work',cal:'Work',tv:'Create',bank:'Create',portfolio:'Create',inspo:'Create',past:'Create',sync:'Manage',roster:'Manage',help:'Manage'};
   if(!simple){ const ord=['Today','Work','Create','Manage']; pages=[...pages].sort((a,b)=>ord.indexOf(GRP[a[0]]||'Manage')-ord.indexOf(GRP[b[0]]||'Manage')); }
   let lastG=''; let h = `<button class="cmdk" data-cmdk>⌕ Search or ask… <kbd>Ctrl K</kbd></button>` + pages.map(([k,l])=>{ const g=GRP[k]||'Manage'; const head=(!simple&&g!==lastG)?`<h5>${g}</h5>`:''; lastG=g; return head+`<button data-page="${k}" class="${UI.page===k&&!(k==='board'&&UI.project)?'on':''}">${l}${counts[k]?`<span class="navcount">${counts[k]}</span>`:''}</button>`; }).join('');
   const b = (p,list) => `<button data-nav="${p.id}" class="${UI.page==='board'&&UI.project===p.id?'on':''} ${p.parentId&&list&&list.some(x=>x.id===p.parentId)?'child':''}"><span class="dot" style="background:${p.color}"></span><span class="nl">${esc(p.name)}</span>${p.private?`<span class="lock">${ICON.lock}</span>`:''}</button>`;
@@ -4983,9 +5117,17 @@ async function runAi(id,action,extra){
   }catch(e){ toast(/Failed to send|fetch/i.test(e.message||'')?'JARVIS Assistant isn’t set up yet. Press Send to '+aiTeacher()+'.':(e.message||'JARVIS Assistant isn’t available right now')); }
   UI.aiBusy.delete(id); await refetchRow('asks',id); render();
 }
+const AI_TOPICS=[['masking',/mask/i],['exporting / rendering',/export|render/i],['Premiere',/premiere/i],['After Effects',/after effects|\bae\b|keyframe/i],['Photoshop',/photoshop|\bps\b|layer/i],['Illustrator',/illustrator|vector|pen tool/i],['audio',/audio|sound|mic|levels/i],['camera settings',/camera|iso|shutter|aperture|focus/i],['lighting',/light/i],['color',/colou?r|grade|grading/i],['printing',/print|bleed|cmyk/i],['due dates',/due|late|deadline|extension/i],['NOCTI / certification',/nocti|certif|exam|quiz/i]];
+function aiInsightsHTML(){
+  const since=Date.now()-7*86400000, A=S.asks.filter(a=>a.ai&&(a.ts||0)>=since);
+  if(!A.length) return '';
+  const txt=a=>[a.note,...(a.replies||[]).filter(r=>r.by===a.by).map(r=>r.text)].join(' ');
+  const hits=AI_TOPICS.map(([l,re])=>({l,who:[...new Set(A.filter(a=>re.test(txt(a))).map(a=>a.by))]})).filter(x=>x.who.length>=2).sort((a,b)=>b.who.length-a.who.length).slice(0,5);
+  return `<div class="brief"><small>This week’s AI questions</small><ul><li>${A.length} conversation${A.length>1?'s':''} from ${new Set(A.map(a=>a.by)).size} students.</li>${hits.map(h=>`<li><b>${h.who.length} students</b> asked about ${esc(h.l)}: ${h.who.slice(0,6).map(w=>esc(first(w))).join(', ')}. <span class="hint">Maybe a quick lesson?</span></li>`).join('')}</ul></div>`;
+}
 function aiTeacherHTML(){
   const c=aiCfg(), convos=S.asks.filter(a=>a.ai&&a.open&&!a.escalated&&!a.flagged);
-  return `<h3 class="sech">JARVIS Assistant conversations <span class="hint">The AI is handling these. You’re only notified if a student sends one to you, flags it, or the AI spots a safety concern.</span></h3>`
+  return aiInsightsHTML()+`<h3 class="sech">JARVIS Assistant conversations <span class="hint">The AI is handling these. You’re only notified if a student sends one to you, flags it, or the AI spots a safety concern.</span></h3>`
    + (convos.length?convos.map(a=>askCardHTML(a,{showTarget:true})).join(''):'<div class="hint">None right now.</div>')
    + `<details class="psec" data-sec="aicfg"><summary><span class="st">JARVIS Assistant settings</span><span class="hint">Only you can see this</span></summary><div class="psec-body aicfg">
       <label class="fopt"><input type="checkbox" id="aiOn" ${c.enabled!==false?'checked':''}> <b>JARVIS Assistant is on</b> <span class="hint">(turning this off stops it on the server too)</span></label>
