@@ -10,6 +10,7 @@ alter table public.people drop constraint if exists people_role_check;
 alter table public.people add constraint people_role_check check (role in ('teacher','student','wall'));
 
 alter table public.people add column if not exists helper boolean not null default false;
+grant update (helper) on public.people to authenticated;  -- teachers only (policy "jarvis teacher edit")
 
 create or replace function public.jarvis_is_helper() returns boolean
 language sql stable security definer set search_path = public as $$
