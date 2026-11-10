@@ -1366,8 +1366,11 @@ function normalize(t,o){
 }
 /* v1.4.11 school emails: private table, only the student and teachers can read it */
 const CONTACTS={}; let contactsReady=false;
-async function loadContacts(){ try{ const {data,error}=await sb.from('contacts').select('pid,email'); if(error) throw error; for(const k of Object.keys(CONTACTS)) delete CONTACTS[k]; (data||[]).forEach(r=>CONTACTS[r.pid]=r.email); contactsReady=true; }catch(e){ contactsReady=false; } }
+async function loadContacts(){ try{ const {data,error}=await sb.from('contacts').select('pid,email,optout'); if(error) throw error; for(const k of Object.keys(CONTACTS)) delete CONTACTS[k]; (data||[]).forEach(r=>{CONTACTS[r.pid]=r.email; OPTOUT[r.pid]=!!r.optout;}); contactsReady=true; }catch(e){ contactsReady=false; } }
 const emailOf = pid => CONTACTS[pid]||'';
+const OPTOUT = {};
+async function saveOptout(pid,on){ const {error}=await sb.rpc('jarvis_set_optout',{p_on:on,p_pid:pid}); if(error){ toast('Couldn’t save that. Try again.'); return false; } OPTOUT[pid]=on; toast(on?'Automatic emails turned off':'Automatic emails turned on'); return true; }
+document.addEventListener('change',e=>{ const c=e.target.closest('[data-optout]'); if(!c) return; saveOptout(c.dataset.optout,!c.checked).then(ok=>{ if(!ok) c.checked=!c.checked; }); });
 const SCHOOL_EMAIL_RE=/^[a-z0-9._%+-]+@([a-z0-9-]+\.)*ytech\.edu$/i;
 async function saveEmail(pid,email){
   email=String(email||'').trim().toLowerCase();
@@ -2825,6 +2828,7 @@ function openProfile(pid){
       <p class="hint">The classroom TV shows your wall name. A demo request shows for 5 days.</p>`:''}
     <div class="mfoot"><button class="btn primary" data-prsave>Save profile</button></div>
     ${!isTeacherId(pid) && (self||isTeacher()) ? `<details class="psec" ${emailOf(pid)?'':'open'}><summary><span class="st">School email</span><span class="hint">${esc(emailOf(pid)||'not set')}</span></summary><div class="psec-body"><div class="fields"><label>School email</label><input id="myEmail" type="email" value="${esc(emailOf(pid))}" placeholder="name@ytech.edu"></div><button class="btn" data-emailsave="${pid}" style="align-self:flex-start">Save email</button></div></details>`:''}
+    ${!isTeacherId(pid) && (self||isTeacher()) && emailOf(pid) ? `<label class="fopt" style="margin:8px 2px"><input type="checkbox" data-optout="${pid}" ${OPTOUT[pid]?'':'checked'}> <b>Send me automatic emails</b> <span class="hint">(reminders, due-tomorrow notes, and calendar invites). Uncheck if you don’t read your school email. You’ll still see everything in JARVIS.</span></label>`:''}
     ${self?`<details class="psec"><summary><span class="st">Change my password</span></summary><div class="psec-body"><div class="fields"><label>New password</label><input type="password" id="pw1" autocomplete="new-password"><label>Again</label><input type="password" id="pw2" autocomplete="new-password"></div><button class="btn tiny" data-pwsave>Change password</button></div></details>`:''}`);
   drawPrMode(); drawPrPrev();
 }
@@ -5135,6 +5139,7 @@ function aiTeacherHTML(){
       <label class="fl">About your class (the AI reads this)<textarea id="aiContext" rows="4" placeholder="e.g. Comm Tech at York Tech. Projects are major/minor/micro. Gear sign-out is on the board by the cage. Ask before taking cameras off campus.">${esc(c.context||'')}</textarea></label>
       <label class="fopt"><input type="checkbox" id="aiHints" ${c.hints!==false?'checked':''}> Give hints and questions instead of finished answers</label>
       <label class="fopt"><input type="checkbox" id="aiUrgent" ${c.urgentAlert!==false?'checked':''}> If a student mentions being hurt or in danger, alert me right away</label>
+      <label class="fl">Safety alert email <input type="email" id="aiAlert" value="${esc(c.alertEmail||'')}" placeholder="you@ytech.edu" style="width:240px"></label><p class="hint" style="margin:0">If JARVIS Assistant thinks a student may be unsafe (self-harm, harm to others, abuse), this address gets an email within about 15 minutes. The email doesn’t include what the student wrote.</p>
       <label class="fl">Questions per student per day <input type="number" id="aiLimit" min="1" max="100" value="${c.limit||25}" style="width:90px"></label>
       <button class="btn primary" data-aisave style="align-self:flex-start">Save</button></div></details>`;
 }
@@ -5337,7 +5342,7 @@ document.addEventListener('click',e=>{
   if(d.aiflag){ const why=prompt('What wasn’t okay? (you can leave this blank)'); if(why===null) return; runAi(d.aiflag,'flag',{reason:why}).then(()=>toast(`Flagged. ${aiTeacher()} will take a look.`)); return; }
   if(d.aiunflag){ const a=askById(d.aiunflag); if(a){ a.flagged=false; render(); } return; }
   if(d.aisave!==undefined){ let c=S.settings.find(x=>x.id==='ai_config'); if(!c){ c={id:'ai_config'}; S.settings.push(c); }
-    Object.assign(c,{enabled:$('#aiOn').checked,teacherName:($('#aiTName').value||'').trim().slice(0,40),context:($('#aiContext').value||'').slice(0,2000),hints:$('#aiHints').checked,urgentAlert:$('#aiUrgent').checked,limit:Math.max(1,Math.min(100,+$('#aiLimit').value||25))}); render(); toast('AI helper settings saved'); return; }
+    Object.assign(c,{enabled:$('#aiOn').checked,teacherName:($('#aiTName').value||'').trim().slice(0,40),context:($('#aiContext').value||'').slice(0,2000),hints:$('#aiHints').checked,urgentAlert:$('#aiUrgent').checked,alertEmail:($('#aiAlert').value||'').trim().slice(0,120),limit:Math.max(1,Math.min(100,+$('#aiLimit').value||25))}); render(); toast('AI helper settings saved'); return; }
   if(d.sendlesson!==undefined){ const title=$('#lrTitle').value.trim(); if(!title){ $('#lrTitle').focus(); toast('Name the lesson'); return; }
     const a={id:rid('k'),kind:'lesson',by:S.viewer,title,note:$('#lrNote').value.trim(),open:true,plus:[S.viewer],replies:[],...nowStamp()}; S.asks.push(a); notifyTeachers('lessonreq',{askId:a.id,text:title}); closeModal(); UI.page='lessons'; render(); toast('Lesson requested'); return; }
   if(d.askform){ UI.askForm=d.askform; renderPanel(); return; }

@@ -1,5 +1,5 @@
 -- JARVIS 2.0.0 cumulative update (includes everything through 1.5.14).
--- 2.0 adds: Student Assistant activity log rows (alog_*), written by the assistant, read by teachers.
+-- 2.0 adds: email opt-out (contacts.optout), urgent safety-alert emails to the teacher, Student Assistant activity log rows (alog_*), written by the assistant, read by teachers.
 -- =====================================================================
 -- JARVIS update for v1.5.14 (Student Assistant role + everything before). Run once in Supabase > SQL Editor.
 -- Includes every update since 0.91, so it works whichever ones you ran.
@@ -451,6 +451,21 @@ language sql stable as $$
   from (select (now() at time zone 'America/New_York')::date d) x
 $$;
 
+
+-- 2.0: students can opt out of automatic emails (Edit my profile)
+alter table public.contacts add column if not exists optout boolean not null default false;
+create or replace function public.jarvis_set_optout(p_on boolean, p_pid text default null) returns boolean
+language plpgsql security definer set search_path = public as $$
+declare me text := jarvis_me(); who text := coalesce(nullif(p_pid,''), jarvis_me());
+begin
+  if me is null then perform jarvis_deny('please sign in'); end if;
+  if who <> me and not jarvis_is_teacher() then perform jarvis_deny('you can only change your own email setting'); end if;
+  update contacts set optout = coalesce(p_on,false), updated_at = now() where pid = who;
+  return coalesce(p_on,false);
+end $$;
+revoke all on function public.jarvis_set_optout(boolean, text) from public, anon;
+grant execute on function public.jarvis_set_optout(boolean, text) to authenticated;
+
 create or replace function public.jarvis_outbox(p_secret text) returns jsonb
 language plpgsql security definer set search_path = public as $$
 declare
@@ -467,7 +482,7 @@ begin
   for r in
     select rm.id, rm.data d, c.email, p.name
     from reminders rm join people p on p.pid = rm.data->>'to' and p.role = 'student' and p.active and coalesce(p.grad,0) < jarvis_senior_year() + 2
-    join contacts c on c.pid = p.pid
+    join contacts c on c.pid = p.pid and not coalesce(c.optout,false)
     where coalesce((rm.data->>'done')::boolean,false) = false
       and (rm.data->>'when')::bigint <= (extract(epoch from now())*1000)::bigint
       and (rm.data->>'when')::bigint >= (extract(epoch from now() - interval '2 days')*1000)::bigint
@@ -484,7 +499,7 @@ begin
       select i.id, i.data d, a.data ad, c.email, p.name
       from items i join assignments a on a.id = i.data->>'assignmentId'
       join people p on p.pid = i.data->'assignees'->>0 and p.role = 'student' and p.active and coalesce(p.grad,0) < jarvis_senior_year() + 2
-      join contacts c on c.pid = p.pid
+      join contacts c on c.pid = p.pid and not coalesce(c.optout,false)
       where i.data->>'source' = 'assignment' and coalesce((a.data->>'weekly')::boolean,false) = false
         and i.data->>'due' = nextday::text and coalesce(i.data->>'status','not') not in ('sub','done')
         and not exists (select 1 from sent_log s where s.key = 'due:' || i.id || ':' || (i.data->>'due'))
@@ -499,7 +514,7 @@ begin
     select l.id, l.data d, s.pid, c.email
     from lessons l cross join lateral jsonb_array_elements_text(coalesce(l.data->'signups','[]'::jsonb)) s(pid)
     join people p on p.pid = s.pid and p.role = 'student' and p.active and coalesce(p.grad,0) < jarvis_senior_year() + 2
-    join contacts c on c.pid = s.pid
+    join contacts c on c.pid = s.pid and not coalesce(c.optout,false)
     where (l.data->>'date')::date >= today
       and not exists (select 1 from sent_log x where x.key = 'les:' || l.id || ':' || s.pid)
   loop
@@ -513,7 +528,7 @@ begin
     select b.id, b.data d, w.pid, c.email
     from broadcast b cross join lateral jsonb_array_elements_text(coalesce(b.data->'who','[]'::jsonb)) w(pid)
     join people p on p.pid = w.pid and p.role = 'student' and p.active and coalesce(p.grad,0) < jarvis_senior_year() + 2
-    join contacts c on c.pid = w.pid
+    join contacts c on c.pid = w.pid and not coalesce(c.optout,false)
     where b.data->>'kind' in ('block','ann')
       and coalesce(b.data->>'date', b.data->>'start') >= today::text
       and not exists (select 1 from sent_log x where x.key = 'tv:' || b.id || ':' || w.pid)
@@ -525,6 +540,21 @@ begin
       'desc','Spartan TV streams 7:45–8:20 AM. You claimed this in JARVIS → Spartan TV, so have it ready before the broadcast.'));
   end loop;
 
+  -- 2.0: safety alerts. When JARVIS Assistant marks a chat urgent, email the teacher (ai_config.alertEmail).
+  for r in
+    select a.id, a.data d, p.name, lower(trim((select data->>'alertEmail' from settings where id = 'ai_config'))) em
+    from asks a join people p on p.pid = a.data->>'by'
+    where coalesce((a.data->>'urgent')::boolean,false)
+      and coalesce(a.data->>'sentAt',a.data->>'ts','0')::bigint >= (extract(epoch from now() - interval '3 days')*1000)::bigint
+      and not exists (select 1 from sent_log x where x.key = 'alert:' || a.id)
+  loop
+    continue when coalesce(r.em,'') !~ '^[^@\s]+@[^@\s]+\.[^@\s]+$';
+    out := out || jsonb_build_array(jsonb_build_object('type','email','key','alert:' || r.id,'to',r.em,
+      'subject','URGENT (JARVIS): possible safety concern from ' || split_part(r.name,' ',1),
+      'text','JARVIS Assistant flagged a conversation with ' || r.name || ' as a possible safety concern (self-harm, harm to others, abuse, or being unsafe).' || chr(10) || chr(10) ||
+        'Please check on the student and follow the school''s procedures. Open the conversation in JARVIS > Asks: ' || coalesce((select value from jarvis_secrets where name = 'site'), '') || chr(10) || chr(10) ||
+        'This email does not include what the student wrote, for privacy.'));
+  end loop;
   return out;
 end $$;
 revoke all on function public.jarvis_outbox(text) from public;
