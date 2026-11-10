@@ -1083,6 +1083,12 @@ body.scopen{overflow:hidden}
 .aityping{font-size:12px;color:#807F83;animation:aip 1.2s infinite}@keyframes aip{50%{opacity:.4}}
 .ainote{font-size:12px;background:color-mix(in srgb,#095641 8%,transparent);border-radius:8px;padding:8px;margin:6px 0}
 .aicfg{display:grid;gap:8px;max-width:560px}.aicfg textarea{min-height:90px}
+.cmdk{all:unset;cursor:pointer;display:flex;align-items:center;gap:8px;margin:0 0 8px;padding:7px 9px;border:1px solid var(--line);border-radius:8px;color:var(--ink-3);font-size:13px}
+.cmdk kbd{margin-left:auto;font:11px ui-monospace,monospace;border:1px solid var(--line);border-radius:4px;padding:1px 4px}
+#cmdQ{width:100%;font-size:16px;padding:10px;margin-bottom:8px}.cmdlist{display:flex;flex-direction:column;gap:2px}
+.cmdrow{all:unset;cursor:pointer;display:flex;justify-content:space-between;gap:8px;padding:8px 10px;border-radius:7px}.cmdrow.on,.cmdrow:hover{background:var(--accent-soft)}.cmdrow small{color:var(--ink-3)}
+.toast.show{pointer-events:auto}
+.toast .undo{color:#7CE0A8;font-weight:700;margin-left:10px}
 </style>
 </head>
 <body>
@@ -1530,6 +1536,8 @@ function avLabel(pid){ const pr=profile(pid); if(pr.mode==='text' && pr.text) re
 function av(pid,cls=''){ const p=PEOPLE[pid]; if(!p) return ''; const pr=profile(pid);
   return `<span class="av sh-${pr.shape||'circle'} ${pr.img?'avimg-'+pid:''} ${cls}" style="background-color:${pr.color||p.color}" title="${esc(realName(pid))}">${esc(avLabel(pid))}</span>`; }
 function avatars(ids,max=3){ ids=ids||[]; return `<span class="avatars">${ids.slice(0,max).map(x=>av(x)).join('')}${ids.length>max?`<span class="av" style="background:var(--ink-3)">+${ids.length-max}</span>`:''}</span>`; }
+function undoToast(msg,tbl,rows){ const t=$('#toast'); t.innerHTML=`${esc(msg)} <button class="linkbtn undo" data-undo>Undo</button>`; t.classList.add('show'); UI.undo={tbl,rows}; clearTimeout(toast._t); toast._t=setTimeout(()=>{t.classList.remove('show');UI.undo=null;},7000); }
+document.addEventListener('click',e=>{ if(!e.target.closest('[data-undo]')||!UI.undo) return; const {tbl,rows}=UI.undo; UI.undo=null; S[tbl].push(...rows.filter(r=>!S[tbl].includes(r))); $('#toast').classList.remove('show'); render(); typeof refreshRemUI==='function'&&tbl==='reminders'&&refreshRemUI(); });
 function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove('show'),2400); }
 function tsOf(e){ return e.ts || 0; }
 function relDay(ts){ const d=new Date(ts); const iso=localISO(d); const t=todayISO(); if(iso===t) return 'Today'; if(iso===addDays(t,-1)) return 'Yesterday'; if(iso>=weekStartOf(t)) return d.toLocaleDateString('en-US',{weekday:'long'}); return 'Earlier'; }
@@ -3598,7 +3606,7 @@ function bankClick(d,t){
   if(d.banknew){ bankEditModal(null,d.banknew); return true; }
   if(d.bankedit){ bankEditModal(bankById(d.bankedit)); return true; }
   if(d.banksave!==undefined){ saveBank(d.banksave); return true; }
-  if(d.bankdel){ const b=bankById(d.bankdel); if(!b||!confirm(`Delete “${b.title}” from the bank?`)) return true; S.bank=S.bank.filter(x=>x.id!==b.id); closeModal(); render(); return true; }
+  if(d.bankdel){ const b=bankById(d.bankdel); if(!b) return true; S.bank=S.bank.filter(x=>x.id!==b.id); closeModal(); render(); undoToast('Deleted from the bank.','bank',[b]); return true; }
   if(d.bankrestore){ const b=bankById(d.bankrestore); if(b){ b.status='ready'; render(); toast('Back in the bank'); } return true; }
   if(d.bankopen){ const b=bankById(d.bankopen); if(b) bankDetail(b); return true; }
   if(d.bankstart){ const b=bankById(d.bankstart); if(b) bankStartModal(b); return true; }
@@ -3789,7 +3797,7 @@ function projClick(d,t,e){
   if(d.reopenproj){ const p=proj(d.reopenproj); if(!p||!isTeacher()) return true; p.completed=false; p.completedAt=null; p.completedBy=null; render(); toast('Project reopened'); return true; }
   if(d.addnote){ const ta=$('#tnote-'+d.addnote), txt=(ta&&ta.value||'').trim(); if(!txt){ toast('Write a note first'); return true; }
     S.reflections.push({id:rid('rn'),projectId:d.addnote,by:S.viewer,kind:'teacher',text:txt.slice(0,8000),ts:Date.now()}); ta.value=''; render(); toast('Note added'); return true; }
-  if(d.delnote){ const n=S.reflections.find(x=>x.id===d.delnote); if(!n||!confirm('Delete this note?')) return true; S.reflections=S.reflections.filter(x=>x!==n); render(); return true; }
+  if(d.delnote){ const n=S.reflections.find(x=>x.id===d.delnote); if(!n) return true; S.reflections=S.reflections.filter(x=>x!==n); render(); undoToast('Note deleted.','reflections',[n]); return true; }
   if(d.pastopen){ openPanel('p:'+d.pastopen); return true; }
   return false;
 }
@@ -3809,7 +3817,7 @@ function remindClick(d,t,e){
   if(d.remopen){ const r=S.reminders.find(x=>x.id===d.remopen); if(r) openTarget(r.target); return true; }
   if(d.remdone){ const r=S.reminders.find(x=>x.id===d.remdone); if(r){ r.done=true; r.doneAt=Date.now(); } refreshRemUI(); toast('Done'); return true; }
   if(d.remsnooze){ const [id,kind]=d.remsnooze.split('|'); const r=S.reminders.find(x=>x.id===id); if(r){ r.when=snoozeTime(kind); r.notified=false; r.snoozes=(r.snoozes||0)+1; } refreshRemUI(); toast('Snoozed until '+fmtWhen(r.when)); return true; }
-  if(d.remdel){ const r=S.reminders.find(x=>x.id===d.remdel); if(!r||!confirm('Delete this reminder?')) return true; S.reminders=S.reminders.filter(x=>x!==r); refreshRemUI(); return true; }
+  if(d.remdel){ const r=S.reminders.find(x=>x.id===d.remdel); if(!r) return true; S.reminders=S.reminders.filter(x=>x!==r); refreshRemUI(); undoToast('Reminder deleted.','reminders',[r]); return true; }
   return false;
 }
 function refreshRemUI(){ const inList=!$('#modal').hidden && $('#modal').textContent.includes('My reminders'); const inMenu=$('#menu').classList.contains('open') && $('#menu').classList.contains('notifs'); render(); if(inList) remListModal(); if(inMenu) openMenu($('#btnBell'),'notifs'); }
@@ -4506,7 +4514,7 @@ function myListClick(d,t,e){
   if(d.tdcopy){ copyList(d.tdcopy==='all'?myLists():[listById(d.tdcopy)].filter(Boolean)); return true; }
   if(d.tdbottom!==undefined){ UI.tdBottom=!UI.tdBottom; t.classList.toggle('on',UI.tdBottom); t.setAttribute('aria-pressed',UI.tdBottom?'true':'false'); $('#tdQuick')?.focus(); return true; }
   if(d.tdmove){ const [id,dir]=d.tdmove.split('|'); const td=todoById(id); if(td){ moveTodo(td,+dir); render(); } return true; }
-  if(d.tddel){ const td=todoById(d.tddel); closeMenu(); if(!td) return true; const ds=todoDesc(td.id); if(ds.length && !confirm(`Delete “${td.title||'this to-do'}” and the ${ds.length} under it?`)) return true; const kill=new Set([td.id,...ds.map(x=>x.id)]); S.todos=S.todos.filter(x=>!kill.has(x.id)); render(); return true; }
+  if(d.tddel){ const td=todoById(d.tddel); closeMenu(); if(!td) return true; const ds=todoDesc(td.id); const kill=new Set([td.id,...ds.map(x=>x.id)]); const gone=S.todos.filter(x=>kill.has(x.id)); S.todos=S.todos.filter(x=>!kill.has(x.id)); render(); undoToast(gone.length>1?`Deleted ${gone.length} to-dos.`:'To-do deleted.','todos',gone); return true; }
   if(d.tdlinkopen){ const td=todoById(d.tdlinkopen); if(td&&td.link) openTarget(td.link); return true; }
   return false;
 }
@@ -4815,6 +4823,34 @@ function renderPast(){
   return `<div class="hello"><h2>Past projects</h2><span class="hint">${isTeacher()?'Every finished project. Nothing here is deleted.':'Finished projects you were part of.'}</span></div>
     <input id="pastSearch" class="pastsearch" placeholder="Search by name, date, major, or person" value="${esc(UI.pastQ||'')}">${pastCards()}`;
 }
+function cmdItems(){
+  const it=PAGES().map(([k,l])=>({t:l,sub:'Page',go:()=>{UI.page=k;UI.project=null;render();}}));
+  S.projects.filter(p=>liveProj(p)&&(isTeacher()||(p.roles||{})[S.viewer]||!p.private)).forEach(p=>it.push({t:p.name,sub:'Project',go:()=>{UI.page='board';UI.project=p.id;render();}}));
+  if(isTeacher()) STUDENTS.forEach(id=>{const x=PEOPLE[id]; if(x) it.push({t:x.name,sub:'Student',go:()=>{UI.page='student';UI.stu=id;render();}});});
+  S.items.filter(i=>!i.parentId&&(isTeacher()||(i.assignees||[]).includes(S.viewer))).slice(0,400).forEach(i=>it.push({t:i.title,sub:'Task',go:()=>{UI.page='board';UI.project=i.projectId||null;render();}}));
+  return it;
+}
+function openCmdk(){
+  openModal(`<div class="mhead"><h2>Search JARVIS</h2><button class="x" data-closemodal>×</button></div><input id="cmdQ" placeholder="Type a page, project${isTeacher()?', student':''}, or task… or ask a question" autocomplete="off"><div id="cmdList" class="cmdlist"></div>`);
+  const draw=()=>{ const q=($('#cmdQ').value||'').trim().toLowerCase(); const all=cmdItems(); const L=(q?all.filter(x=>String(x.t).toLowerCase().includes(q)):all.filter(x=>x.sub==='Page')).slice(0,9);
+    UI.cmdL=L; UI.cmdI=Math.min(UI.cmdI||0,Math.max(L.length-1,0));
+    let h=L.map((x,i)=>`<button class="cmdrow ${i===UI.cmdI?'on':''}" data-cmdgo="${i}"><span>${esc(x.t)}</span><small>${x.sub}</small></button>`).join('');
+    if(q&&!isTeacher()) h+=`<button class="cmdrow" data-cmdask><span>${FEATURES.aiHelper?'Ask JARVIS Assistant':'Ask '+esc(aiTeacher())}: “${esc(q.slice(0,60))}”</span><small>Ask</small></button>`;
+    if(!h) h='<div class="empty">Nothing matches. Try a shorter word.</div>';
+    $('#cmdList').innerHTML=h; };
+  UI.cmdI=0; draw();
+  $('#cmdQ').addEventListener('input',()=>{UI.cmdI=0;draw();});
+  $('#cmdQ').addEventListener('keydown',e=>{ const n=(UI.cmdL||[]).length;
+    if(e.key==='ArrowDown'){UI.cmdI=(UI.cmdI+1)%Math.max(n,1);draw();e.preventDefault();}
+    else if(e.key==='ArrowUp'){UI.cmdI=(UI.cmdI-1+n)%Math.max(n,1);draw();e.preventDefault();}
+    else if(e.key==='Enter'){ const x=(UI.cmdL||[])[UI.cmdI]; if(x){closeModal&&closeModal();x.go();} else if(!isTeacher()) cmdAsk(); } });
+}
+function cmdAsk(){ const q=$('#cmdQ').value.trim(); openModal(askModal('help')); const n=$('#hNote'); if(n) n.value=q; }
+document.addEventListener('keydown',e=>{ if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'&&S.viewer){ e.preventDefault(); openCmdk(); } });
+document.addEventListener('click',e=>{ const t=e.target.closest('[data-cmdk],[data-cmdgo],[data-cmdask]'); if(!t) return;
+  if(t.dataset.cmdk!==undefined) openCmdk();
+  else if(t.dataset.cmdgo!==undefined){ const x=UI.cmdL[+t.dataset.cmdgo]; $('#modal').hidden=true; x&&x.go(); }
+  else cmdAsk(); });
 function renderSide(){
   const m=me(); $('#whoami').innerHTML = `${av(S.viewer)}<span><b>${esc(m.name)}</b><small>${m.role==='teacher'?'Teacher':gradLabel(m.grad)+(m.major?' · '+esc(m.major):'')}</small></span>`;
   const counts = {cal: isTeacher()?S.events.filter(e=>e.status==='pending').length+S.settings.filter(x=>x.id.startsWith('claim_')&&x.status==='submitted').length:claimsOf(S.viewer).filter(c=>c.status==='returned').length, asks: asksWaitingOnMe().filter(a=>a.kind!=='lesson').length, sync: isTeacher()?syncPending():0, week: (!isTeacher() && stageDue(S.viewer,weekStartOf(todayISO())))?1:0};
@@ -4823,7 +4859,9 @@ function renderSide(){
   $('#btnSimple').style.display=isTeacher()?'none':''; $('#btnSimple').textContent=`Simplified view: ${simple?'On':'Off'}`;
   let pages=PAGES();
   if(simple){ const core=pages.filter(([k])=>['home','board','week'].includes(k)); pages = UI.more ? [...core,...pages.filter(([k])=>!['home','board','week'].includes(k))] : core; }
-  let h = pages.map(([k,l])=>`<button data-page="${k}" class="${UI.page===k&&!(k==='board'&&UI.project)?'on':''}">${l}${counts[k]?`<span class="navcount">${counts[k]}</span>`:''}</button>`).join('');
+  const GRP={home:'Today',mylist:'Today',asks:'Today',board:'Work',week:'Work',lessons:'Work',cal:'Work',tv:'Create',bank:'Create',inspo:'Create',past:'Create',sync:'Manage',roster:'Manage',help:'Manage'};
+  if(!simple){ const ord=['Today','Work','Create','Manage']; pages=[...pages].sort((a,b)=>ord.indexOf(GRP[a[0]]||'Manage')-ord.indexOf(GRP[b[0]]||'Manage')); }
+  let lastG=''; let h = `<button class="cmdk" data-cmdk>⌕ Search or ask… <kbd>Ctrl K</kbd></button>` + pages.map(([k,l])=>{ const g=GRP[k]||'Manage'; const head=(!simple&&g!==lastG)?`<h5>${g}</h5>`:''; lastG=g; return head+`<button data-page="${k}" class="${UI.page===k&&!(k==='board'&&UI.project)?'on':''}">${l}${counts[k]?`<span class="navcount">${counts[k]}</span>`:''}</button>`; }).join('');
   const b = (p,list) => `<button data-nav="${p.id}" class="${UI.page==='board'&&UI.project===p.id?'on':''} ${p.parentId&&list&&list.some(x=>x.id===p.parentId)?'child':''}"><span class="dot" style="background:${p.color}"></span><span class="nl">${esc(p.name)}</span>${p.private?`<span class="lock">${ICON.lock}</span>`:''}</button>`;
   if(simple){ h += `<button data-more class="morebtn">${UI.more?'Less ▴':'More ▾'}</button>`; $('#nav').innerHTML = h; ['#btnBackup','#btnRestore'].forEach(x=>$(x).style.display='none'); $('#verTag').textContent=`JARVIS v${APP_VERSION} · ${APP_DATE}`; return; }
   if(isTeacher()){ const L=orderTree(S.projects.filter(liveProj)); h += '<h5>Projects</h5>' + L.map(p=>b(p,L)).join(''); }
@@ -5125,7 +5163,7 @@ document.addEventListener('click',e=>{
   if(d.leave){ const l=lesson(d.leave); l.signups=(l.signups||[]).filter(x=>x!==S.viewer); render(); return; }
   if(d.newlesson!==undefined){ openModal(lessonForm()); return; }
   if(d.editlesson){ openModal(lessonForm(lesson(d.editlesson))); return; }
-  if(d.dellesson){ if(!confirm('Delete this lesson?')) return; S.lessons=S.lessons.filter(l=>l.id!==d.dellesson); render(); return; }
+  if(d.dellesson){ const gone=S.lessons.filter(l=>l.id===d.dellesson); S.lessons=S.lessons.filter(l=>l.id!==d.dellesson); render(); undoToast('Lesson deleted.','lessons',gone); return; }
   if(d.schedule){ openModal(lessonForm(null,askById(d.schedule))); return; }
   if(d.savelesson!==undefined){ const title=$('#lTitle').value.trim(), date=$('#lDate').value, seats=Math.max(1,+$('#lSeats').value||1); if(!title||!date){ toast('Add a title and date'); return; }
     const who=$$('.lWho:checked').map(x=>+x.value), grp=who.length?STUDENTS.filter(st=>who.includes(st.grad)).map(st=>st.id):null;
