@@ -2518,7 +2518,7 @@ function dayStrip(pid,ws,editable){
   const days=weekDays(pid,ws), t=todayISO();
   return `<div class="days">${days.map(d=>{ const c=checkin(pid,d);
     const st = c&&c.absent?'<span class="tag">Absent</span>':c&&c.line?`<span class="dline">${esc(c.line)}</span>`:(d>t?'<span class="hint">Upcoming</span>':'<span class="hint">No check-in</span>');
-    return `<div class="day ${d===t?'today':''}"><b>${esc(dow(d))}</b><span class="hint">${esc(fmt(d))}</span>${st}${editable && d<=t && !(c&&c.line&&!c.absent)?`<button class="linkbtn" data-absent="${d}">${c&&c.absent?'Undo absent':'Mark absent'}</button>`:''}</div>`; }).join('')}</div>`;
+    return `<div class="day ${d===t?'today':''}"><b>${esc(dow(d))}</b><span class="hint">${esc(fmt(d))}</span>${st}${c&&c.lateFill?'<span class="tag" title="Filled in later">filled in later</span>':''}${editable && pid===S.viewer && d<t && !(c&&c.absent)?`<button class="linkbtn" data-cifill="${d}">${c&&c.line?'Edit':'Fill in'}</button>`:''}${editable && d<=t && !(c&&c.line&&!c.absent)?`<button class="linkbtn" data-absent="${d}">${c&&c.absent?'Undo absent':'Mark absent'}</button>`:''}</div>`; }).join('')}</div>`;
 }
 function stageForm(pid,ws,stg,editable){
   const w=weekDoc(pid,ws)||{answers:{},stages:{}}; const doneAt=w.stages[stg.id];
@@ -2776,13 +2776,24 @@ function maybeCheckin(){
   const needLine = !(ci && ci.line);
   if(needLine) openCheckin(true, 1);
 }
-function openCheckin(required, step){
-  const v=S.viewer, t=todayISO(), ci=checkin(v,t), prev=lastCheckinBefore(v,t);
-  CI = {required, step, active:new Set((ci&&ci.active&&ci.active.length?ci.active:(prev?prev.active:[]))||[]), focus:new Set()};
+function openCheckin(required, step, date){
+  const v=S.viewer, t=date||todayISO(), ci=checkin(v,t), prev=lastCheckinBefore(v,t);
+  CI = {required, step, date:t, past:t<todayISO(), active:new Set((ci&&ci.active&&ci.active.length?ci.active:(prev?prev.active:[]))||[]), focus:new Set()};
   drawCheckin();
 }
 function drawCheckin(){
-  const v=S.viewer, t=todayISO(), ws=weekStartOf(t), ci=checkin(v,t), el=$('#checkin'); el.hidden=false;
+  const v=S.viewer, t=(CI.step===1&&CI.date)||todayISO(), ws=weekStartOf(t), ci=checkin(v,t), el=$('#checkin'); el.hidden=false;
+  if(CI.step===1 && CI.past){
+    const opts=todayOptions(v);
+    el.innerHTML=`<div class="modalbox cibox"><div class="mhead"><h2>Fill in ${esc(fmtDay(t))}</h2><button class="x" data-cicancel>×</button></div>
+      <p class="hint">You missed checking in this day. Fill it in so your weekly report is complete.</p>
+      <h3 class="sech small">What did you work on that day? <span class="hint">Tap all that apply</span></h3>
+      <div class="checks">${opts.length?opts.map(([k,l])=>`<button class="chip ${CI.active.has(k)?'on':''}" data-ciact="${k}">${esc(l)}</button>`).join(''):'<span class="hint">No projects to pick. Just write what you did below.</span>'}</div>
+      <h3 class="sech small">What did you do?</h3>
+      <textarea id="ciLine" data-voice maxlength="600" rows="3" placeholder="e.g. Finished the rough cut and picked music">${esc(ci&&ci.line||'')}</textarea>
+      <div class="mfoot"><button class="btn primary" data-cisave>Save</button></div></div>`;
+    return;
+  }
   if(CI.step===1){
     const opts=todayOptions(v);
     el.innerHTML=`<div class="modalbox cibox"><div class="mhead"><h2>Morning, ${esc(first(v))}</h2>${CI.required?'':'<button class="x" data-cicancel>×</button>'}</div>
@@ -5295,9 +5306,11 @@ document.addEventListener('click',e=>{
   if(d.cifocus){ CI.focus.has(d.cifocus)?CI.focus.delete(d.cifocus):CI.focus.add(d.cifocus); const vals=['ciq1','ciq2','ciq3'].map(x=>$('#'+x).value); const chk=$('#ciq3ask').checked;
     if(CI.focus.has(d.cifocus)){ const lab=activeLabel(d.cifocus).replace(/^Assignment: /,''); if(!vals[0].includes(lab)) vals[0]=(vals[0]?vals[0].replace(/\s*$/,'')+'\n':'')+lab+' — '; }
     drawCheckin(); ['ciq1','ciq2','ciq3'].forEach((x,k)=>$('#'+x).value=vals[k]); $('#ciq3ask').checked=chk; $('#ciq1').focus(); return; }
+  if(d.cifill!==undefined){ openCheckin(false,1,d.cifill); return; }
   if(d.cisave!==undefined){ const line=$('#ciLine').value.trim(); if(!line){ $('#ciLine').focus(); toast('Add a few details about today'); return; }
-    const c=ensureCheckin(S.viewer,todayISO()); c.active=[...CI.active]; c.line=line; c.absent=false; Object.assign(c,nowStamp());
-    const wantHelp=CI&&CI.help; closeCheckin(); toast('Checked in'); if(wantHelp) setTimeout(()=>openModal(askModal('help')),50);
+    const day=(CI&&CI.date)||todayISO(), late=day<todayISO();
+    const c=ensureCheckin(S.viewer,day); c.active=[...CI.active]; c.line=line; c.absent=false; Object.assign(c,nowStamp()); if(late) c.lateFill=Date.now(); else delete c.lateFill;
+    const wantHelp=CI&&CI.help; closeCheckin(); toast(late?'Filled in':'Checked in'); if(wantHelp) setTimeout(()=>openModal(askModal('help')),50);
     render(); return; }
   if(d.ciplan!==undefined){ const q=['ciq1','ciq2','ciq3'].map(x=>$('#'+x).value.trim()); if(!q[0]||!q[1]||!q[2]){ toast('Answer all three questions'); return; }
     const w=ensureWeek(S.viewer,weekStartOf(todayISO())); w.answers.q1=q[0]; w.answers.q2=q[1]; w.answers.q3=q[2]; w.focus=[...CI.focus]; w.stages.monday=Date.now();
