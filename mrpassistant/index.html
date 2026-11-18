@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JARVIS AI</title>
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="JARVIS AI">
+<meta name="theme-color" content="#04140e"><link rel="apple-touch-icon" href="../icon-180.png"><link rel="manifest" href="manifest.webmanifest">
+<style>
+:root{--bg:#04140e;--panel:rgba(${C2},.07);--line:#00954C;--glow:#3CE08F;--ink:#E6F4EC;--dim:#8FB9A3}
+:root[data-theme="light"]{--bg:#04140e}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]){--bg:#04140e}}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;min-height:100dvh;padding-top:max(20px,env(safe-area-inset-top))!important;-webkit-user-select:none;user-select:none;background:radial-gradient(ellipse at 50% 35%,#0a3324 0%,var(--bg) 70%);transition:background .3s;color:var(--ink);font-family:system-ui,"Segoe UI",sans-serif;display:flex;flex-direction:column;align-items:center;padding:20px 16px 28px}
+h1{font-size:13px;letter-spacing:.32em;font-weight:600;color:var(--dim);margin:4px 0 0}
+.stage{position:relative;width:min(92vw,520px);aspect-ratio:1}
+canvas{width:100%;height:100%;display:block}
+.state{position:absolute;left:0;right:0;bottom:12%;text-align:center;font-size:12px;letter-spacing:.25em;color:var(--dim);text-transform:uppercase}
+.say{min-height:3.2em;max-width:560px;text-align:center;font-size:17px;line-height:1.5;margin:4px 0 18px}
+.say .w{opacity:.35;transition:opacity .15s}.say .w.on{opacity:1;color:var(--glow)}
+.row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+button{font:inherit;font-size:15px;border:1px solid rgba(255,255,255,.22);background:linear-gradient(180deg,rgba(255,255,255,.14),rgba(255,255,255,.04));box-shadow:inset 0 1px 0 rgba(255,255,255,.3),0 6px 20px rgba(0,0,0,.25);-webkit-backdrop-filter:blur(18px) saturate(160%);color:var(--ink);padding:11px 18px;border-radius:999px;cursor:pointer;backdrop-filter:blur(6px)}
+button:hover{border-color:var(--glow)}button.hold{background:#00954C;border-color:#00954C;font-weight:600}
+button.hold.live{background:#B42318;border-color:#B42318}
+textarea{width:min(92vw,560px);margin-top:14px;background:var(--panel);color:var(--ink);border:1px solid #0e5a3a;border-radius:12px;padding:10px;font:inherit;font-size:14px}
+.note{max-width:560px;font-size:12px;color:var(--dim);text-align:center;margin-top:14px;line-height:1.5}
+body.red{background:radial-gradient(ellipse at 50% 35%,#3a0c0c 0%,#140404 70%)}
+body.red .state{color:#ff8a8a}
+#hold{touch-action:none;-webkit-touch-callout:none}
+</style></head><body>
+<h1>J · A · R · V · I · S</h1>
+<div class="stage"><canvas id="c"></canvas><div class="state" id="state">Standing by</div></div>
+<div class="say" id="say">Checking your JARVIS sign-in…</div>
+<div class="row">
+  <button id="brief">☀ Briefing</button>
+  <button id="hold" class="hold">🎙 Hold to talk</button>
+  <button id="hf">🚗 Hands-free</button>
+  <button id="stop">■ Stop</button>
+  <button id="cfg" title="Your standing instructions for JARVIS AI">⚙</button>
+</div>
+<form id="typeform" class="row" style="margin-top:12px"><input id="typed" placeholder="Or type to JARVIS…" autocomplete="off" style="flex:1;min-width:220px;max-width:420px;background:rgba(255,255,255,.06);color:var(--ink);border:1px solid rgba(255,255,255,.2);border-radius:999px;padding:11px 16px;font:inherit;-webkit-user-select:text;user-select:text"><button>Send</button></form>
+<div class="row" style="margin-top:10px;font-size:13px;color:var(--dim);align-items:center">Voice <select id="voice" style="background:rgba(255,255,255,.06);color:var(--ink);border:1px solid rgba(255,255,255,.2);border-radius:999px;padding:7px 12px;font:inherit;max-width:240px"><option>Loading voices…</option></select></div>
+<div class="acts" id="acts" style="font-size:13px;color:var(--glow);min-height:1.2em;margin-top:10px;text-align:center"></div>
+<div class="note">Teachers only. JARVIS AI sees class counts, today's lessons and your own to-do list, never student names. Hold to talk, let go to send.</div>
+<script src="../config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.0/dist/umd/supabase.js"></script>
+<script>
+const cv=document.getElementById('c'),cx=cv.getContext('2d'),st=document.getElementById('state'),say=document.getElementById('say');
+let C='60,224,143',C2='0,149,76',red=0,W,H,R,mode='idle',energy=0,flick=0,micLevel=0,t0=performance.now(),pulses=[],an=null,micStream=null,raf;
+function size(){const d=devicePixelRatio||1,b=cv.getBoundingClientRect();cv.width=b.width*d;cv.height=b.height*d;cx.setTransform(d,0,0,d,0,0);W=b.width;H=b.height;R=Math.min(W,H)*.26}
+addEventListener('resize',size);size();
+const N=48; // radial HUD lines
+function pulse(strength){pulses.push({t:performance.now(),s:strength,a:Math.random()*Math.PI*2});energy=Math.min(1.4,energy+strength)}
+function draw(now){
+  const t=(now-t0)/1000; cx.clearRect(0,0,W,H);
+  red+=((mode==='listen'?1:0)-red)*.15; const L=(a,b)=>Math.round(a+(b-a)*red);
+  C=`${L(60,255)},${L(224,72)},${L(143,72)}`; C2=`${L(0,180)},${L(149,35)},${L(76,24)}`;
+  document.documentElement.style.setProperty('--glow',`rgb(${C})`); const x=W/2,y=H/2;
+  if(mode==='listen'&&an){const a=new Uint8Array(an.fftSize);an.getByteTimeDomainData(a);let s=0;for(const v of a){const d=(v-128)/128;s+=d*d}micLevel=Math.min(1,Math.sqrt(s/a.length)*5)}else micLevel*=.9;
+  energy*=.93; flick*=.85;
+  const base=mode==='idle'?.06+.04*Math.sin(t*1.6):0;
+  const lvl=Math.max(base,energy,mode==='listen'?micLevel:0);
+  // outer thin rings
+  cx.lineWidth=1;
+  for(let k=0;k<3;k++){cx.beginPath();cx.strokeStyle=`rgba(${C},${.12+.08*k})`;cx.arc(x,y,R*(1.55+k*.18),t*(k%2?.2:-.15),t*(k%2?.2:-.15)+Math.PI*(1.2+k*.25));cx.stroke()}
+  // radial lines
+  for(let i=0;i<N;i++){const ang=i/N*Math.PI*2-Math.PI/2;let h=.08+lvl*.55*(.6+.4*Math.sin(i*1.7+t*6));
+    for(const p of pulses){const age=(now-p.t)/1000;if(age>.6)continue;const da=Math.abs(((ang-p.a+Math.PI*3)%(Math.PI*2))-Math.PI);h+=p.s*Math.max(0,1-da*1.5)*(1-age/.6)*.5}
+    const r1=R*1.14,r2=r1+R*h, ca=Math.cos(ang), sa=Math.sin(ang), x1=x+ca*r1,y1=y+sa*r1,x2=x+ca*r2,y2=y+sa*r2;
+    // Liquid Glass capsule: tinted translucent body, soft edge, bright specular core
+    cx.lineCap='round';
+    cx.strokeStyle=`rgba(${C},${.10+Math.min(.25,h*.4)})`;cx.lineWidth=9;cx.beginPath();cx.moveTo(x1,y1);cx.lineTo(x2,y2);cx.stroke();
+    const gl=cx.createLinearGradient(x1,y1,x2,y2);gl.addColorStop(0,`rgba(${C},${.35+Math.min(.5,h)})`);gl.addColorStop(1,`rgba(255,255,255,${.25+Math.min(.5,h*.8)})`);
+    cx.strokeStyle=gl;cx.lineWidth=5;cx.beginPath();cx.moveTo(x1,y1);cx.lineTo(x2,y2);cx.stroke();
+    cx.strokeStyle=`rgba(255,255,255,${.35+Math.min(.55,h)})`;cx.lineWidth=1.4;cx.beginPath();cx.moveTo(x1-sa*1.2,y1+ca*1.2);cx.lineTo(x2-sa*1.2,y2+ca*1.2);cx.stroke()}
+  pulses=pulses.filter(p=>now-p.t<600);
+  // core ring
+  const g=cx.createRadialGradient(x,y,R*.2,x,y,R*1.05);g.addColorStop(0,`rgba(${C2},${.10+lvl*.25})`);g.addColorStop(1,`rgba(${C2},0)`);cx.fillStyle=g;cx.beginPath();cx.arc(x,y,R*1.05,0,7);cx.fill();
+  const gd=cx.createLinearGradient(x,y-R,x,y+R);gd.addColorStop(0,'rgba(255,255,255,.16)');gd.addColorStop(.45,'rgba(255,255,255,.04)');gd.addColorStop(1,`rgba(${C},.10)`);cx.fillStyle=gd;cx.beginPath();cx.arc(x,y,R*.96,0,7);cx.fill();
+  cx.strokeStyle='rgba(255,255,255,.35)';cx.lineWidth=1;cx.beginPath();cx.arc(x,y,R*.93,Math.PI*1.1,Math.PI*1.9);cx.stroke();
+  cx.shadowColor=`rgb(${C})`;cx.shadowBlur=18+lvl*30+flick*40;cx.strokeStyle=`rgba(${C},${.75+flick*.25})`;cx.lineWidth=3+lvl*3;cx.beginPath();cx.arc(x,y,R*(1+lvl*.06),0,7);cx.stroke();cx.shadowBlur=0;
+  cx.strokeStyle=`rgba(${C},.4)`;cx.lineWidth=1;cx.setLineDash([3,7]);cx.beginPath();cx.arc(x,y,R*.82,-t*.4,-t*.4+Math.PI*2);cx.stroke();cx.setLineDash([]);
+  raf=requestAnimationFrame(draw)}
+raf=requestAnimationFrame(draw);
+
+// ---- speaking: pulse on every word boundary ----
+let gotBoundary=false,fallback=null;
+function speak(text){stopAll(true);text=String(text||'').trim();if(!text)return;
+  const words=text.split(/(\s+)/);say.innerHTML=words.map((w,i)=>/\s/.test(w)?w:`<span class="w" data-i="${i}">${w.replace(/</g,'&lt;')}</span>`).join('');
+  const spans=[...say.querySelectorAll('.w')];const starts=[];let pos=0;for(const w of words){if(!/\s/.test(w))starts.push(pos);pos+=w.length}
+  const u=new SpeechSynthesisUtterance(text);u.rate=1.02;u.pitch=.9;
+  u.voice=pickVoice();
+  gotBoundary=false;
+  const hit=(idx,len)=>{const w=text.substr(idx,len||12).split(/\s/)[0]||'';pulse(Math.min(1,.35+w.length*.07));if(/[.,!?;:]$/.test(w))flick=1;
+    const k=starts.findLastIndex?starts.findLastIndex(s=>s<=idx):starts.map(s=>s<=idx).lastIndexOf(true);spans.forEach((s,j)=>s.classList.toggle('on',j<=k))};
+  u.onboundary=e=>{if(e.name&&e.name!=='word')return;gotBoundary=true;hit(e.charIndex,e.charLength)};
+  u.onstart=()=>{speaking=true;mode='speak';st.textContent='Speaking';
+    // Some online voices don't report word timing; estimate it so the lines still move.
+    let i=0;fallback=setInterval(()=>{if(gotBoundary){clearInterval(fallback);return}if(i>=starts.length){clearInterval(fallback);return}hit(starts[i]);i++},300/u.rate)};
+  u.onend=u.onerror=()=>{speaking=false;clearInterval(fallback);mode='idle';st.textContent=handsFree?'Hands-free':'Standing by';spans.forEach(s=>s.classList.add('on'));if(handsFree)setTimeout(listenLoop,450)};
+  speechSynthesis.speak(u)}
+function stopAll(keepRec){speechSynthesis.cancel();clearInterval(fallback);stopMic(keepRec);mode='idle';st.textContent='Standing by'}
+
+// ---- listening: lines follow mic level (push to talk) ----
+const IOS=/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+async function startMic(){stopAll();startRec();
+  // iPhone: only one thing can use the mic. Give it to speech recognition; the lines react to words instead.
+  if(IOS&&SR){listenUI(true);say.textContent='Listening…';return}
+  try{micStream=await navigator.mediaDevices.getUserMedia({audio:true});const ac=new (window.AudioContext||window.webkitAudioContext)();const src=ac.createMediaStreamSource(micStream);an=ac.createAnalyser();an.fftSize=1024;src.connect(an);an._ac=ac;mode='listen';st.textContent='Listening';hold.classList.add('live');document.body.classList.add('red');say.textContent='Listening…'}catch(e){say.textContent='Mic blocked. Allow the microphone for this page to try listening mode.'}}
+function stopMic(keepRec){if(!keepRec)endRec();if(micStream){micStream.getTracks().forEach(t=>t.stop());micStream=null}if(an){an._ac.close();an=null}hold.classList.remove('live');document.body.classList.remove('red');if(mode==='listen'){mode='idle';st.textContent='Standing by'}}
+const hold=document.getElementById('hold');
+let unlocked=false;function unlock(){if(unlocked)return;unlocked=true;try{const u=new SpeechSynthesisUtterance(' ');u.volume=0;speechSynthesis.speak(u)}catch(_){}} // iPhone only allows speech after a tap
+document.addEventListener('pointerdown',unlock,{capture:true});
+hold.addEventListener('pointerdown',e=>{e.preventDefault();startMic()});['pointerup','pointerleave','pointercancel','touchend','touchcancel'].forEach(ev=>hold.addEventListener(ev,()=>stopMic()));
+document.getElementById('hf').onclick=()=>setHandsFree(!handsFree);
+document.getElementById('brief').onclick=()=>send('',true);
+document.getElementById('typeform').onsubmit=e=>{e.preventDefault();const t=document.getElementById('typed');const v=t.value.trim();if(v){t.value='';send(v)}};document.getElementById('stop').onclick=()=>{ if(handsFree) setHandsFree(false); stopAll(); };
+speechSynthesis.getVoices();speechSynthesis.onvoiceschanged=()=>{};
+
+// ---- voice choice: saved on this device ----
+const VKEY='jarvisAiVoice';
+const vq=x=>(/premium/i.test(x.name)?3:/enhanced|natural|neural/i.test(x.name)?2:0)+(/^en-US/i.test(x.lang)?1:0);
+function englishVoices(){return speechSynthesis.getVoices().filter(x=>/^en/i.test(x.lang)&&!/novelty|whisper|bells|bubbles|jester|organ|superstar|trinoids|zarvox|cellos|bad news|good news|boing|wobble|albert|fred|junior|kathy|ralph/i.test(x.name)).sort((a,b)=>vq(b)-vq(a)||a.name.localeCompare(b.name))}
+function pickVoice(){let saved=null;try{saved=localStorage.getItem(VKEY)}catch(_){}const v=englishVoices();return v.find(x=>x.voiceURI===saved||x.name===saved)||v[0]||null}
+function fillVoices(){const sel=document.getElementById('voice');if(!sel)return;const v=englishVoices();if(!v.length)return;const cur=pickVoice();
+  sel.innerHTML=v.map(x=>`<option value="${x.voiceURI.replace(/"/g,'&quot;')}" ${cur&&x.voiceURI===cur.voiceURI?'selected':''}>${x.name.replace(/</g,'&lt;')}${vq(x)>=2?' ★':''}</option>`).join('')}
+speechSynthesis.addEventListener?.('voiceschanged',fillVoices); setTimeout(fillVoices,300); setTimeout(fillVoices,1500);
+document.addEventListener('change',e=>{if(e.target.id==='voice'){try{localStorage.setItem(VKEY,e.target.value)}catch(_){} speak('This is how I sound now.')}});
+// ---- speech to text (Safari on iPhone, Edge/Chrome on Windows) ----
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;let rec=null,heard='',recOn=false,silT=null,hardT=null,handsFree=false,speaking=false,wake=null;
+const ERR={'not-allowed':'Microphone or speech is blocked. iPhone: Settings → Safari → Microphone → Allow, and Settings → Siri → turn on Dictation (or “Siri & Dictation”).','service-not-allowed':'Speech isn’t allowed here. If you opened this from the Home Screen, try it in Safari, or make sure Dictation is turned on in Settings.','network':'Speech needs internet. Check the connection.','audio-capture':'No microphone found.'};
+function startRec(){if(!SR||recOn){return}heard='';clearTimeout(silT);clearTimeout(hardT);
+  try{rec=new SR();rec.lang='en-US';rec.interimResults=true;rec.continuous=true;
+  rec.onresult=e=>{heard=[...e.results].map(r=>r[0].transcript).join(' ');say.textContent=heard||'Listening…';pulse(.6);
+    if(handsFree){clearTimeout(silT);silT=setTimeout(finishRec,1500)}};   // hands-free: a 1.5 s pause sends it
+  rec.onaudiostart=()=>pulse(.3);
+  rec.onerror=e=>{if(e.error==='no-speech'||e.error==='aborted'){return} recOn=false;say.textContent=ERR[e.error]||('Speech error: '+e.error);
+    if(handsFree&&(e.error==='not-allowed'||e.error==='service-not-allowed')) setHandsFree(false); listenUI(false)};
+  rec.onend=()=>{ if(recOn) finishRec(); else if(handsFree&&!busy&&!speaking) setTimeout(listenLoop,300) };
+  recOn=true;rec.start()}catch(_){recOn=false}}
+function finishRec(){ if(!recOn) return; recOn=false; clearTimeout(silT); clearTimeout(hardT); try{rec.abort()}catch(_){} listenUI(false);
+  const t=heard.trim(); heard='';
+  if(t) send(t); else if(handsFree) setTimeout(listenLoop,300); else say.textContent='I didn’t hear anything. Hold the button while you talk.'; }
+// Letting go of the button: stop, give iPhone a moment to deliver the last words, then send no matter what.
+function endRec(){ if(!rec||!recOn) return; try{rec.stop()}catch(_){} clearTimeout(hardT); hardT=setTimeout(finishRec,700); }
+function listenUI(on){ hold.classList.toggle('live',on); document.body.classList.toggle('red',on); if(on){mode='listen';st.textContent='Listening'} else if(mode==='listen'){mode='idle';st.textContent=handsFree?'Hands-free':'Standing by'} }
+// ---- hands-free: listens, sends after you pause, talks back, listens again ----
+function listenLoop(){ if(!handsFree||busy||speaking||recOn) return; startRec(); if(recOn){ listenUI(true); say.textContent='Listening… just talk.'; } }
+async function setHandsFree(on){ handsFree=on; const b=document.getElementById('hf'); b.classList.toggle('hold',on); b.textContent=on?'🚗 Hands-free: ON':'🚗 Hands-free';
+  hold.style.display=on?'none':'';
+  if(on){ try{ wake=await navigator.wakeLock?.request('screen'); }catch(_){} speak('Hands-free on. Just talk, and pause when you’re done.'); }
+  else { try{wake&&wake.release()}catch(_){} wake=null; if(recOn){recOn=false;try{rec.abort()}catch(_){} } listenUI(false); st.textContent='Standing by'; } }
+document.addEventListener('visibilitychange',async()=>{ if(handsFree&&document.visibilityState==='visible'){ try{ wake=await navigator.wakeLock?.request('screen'); }catch(_){} } });
+if(!SR) setTimeout(()=>{if(!busy) say.textContent='Voice input isn’t available in this browser, so type below. JARVIS can still talk back.'},1500);
+
+// ---- JARVIS connection ----
+const CFG=window.JARVIS_CONFIG||{};let sb=null,history=[],busy=false;
+async function boot(){
+  try{ sb=window.supabase.createClient(CFG.url,CFG.anonKey,{auth:{persistSession:true,autoRefreshToken:true}}); }catch(_){ say.innerHTML='Setup problem: config.js is missing.';return }
+  const {data:{session}}=await sb.auth.getSession();
+  if(!session){ say.innerHTML='Sign in to JARVIS first, then come back. <a href="../" style="color:var(--glow)">Open JARVIS</a>';return }
+  const {data:me}=await sb.from('people').select('pid,name,role').eq('id',session.user.id).maybeSingle();
+  if(!me||me.role!=='teacher'){ say.textContent='JARVIS AI is for teachers only.';document.querySelector('.row').style.display='none';document.getElementById('typeform').style.display='none';return }
+  myPid=me.pid; const h=new Date().getHours(), first=String(me.name).split(' ')[0];
+  say.textContent=`${h<12?'Good morning':h<17?'Good afternoon':'Good evening'}, ${first}. Hold to talk, or tap Briefing.`;
+}
+async function send(text,briefing){
+  if(busy||!sb) return; busy=true; mode='think'; st.textContent='Thinking'; say.textContent=briefing?'Pulling your briefing…':'“'+text+'”'; document.getElementById('acts').textContent='';
+  const think=setInterval(()=>pulse(.25),180);
+  try{
+    const {data,error}=await sb.functions.invoke('jarvis-mrp',{body:{text,briefing:!!briefing,history}});
+    clearInterval(think);
+    if(error||!data||data.error){ const m=(data&&data.error)||'I couldn’t reach JARVIS. Check the connection.'; say.textContent=m; speak(m); return }
+    if(!briefing) history.push({role:'user',content:text}); history.push({role:'assistant',content:data.reply}); history=history.slice(-8);
+    if(data.actions&&data.actions.length) document.getElementById('acts').textContent='✓ '+data.actions.join(' · ');
+    speak(data.reply);
+  }catch(_){ clearInterval(think); say.textContent='I couldn’t reach JARVIS.'; }
+  finally{ busy=false; if(mode==='think'){mode='idle';st.textContent=handsFree?'Hands-free':'Standing by'} if(handsFree&&!speaking) setTimeout(listenLoop,600) }
+}
+let myPid=null;
+document.getElementById('cfg').onclick=async()=>{ if(!sb||!myPid) return;
+  const id='mrp_ai_'+myPid; const {data:row}=await sb.from('settings').select('data').eq('id',id).maybeSingle();
+  const cur=(row&&row.data&&row.data.instructions)||'';
+  const v=prompt('Standing instructions for JARVIS AI (how you like it to talk, what to remind you about):',cur);
+  if(v===null) return;
+  const {error}=await sb.rpc('jarvis_write',{op:'put',tbl:'settings',rid:id,payload:{id,by:myPid,instructions:v.slice(0,1500)},k:null});
+  say.textContent=error?'Couldn’t save that.':'Saved. I’ll follow that from now on.'; };
+boot();
+</script></body></html>
