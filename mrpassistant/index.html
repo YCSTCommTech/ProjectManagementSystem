@@ -39,7 +39,7 @@ body.red .state{color:#ff8a8a}
 <form id="typeform" class="row" style="margin-top:12px"><input id="typed" placeholder="Or type to JARVIS…" autocomplete="off" style="flex:1;min-width:220px;max-width:420px;background:rgba(255,255,255,.06);color:var(--ink);border:1px solid rgba(255,255,255,.2);border-radius:999px;padding:11px 16px;font:inherit;-webkit-user-select:text;user-select:text"><button>Send</button></form>
 <div class="row" style="margin-top:10px;font-size:13px;color:var(--dim);align-items:center">Voice <select id="voice" style="background:rgba(255,255,255,.06);color:var(--ink);border:1px solid rgba(255,255,255,.2);border-radius:999px;padding:7px 12px;font:inherit;max-width:240px"><option>Loading voices…</option></select></div>
 <div class="acts" id="acts" style="font-size:13px;color:var(--glow);min-height:1.2em;margin-top:10px;text-align:center"></div>
-<div class="note">Teachers only. JARVIS AI sees class counts, today's lessons and your own to-do list, never student names. Hold to talk, let go to send.</div>
+<div class="note" id="modeNote">JARVIS AI sees class counts, today's lessons and your own to-do list, never student names. Hold to talk, let go to send.</div>
 <script src="../config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.0/dist/umd/supabase.js"></script>
 <script>
@@ -157,8 +157,15 @@ async function boot(){
   try{ sb=window.supabase.createClient(CFG.url,CFG.anonKey,{auth:{persistSession:true,autoRefreshToken:true}}); }catch(_){ say.innerHTML='Setup problem: config.js is missing.';return }
   const {data:{session}}=await sb.auth.getSession();
   if(!session){ say.innerHTML='Sign in to JARVIS first, then come back. <a href="../" style="color:var(--glow)">Open JARVIS</a>';return }
-  const {data:me}=await sb.from('people').select('pid,name,role').eq('id',session.user.id).maybeSingle();
-  if(!me||me.role!=='teacher'){ say.textContent='JARVIS AI is for teachers only.';document.querySelector('.row').style.display='none';document.getElementById('typeform').style.display='none';return }
+  const {data:me}=await sb.from('people').select('pid,name,role,username').eq('id',session.user.id).maybeSingle();
+  if(!me||(me.role!=='teacher'&&me.role!=='student')){ say.textContent='JARVIS AI isn’t available for this account.';document.querySelector('.row').style.display='none';document.getElementById('typeform').style.display='none';return }
+  STAFF = me.role==='teacher' || String(me.username||'').toLowerCase()==='robert';
+  document.getElementById('cfg').style.display = STAFF ? '' : 'none';
+  document.getElementById('brief').textContent = STAFF ? '☀ Briefing' : '☀ What should I do?';
+  document.getElementById('modeNote').textContent = STAFF
+    ? 'Staff mode. JARVIS AI sees class counts, today’s lessons and your own to-do list, never student names.'
+    : 'Student mode. JARVIS AI sees only your own work and lessons. It gives hints, not answers, and can send your question to Mr. P. It’s an AI, so it can make mistakes.';
+  st.textContent = STAFF ? 'Staff mode' : 'Student mode';
   myPid=me.pid; const h=new Date().getHours(), first=String(me.name).split(' ')[0];
   say.textContent=`${h<12?'Good morning':h<17?'Good afternoon':'Good evening'}, ${first}. Hold to talk, or tap Briefing.`;
 }
@@ -175,7 +182,7 @@ async function send(text,briefing){
   }catch(_){ clearInterval(think); say.textContent='I couldn’t reach JARVIS.'; }
   finally{ busy=false; if(mode==='think'){mode='idle';st.textContent=handsFree?'Hands-free':'Standing by'} if(handsFree&&!speaking) setTimeout(listenLoop,600) }
 }
-let myPid=null;
+let myPid=null, STAFF=false;
 document.getElementById('cfg').onclick=async()=>{ if(!sb||!myPid) return;
   const id='mrp_ai_'+myPid; const {data:row}=await sb.from('settings').select('data').eq('id',id).maybeSingle();
   const cur=(row&&row.data&&row.data.instructions)||'';
