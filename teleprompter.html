@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="robots" content="noindex">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JARVIS Teleprompter</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: #1a1a1a;
+            color: #fff;
+            overflow: hidden;
+        }
+
+        .control-panel {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0, 0, 0, 0.9);
+            padding: 10px 15px;
+            z-index: 1000;
+            border-bottom: 2px solid #333;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .control-row {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+            width: 100%;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .control-panel label {
+            color: #ccc;
+            font-size: 13px;
+            min-width: 50px;
+        }
+
+        .control-panel input, .control-panel select, .control-panel button {
+            padding: 6px 10px;
+            border: 1px solid #555;
+            background: #333;
+            color: #fff;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        .control-panel button {
+            background: #00954C;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .control-panel button:hover {
+            background: #095641;
+        }
+
+        .control-panel button.secondary {
+            background: #666;
+        }
+
+        .control-panel button.secondary:hover {
+            background: #777;
+        }
+
+        /* --- Calibration row --- */
+        .calibration-row {
+            display: none;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+            width: 100%;
+            padding-top: 6px;
+            border-top: 1px solid #444;
+        }
+
+        .calibration-row.active {
+            display: flex;
+        }
+
+        .cal-label {
+            color: #ffc107;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .cal-btn {
+            background: #444 !important;
+            border: 1px solid #666 !important;
+            color: #ffc107 !important;
+            padding: 3px 8px !important;
+            font-size: 11px !important;
+            cursor: pointer;
+            border-radius: 3px;
+            min-width: 28px;
+            line-height: 1;
+        }
+
+        .cal-btn:hover {
+            background: #555 !important;
+        }
+
+        .cal-value {
+            color: #ffc107;
+            font-size: 12px;
+            min-width: 50px;
+            text-align: center;
+            font-family: monospace;
+        }
+
+        .cal-reset {
+            color: #aaa !important;
+            font-size: 10px !important;
+        }
+
+        .cal-info {
+            color: #888;
+            font-size: 11px;
+            margin-left: auto;
+        }
+
+        /* --- Teleprompter display area --- */
+        .teleprompter-display {
+            position: fixed;
+            top: 80px;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+        }
+
+        /*
+         * CRITICAL: .text-wrapper constrains the operator's text to the
+         * same width the anchor sees on the teleprompter popup.
+         * This ensures identical line-wrapping on both screens.
+         */
+        .text-wrapper {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .text-content {
+            line-height: 1.4;
+            text-align: center;
+            white-space: pre-wrap;
+            font-weight: 500;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+            position: absolute;
+            left: 0;
+            right: 0;
+            padding: 0 60px;
+        }
+
+        /* --- Script editor sidebar --- */
+        .text-input-area {
+            position: fixed;
+            top: 80px;
+            left: 20px;
+            width: 400px;
+            height: calc(100vh - 100px);
+            background: rgba(0, 0, 0, 0.9);
+            border: 1px solid #555;
+            border-radius: 8px;
+            z-index: 999;
+            transition: transform 0.3s ease;
+        }
+
+        .text-input-area.hidden {
+            transform: translateX(-420px);
+        }
+
+        .text-input-area textarea {
+            width: 100%;
+            height: calc(100% - 60px);
+            background: #222;
+            color: #fff;
+            border: none;
+            padding: 20px;
+            font-size: 16px;
+            line-height: 1.5;
+            resize: none;
+            outline: none;
+            font-family: 'Arial', sans-serif;
+        }
+
+        .text-input-header {
+            background: #333;
+            padding: 15px 20px;
+            border-bottom: 1px solid #555;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .text-input-header h3 {
+            color: #fff;
+            font-size: 16px;
+        }
+
+        .close-input {
+            background: none;
+            border: none;
+            color: #ccc;
+            cursor: pointer;
+            font-size: 20px;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+        }
+
+        .close-input:hover {
+            color: #fff;
+        }
+
+        /* --- Width guide overlay --- */
+        .width-guide {
+            display: none;
+            position: fixed;
+            top: 80px;
+            bottom: 0;
+            border-left: 1px dashed rgba(255, 193, 7, 0.25);
+            border-right: 1px dashed rgba(255, 193, 7, 0.25);
+            pointer-events: none;
+            z-index: 998;
+        }
+
+        .width-guide.active {
+            display: block;
+        }
+
+        /* --- Status indicator --- */
+        .status-indicator {
+            position: fixed;
+            top: 50%;
+            right: 20px;
+            transform: translateY(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            z-index: 1001;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin: 0 auto 8px;
+            background: #28a745;
+        }
+
+        .status-dot.paused {
+            background: #ffc107;
+        }
+    </style>
+</head>
+<body>
+    <div class="control-panel">
+        <div class="control-row">
+            <div class="control-group">
+                <label for="speed">Speed:</label>
+                <input type="range" id="speed" min="1" max="20" value="5">
+                <span id="speedValue">5</span>
+            </div>
+            
+            <div class="control-group">
+                <label for="fontSize">Size:</label>
+                <input type="range" id="fontSize" min="24" max="120" value="48">
+                <span id="fontSizeValue">48px</span>
+            </div>
+            
+            <div class="control-group">
+                <label for="textColor">Color:</label>
+                <select id="textColor">
+                    <option value="#ffffff">White</option>
+                    <option value="#ffff00">Yellow</option>
+                    <option value="#00ff00">Green</option>
+                    <option value="#ff0000">Red</option>
+                    <option value="#00ffff">Cyan</option>
+                </select>
+            </div>
+            
+            <button id="playPause">▶ Play</button>
+            <button id="reset" class="secondary">⟲ Reset</button>
+            <button id="editText" class="secondary">✏ Edit Text</button>
+            <button id="teleprompterMode">📺 Teleprompter View</button>
+            <button id="fromRundown" class="secondary" title="Rebuild the script from today’s Spartan TV rundown">↻ From rundown</button>
+            <span id="jarvisInfo" style="color:#9fd8b8;font-size:12px;margin-left:auto"></span>
+        </div>
+
+        <!-- Calibration row: only visible when teleprompter popup is open -->
+        <div class="calibration-row" id="calibrationRow">
+            <span class="cal-label">⚙ OPERATOR OFFSET</span>
+            <button class="cal-btn" id="calUp" title="Shift operator view up (Shift+↑)">▲</button>
+            <span class="cal-value" id="calValue">0px</span>
+            <button class="cal-btn" id="calDown" title="Shift operator view down (Shift+↓)">▼</button>
+            <button class="cal-btn cal-reset" id="calReset" title="Reset offset">Reset</button>
+            <span class="cal-info">Shift+↑/↓ • Adjusts operator view only — anchor unaffected</span>
+        </div>
+    </div>
+
+    <div class="text-input-area hidden" id="textInputArea">
+        <div class="text-input-header">
+            <h3>Edit Script</h3>
+            <button class="close-input" id="closeInput">×</button>
+        </div>
+        <textarea id="scriptText" placeholder="Enter your script here..."></textarea>
+    </div>
+
+    <!-- Width guide lines showing the teleprompter-matched area -->
+    <div class="width-guide" id="widthGuide"></div>
+
+    <div class="teleprompter-display">
+        <div class="text-wrapper" id="textWrapper">
+            <div class="text-content" id="textContent"></div>
+        </div>
+    </div>
+
+    <div class="status-indicator">
+        <div class="status-dot" id="statusDot"></div>
+        <div>Ready</div>
+    </div>
+
+    <script>
+        class TeleprompterApp {
+            constructor() {
+                this.isPlaying = false;
+                this.speed = 5;
+                this.fontSize = 48;
+                this.textColor = '#ffffff';
+                this.currentPosition = 0;
+                this.operatorOffset = 0;
+                this.animationId = null;
+                this.isTeleprompterMode = false;
+                this.teleprompterWindow = null;
+
+                // Shared layout constants — identical on both screens
+                this.LAYOUT = {
+                    padding: 60,       // px horizontal padding on both views
+                    lineHeight: 1.4,
+                    fontWeight: 500,
+                    fontFamily: 'Arial, sans-serif',
+                };
+
+                this.initializeElements();
+                this.bindEvents();
+                this.loadFromJarvis(false);
+                this.loadScript();
+                this.updateFontSize(this.fontSize);
+                this.updateTextColor(this.textColor);
+            }
+            
+            initializeElements() {
+                this.playPauseBtn = document.getElementById('playPause');
+                this.resetBtn = document.getElementById('reset');
+                this.editTextBtn = document.getElementById('editText');
+                this.teleprompterModeBtn = document.getElementById('teleprompterMode');
+                this.speedSlider = document.getElementById('speed');
+                this.fontSizeSlider = document.getElementById('fontSize');
+                this.textColorSelect = document.getElementById('textColor');
+                this.speedValue = document.getElementById('speedValue');
+                this.fontSizeValue = document.getElementById('fontSizeValue');
+                this.textContent = document.getElementById('textContent');
+                this.textWrapper = document.getElementById('textWrapper');
+                this.scriptTextarea = document.getElementById('scriptText');
+                this.textInputArea = document.getElementById('textInputArea');
+                this.closeInputBtn = document.getElementById('closeInput');
+                this.statusDot = document.getElementById('statusDot');
+                this.widthGuide = document.getElementById('widthGuide');
+
+                // Calibration
+                this.calibrationRow = document.getElementById('calibrationRow');
+                this.calUpBtn = document.getElementById('calUp');
+                this.calDownBtn = document.getElementById('calDown');
+                this.calResetBtn = document.getElementById('calReset');
+                this.calValueEl = document.getElementById('calValue');
+            }
+            
+            bindEvents() {
+                this.playPauseBtn.addEventListener('click', () => this.togglePlayPause());
+                this.resetBtn.addEventListener('click', () => this.resetScroll());
+                this.editTextBtn.addEventListener('click', () => this.toggleTextInput());
+                this.teleprompterModeBtn.addEventListener('click', () => this.toggleTeleprompterMode());
+                this.closeInputBtn.addEventListener('click', () => this.hideTextInput());
+                
+                this.speedSlider.addEventListener('input', (e) => this.updateSpeed(e.target.value));
+                this.fontSizeSlider.addEventListener('input', (e) => this.updateFontSize(e.target.value));
+                this.textColorSelect.addEventListener('change', (e) => this.updateTextColor(e.target.value));
+                
+                this.scriptTextarea.addEventListener('input', () => { this.loadScript(); this.saveToJarvis(); });
+                document.getElementById('fromRundown').addEventListener('click', () => {
+                    if (confirm('Replace this script with a fresh copy from the Spartan TV rundown? Your edits here will be lost.')) { this.loadFromJarvis(true); this.loadScript(); }
+                });
+
+                // Calibration buttons
+                this.calUpBtn.addEventListener('click', () => this.adjustOperatorOffset(-30));
+                this.calDownBtn.addEventListener('click', () => this.adjustOperatorOffset(30));
+                this.calResetBtn.addEventListener('click', () => this.resetOperatorOffset());
+                
+                // Keyboard shortcuts
+                document.addEventListener('keydown', (e) => {
+                    if (e.target === this.scriptTextarea) return;
+                    
+                    if (e.code === 'Space') {
+                        e.preventDefault();
+                        this.togglePlayPause();
+                    } else if (e.code === 'KeyR' && !e.shiftKey) {
+                        e.preventDefault();
+                        this.resetScroll();
+                    } else if (e.shiftKey && e.code === 'ArrowUp') {
+                        e.preventDefault();
+                        this.adjustOperatorOffset(-30);
+                    } else if (e.shiftKey && e.code === 'ArrowDown') {
+                        e.preventDefault();
+                        this.adjustOperatorOffset(30);
+                    } else if (e.code === 'ArrowUp') {
+                        e.preventDefault();
+                        this.nudgeUp();
+                    } else if (e.code === 'ArrowDown') {
+                        e.preventDefault();
+                        this.nudgeDown();
+                    } else if (e.code === 'KeyF' && !e.ctrlKey && !e.shiftKey && !e.altKey) {
+                        e.preventDefault();
+                        this.toggleFullscreen();
+                    } else if (e.code === 'Escape') {
+                        if (this.isTeleprompterMode) {
+                            this.toggleTeleprompterMode();
+                        } else {
+                            this.hideTextInput();
+                        }
+                    }
+                });
+
+                // Handle window close
+                window.addEventListener('beforeunload', () => {
+                    if (this.teleprompterWindow && !this.teleprompterWindow.closed) {
+                        this.teleprompterWindow.close();
+                    }
+                });
+            }
+            
+            // ---- JARVIS: today's script comes from the Spartan TV rundown ----
+            jarvis() { try { return window.opener && !window.opener.closed && window.opener.jarvisPrompter ? window.opener : null; } catch (e) { return null; } }
+            loadFromJarvis(rebuild) {
+                const J = this.jarvis(), info = document.getElementById('jarvisInfo');
+                this.day = new URLSearchParams(location.search).get('d') || '';
+                if (!J) {
+                    info.textContent = 'Open this from JARVIS → Spartan TV to load the day’s script.';
+                    if (!this.scriptTextarea.value) this.scriptTextarea.value = 'Open the teleprompter from JARVIS (Spartan TV → Teleprompter) and today’s script loads here automatically.';
+                    return;
+                }
+                const r = J.jarvisPrompter(this.day, !!rebuild);
+                this.scriptTextarea.value = r.text;
+                this.canSave = !!r.canSave;
+                document.title = 'Teleprompter · ' + r.label;
+                info.textContent = r.label + (r.edited && !rebuild ? ' · edited script' : ' · from rundown') + (this.canSave ? ' · edits save to JARVIS' : '');
+                if (rebuild && this.canSave) J.jarvisPrompterSave(this.day, null);
+            }
+            saveToJarvis() {
+                const J = this.jarvis(); if (!J || !this.canSave) return;
+                clearTimeout(this._saveT);
+                this._saveT = setTimeout(() => { J.jarvisPrompterSave(this.day, this.scriptTextarea.value); document.getElementById('jarvisInfo').textContent = 'Saved to JARVIS · ' + new Date().toLocaleTimeString([], {hour:'numeric', minute:'2-digit'}); }, 800);
+            }
+
+            loadScript() {
+                const text = this.scriptTextarea.value;
+                this.textContent.textContent = text;
+                
+                this.currentPosition = 0;
+                this.textContent.style.top = '100vh';
+                
+                if (this.teleprompterWindow && !this.teleprompterWindow.closed) {
+                    try {
+                        const popupContent = this.teleprompterWindow.document.getElementById('teleprompterText');
+                        if (popupContent) {
+                            popupContent.textContent = text;
+                            popupContent.style.top = '100vh';
+                        }
+                    } catch (e) {
+                        console.log('Could not update teleprompter:', e);
+                    }
+                }
+            }
+            
+            togglePlayPause() {
+                this.isPlaying = !this.isPlaying;
+                this.playPauseBtn.textContent = this.isPlaying ? '⏸ Pause' : '▶ Play';
+                this.statusDot.className = this.isPlaying ? 'status-dot' : 'status-dot paused';
+                
+                if (this.isPlaying) {
+                    this.startScrolling();
+                } else {
+                    cancelAnimationFrame(this.animationId);
+                }
+            }
+            
+            resetScroll() {
+                this.currentPosition = 0;
+                this.operatorOffset = 0;
+                this.calValueEl.textContent = '0px';
+                this.updatePosition();
+                
+                if (this.isPlaying) {
+                    this.isPlaying = false;
+                    this.playPauseBtn.textContent = '▶ Play';
+                    this.statusDot.className = 'status-dot paused';
+                    cancelAnimationFrame(this.animationId);
+                }
+            }
+            
+            nudgeUp() {
+                this.currentPosition = Math.max(0, this.currentPosition - 30);
+                this.updatePosition();
+            }
+            
+            nudgeDown() {
+                this.currentPosition += 30;
+                this.updatePosition();
+            }
+
+            // ---- Operator offset (does NOT affect anchor) ----
+            adjustOperatorOffset(delta) {
+                this.operatorOffset += delta;
+                this.calValueEl.textContent = (this.operatorOffset >= 0 ? '+' : '') + this.operatorOffset + 'px';
+                // Only update operator view
+                this.textContent.style.top = `calc(100vh - ${this.currentPosition + this.operatorOffset}px)`;
+            }
+
+            resetOperatorOffset() {
+                this.operatorOffset = 0;
+                this.calValueEl.textContent = '0px';
+                this.textContent.style.top = `calc(100vh - ${this.currentPosition}px)`;
+            }
+            
+            updatePosition() {
+                // Operator view includes their personal offset
+                this.textContent.style.top = `calc(100vh - ${this.currentPosition + this.operatorOffset}px)`;
+                
+                // Anchor/teleprompter view: true position only
+                if (this.teleprompterWindow && !this.teleprompterWindow.closed) {
+                    try {
+                        const popupContent = this.teleprompterWindow.document.getElementById('teleprompterText');
+                        if (popupContent) {
+                            popupContent.style.top = `calc(100vh - ${this.currentPosition}px)`;
+                        }
+                    } catch (e) {
+                        console.log('Lost connection to teleprompter window');
+                    }
+                }
+            }
+            
+            updateSpeed(value) {
+                this.speed = parseInt(value);
+                this.speedValue.textContent = value;
+            }
+            
+            updateFontSize(value) {
+                this.fontSize = parseInt(value);
+                this.fontSizeValue.textContent = value + 'px';
+
+                // Same font size on BOTH screens
+                this.textContent.style.fontSize = value + 'px';
+                
+                if (this.teleprompterWindow && !this.teleprompterWindow.closed) {
+                    try {
+                        const popupContent = this.teleprompterWindow.document.getElementById('teleprompterText');
+                        if (popupContent) {
+                            popupContent.style.fontSize = value + 'px';
+                        }
+                    } catch (e) {}
+                }
+            }
+            
+            updateTextColor(value) {
+                this.textColor = value;
+                this.textContent.style.color = value;
+                
+                if (this.teleprompterWindow && !this.teleprompterWindow.closed) {
+                    try {
+                        const popupContent = this.teleprompterWindow.document.getElementById('teleprompterText');
+                        if (popupContent) {
+                            popupContent.style.color = value;
+                        }
+                    } catch (e) {}
+                }
+            }
+            
+            toggleTextInput() {
+                this.textInputArea.classList.toggle('hidden');
+                if (!this.textInputArea.classList.contains('hidden')) {
+                    this.scriptTextarea.focus();
+                }
+            }
+            
+            hideTextInput() {
+                this.textInputArea.classList.add('hidden');
+            }
+            
+            toggleTeleprompterMode() {
+                if (!this.isTeleprompterMode) {
+                    this.openTeleprompterWindow();
+                } else {
+                    this.closeTeleprompterWindow();
+                }
+            }
+            
+            openTeleprompterWindow() {
+                const screenWidth = screen.width;
+                const screenHeight = screen.height;
+                const popupWidth = 1200;
+                const popupHeight = 800;
+                const left = screenWidth;
+                const top = 0;
+                
+                const features = `width=${popupWidth},height=${popupHeight},left=${left},top=${top},resizable=yes`;
+                
+                this.teleprompterWindow = window.open('', 'teleprompter', features);
+                
+                if (this.teleprompterWindow) {
+                    this.setupTeleprompterWindow();
+                    this.isTeleprompterMode = true;
+                    this.teleprompterModeBtn.textContent = '❌ Close Teleprompter';
+                    this.calibrationRow.classList.add('active');
+
+                    // Constrain operator view to match teleprompter text width
+                    this.matchOperatorWidth();
+                    
+                    const checkClosed = setInterval(() => {
+                        if (this.teleprompterWindow.closed) {
+                            this.closeTeleprompterWindow();
+                            clearInterval(checkClosed);
+                        }
+                    }, 1000);
+                } else {
+                    alert('Popup blocked! Please allow popups for this site.');
+                }
+            }
+
+            /**
+             * Constrain the operator's text-wrapper to match the teleprompter
+             * popup's effective text width, so line breaks are identical.
+             */
+            matchOperatorWidth() {
+                if (!this.teleprompterWindow || this.teleprompterWindow.closed) return;
+
+                try {
+                    // Wait briefly for popup to finish layout
+                    setTimeout(() => {
+                        if (!this.teleprompterWindow || this.teleprompterWindow.closed) return;
+                        const popupWidth = this.teleprompterWindow.innerWidth;
+
+                        // Constrain the operator wrapper to the same total width
+                        this.textWrapper.style.maxWidth = popupWidth + 'px';
+
+                        // Show width guide lines
+                        const wrapperRect = this.textWrapper.getBoundingClientRect();
+                        this.widthGuide.style.left = wrapperRect.left + 'px';
+                        this.widthGuide.style.width = wrapperRect.width + 'px';
+                        this.widthGuide.classList.add('active');
+
+                        console.log(`Operator view constrained to ${popupWidth}px to match teleprompter`);
+                    }, 300);
+                } catch (e) {
+                    console.log('Could not read teleprompter dimensions:', e);
+                }
+            }
+            
+            setupTeleprompterWindow() {
+                const doc = this.teleprompterWindow.document;
+                const L = this.LAYOUT;
+                doc.title = 'Teleprompter Display';
+                
+                // CRITICAL: Uses the exact same font-size, line-height, padding,
+                // font-weight, and font-family as the operator view
+                doc.head.innerHTML = `
+                    <style>
+                        * { margin: 0; padding: 0; box-sizing: border-box; }
+                        body {
+                            font-family: ${L.fontFamily};
+                            background: #000;
+                            color: #fff;
+                            overflow: hidden;
+                            cursor: none;
+                        }
+                        .teleprompter-display {
+                            position: fixed;
+                            top: 0;
+                            left: 0;
+                            right: 0;
+                            bottom: 0;
+                            overflow: hidden;
+                            transform: scaleX(-1);
+                        }
+                        .teleprompter-text {
+                            font-size: ${this.fontSize}px;
+                            line-height: ${L.lineHeight};
+                            text-align: center;
+                            white-space: pre-wrap;
+                            color: ${this.textColor};
+                            font-weight: ${L.fontWeight};
+                            text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.9);
+                            position: absolute;
+                            left: 0;
+                            right: 0;
+                            padding: 0 ${L.padding}px;
+                        }
+                    </style>
+                `;
+                
+                doc.body.innerHTML = `
+                    <div class="teleprompter-display">
+                        <div class="teleprompter-text" id="teleprompterText"></div>
+                    </div>
+                `;
+                
+                const popupContent = doc.getElementById('teleprompterText');
+                if (popupContent) {
+                    popupContent.textContent = this.scriptTextarea.value;
+                    popupContent.style.top = '100vh';
+                }
+                
+                doc.addEventListener('beforeunload', () => this.closeTeleprompterWindow());
+                
+                doc.addEventListener('keydown', (e) => {
+                    if (e.code === 'KeyF' && !e.ctrlKey && !e.shiftKey && !e.altKey) {
+                        e.preventDefault();
+                        this.toggleFullscreen();
+                    }
+                });
+                
+                this.teleprompterWindow.focus();
+                
+                // Sync position after layout settles
+                setTimeout(() => {
+                    if (!this.teleprompterWindow || this.teleprompterWindow.closed) return;
+                    const element = this.teleprompterWindow.document.getElementById('teleprompterText');
+                    if (element) {
+                        element.style.top = `calc(100vh - ${this.currentPosition}px)`;
+                    }
+                }, 100);
+
+                // If the popup is resized, re-match the operator width
+                this.teleprompterWindow.addEventListener('resize', () => {
+                    this.matchOperatorWidth();
+                });
+            }
+            
+            closeTeleprompterWindow() {
+                if (this.teleprompterWindow && !this.teleprompterWindow.closed) {
+                    this.teleprompterWindow.close();
+                }
+                this.teleprompterWindow = null;
+                this.isTeleprompterMode = false;
+                this.teleprompterModeBtn.textContent = '📺 Teleprompter View';
+                this.calibrationRow.classList.remove('active');
+
+                // Release operator width constraint
+                this.textWrapper.style.maxWidth = '';
+                this.widthGuide.classList.remove('active');
+            }
+            
+            toggleFullscreen() {
+                if (!this.teleprompterWindow || this.teleprompterWindow.closed) {
+                    alert('Please open Teleprompter View first (📺 button) before pressing F for fullscreen');
+                    return;
+                }
+                
+                try {
+                    const doc = this.teleprompterWindow.document;
+                    
+                    if (!doc.fullscreenElement) {
+                        if (doc.documentElement.requestFullscreen) {
+                            doc.documentElement.requestFullscreen();
+                        } else if (doc.documentElement.webkitRequestFullscreen) {
+                            doc.documentElement.webkitRequestFullscreen();
+                        } else if (doc.documentElement.msRequestFullscreen) {
+                            doc.documentElement.msRequestFullscreen();
+                        }
+                    } else {
+                        if (doc.exitFullscreen) {
+                            doc.exitFullscreen();
+                        } else if (doc.webkitExitFullscreen) {
+                            doc.webkitExitFullscreen();
+                        } else if (doc.msExitFullscreen) {
+                            doc.msExitFullscreen();
+                        }
+                    }
+
+                    // Re-match width after fullscreen change
+                    setTimeout(() => this.matchOperatorWidth(), 500);
+                } catch (e) {
+                    console.log('Fullscreen error:', e);
+                    alert('Could not toggle fullscreen. You may need to click on the teleprompter window first.');
+                }
+            }
+            
+            startScrolling() {
+                const scroll = () => {
+                    if (this.isPlaying) {
+                        this.currentPosition += this.speed * 0.5;
+                        this.updatePosition();
+                        this.animationId = requestAnimationFrame(scroll);
+                    }
+                };
+                scroll();
+            }
+        }
+        
+        window.addEventListener('DOMContentLoaded', () => {
+            new TeleprompterApp();
+        });
+    </script>
+</body>
+</html>
